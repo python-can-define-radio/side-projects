@@ -115,6 +115,9 @@ class gs1(gr.top_block, Qt.QWidget):
         self.freq = freq
         self.analog_sig_source_x_0.set_frequency(self.freq)
 
+    def set_amp(self, amp: float):
+        self.amp = amp
+        self.analog_sig_source_x_0.set_amplitude(self.amp)
 
 ## THIS IS ADDED:
 def actions(tb: gs1, q):
@@ -122,8 +125,8 @@ def actions(tb: gs1, q):
         action, arg = q.get(block=False)
         if action == "set_freq":
             tb.set_freq(arg)
-        elif action == "something_else":
-            ...
+        elif action == "set_amp":
+            tb.set_amp(arg)
     except:
         pass
 
@@ -163,7 +166,7 @@ def main(top_block_cls=gs1, options=None, q=None):
 
 
 ## THIS IS ADDED:
-Cmds = ["set_freq", "something_else"]
+Cmds = ["set_freq", "set_amp"]
 
 ## THIS IS ADDED:
 class GRC_QBR:
@@ -179,6 +182,9 @@ class GRC_QBR:
 
     def set_freq(self, freq: float):
         self.__action("set_freq", freq)
+
+    def set_amp(self, amp: float):
+        self.__action("set_amp", amp)
 
 
 
