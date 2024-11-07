@@ -1,3 +1,5 @@
+# mypy: ignore-errors
+
 from guizero import App, Slider, Text
 from mod_grc_signal_source import GRC_QBR
 

@@ -4,20 +4,36 @@ import multiprocessing as mp
 import signal
 import sys
 from threading import Thread
-from typing import Type, TypeVar, Generic, Callable, Protocol, Tuple, Any
+from typing import Type, TypeVar, Generic, Callable, Protocol, Tuple, Any, Iterable, List
+from typing_extensions import ParamSpec, Concatenate
 
-from gnuradio import gr, analog  # type: ignore[import-untyped]
-from PyQt5 import Qt
+from gnuradio import gr, analog  # type: ignore[import]
+from PyQt5 import Qt    # type: ignore[attr-defined]
 
 
 Tgr = TypeVar("Tgr", bound=gr.top_block)
-class TCmd(Protocol):
-    def __call__(self, Tgr, *args) -> None: ...
+P = ParamSpec("P")
 
+TbFunc = Callable[Concatenate[Any, P], None]
+"""A function whose signature looks like any of the below.
+Note that the first argument should be an instance of `gr.top_block` or any subclass,
+but this is not easily enforced due to the variety of possible subclass
+attributes, so it is labelled as "Any".
+
+```python
+def f(tb) -> None: ...
+def f(tb, a) -> None: ...
+def f(tb, a, b) -> None: ...
+def f(tb, a, b, c) -> None: ...
+# etc...
+```
+"""
+
+cmdqueue = mp.Queue[Tuple[TbFunc[P], Iterable[Any]]]
 
 
 class AboutToQuitAttr(Protocol):
-    def connect(self, f: Callable) -> Any: ...
+    def connect(self, f: Callable[[], Any]) -> Any: ...
 
 class QAppProt(Protocol):
     def exec_(self) -> Any: ...
@@ -43,7 +59,7 @@ def grc_main_prep(top_block_cls: Type[gr.top_block]) -> Tuple[gr.top_block, QApp
     ```
     """
 
-    if StrictVersion("4.5.0") <= StrictVersion(Qt.qVersion()) < StrictVersion("5.0.0"):  # type: ignore
+    if StrictVersion("4.5.0") <= StrictVersion(Qt.qVersion()) < StrictVersion("5.0.0"):
         style = gr.prefs().get_string('qtgui', 'style', 'raster')
         Qt.QApplication.setGraphicsSystem(style)
     qapp = Qt.QApplication(sys.argv)
@@ -52,7 +68,7 @@ def grc_main_prep(top_block_cls: Type[gr.top_block]) -> Tuple[gr.top_block, QApp
     tb.start()
     tb.show()
 
-    def sig_handler(sig=None, frame=None):
+    def sig_handler(sig=None, frame=None):  # type: ignore
         Qt.QApplication.quit()
 
     signal.signal(signal.SIGINT, sig_handler)
@@ -62,7 +78,7 @@ def grc_main_prep(top_block_cls: Type[gr.top_block]) -> Tuple[gr.top_block, QApp
     timer.start(500)
     timer.timeout.connect(lambda: None)
 
-    def quitting():
+    def quitting():   # type: ignore
         tb.stop()
         tb.wait()
     qapp.aboutToQuit.connect(quitting)
@@ -70,26 +86,19 @@ def grc_main_prep(top_block_cls: Type[gr.top_block]) -> Tuple[gr.top_block, QApp
     return tb, qapp
 
 
+def _stop_and_wait(q: cmdqueue) -> None:  # type: ignore
+    q.put((_quitcmd, ()))    # type: ignore
+    q.put((sys.exit, ()))    # type: ignore
 
 
-
-
-def _stop_and_wait_q(q: mp.Queue) -> None:
-    q.put((_quitcmd, ()))
-    q.put((sys.exit, ()))
-
-# def _stop_and_wait(pgrc: "ParallelGRC") -> None:
-#     _stop_and_wait_q(pgrc.q)
-
-
-def _quitcmd(tb):
-    from PyQt5 import Qt
+def _quitcmd(tb) -> None:   # type: ignore
+    """The unused tb param is required because the queue will pass in that arg"""
     Qt.QApplication.quit()
 
 
-def _event_loop(top_block_cls: gr.top_block, q: "mp.Queue[TCmd[Tgr]]") -> None:
+def _event_loop(top_block_cls: gr.top_block, q: cmdqueue[Any]) -> None:
     """Used to run the Qt/GR process."""
-    def processcmds():
+    def processcmds() -> None:
         while True:
             cmd, args = q.get(block=True)                
             cmd(tb, *args)
@@ -97,19 +106,22 @@ def _event_loop(top_block_cls: gr.top_block, q: "mp.Queue[TCmd[Tgr]]") -> None:
     tb, qapp = grc_main_prep(top_block_cls)
     thread = Thread(target=processcmds)
     thread.start()
-    qapp.aboutToQuit.connect(lambda: _stop_and_wait_q(q))
+    qapp.aboutToQuit.connect(lambda: _stop_and_wait(q))
     qapp.exec_()
     
 
-class ParallelGRC(Generic[Tgr]):
+class ParallelGR(Generic[Tgr]):
     def __init__(self, top_block_cls: Type[Tgr]) -> None:
-        self.q: "mp.Queue[TCmd[Tgr]]" = mp.Queue()
+        self.q: cmdqueue[Any] = mp.Queue()
         self.proc = mp.Process(target=lambda: _event_loop(top_block_cls, self.q))
 
     def start(self) -> None:
         self.proc.start()
 
-    def do(self, f: "TCmd[Tgr]", args = ()) -> None:
+    def put_cmd(self, f: TbFunc[P], *args: P.args, **kwargs: P.kwargs) -> None:
+        """Put a command into the queue for the child
+        process to execute. Any extra args provided will be
+        passed to `f`."""
         self.q.put((f, args))
 
 
@@ -122,5 +134,5 @@ class HasSigSource(Protocol):
 def _set_freq_tbaction(tb: HasSigSource, freq: float) -> None:
     tb.analog_sig_source_x_0.set_frequency(freq)
 
-def set_freq(pgrc: ParallelGRC, freq: float):
-    pgrc.do(_set_freq_tbaction, args=[freq])
+def set_freq(pgr: ParallelGR[Any], freq: float) -> None:
+    pgr.put_cmd(_set_freq_tbaction, freq)
