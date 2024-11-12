@@ -29,30 +29,30 @@ def f(tb, a, b, c) -> None: ...
 ```
 """
 
-cmdqueue = mp.Queue[Tuple[TbFunc[P], Iterable[Any]]]
+_cmdqueue = mp.Queue[Tuple[TbFunc[P], Iterable[Any]]]
 
 
-class AboutToQuitAttr(Protocol):
+class _AboutToQuitAttr(Protocol):
     def connect(self, f: Callable[[], Any]) -> Any: ...
 
-class QAppProt(Protocol):
+class _QAppProt(Protocol):
     def exec_(self) -> Any: ...
-    aboutToQuit: AboutToQuitAttr
+    aboutToQuit: _AboutToQuitAttr
 
 
-def grc_main_prep(top_block_cls: Type[gr.top_block]) -> Tuple[gr.top_block, QAppProt]:
+def _grc_main_prep(top_block_cls: Type[gr.top_block]) -> Tuple[gr.top_block, _QAppProt]:
     """This is a copy/paste of the main() function that is generated
     by GRC for Graphical (Qt) flowgraphs. It omits the last line
     of that main function, `qapp.exec_()`, because it is blocking.
     The developer using this function is responsible for running `.exec_()`.
     Example usage 1:
     ```python
-    tb, qapp = grc_main_prep(a_specific_gr_top_block)
+    tb, qapp = _grc_main_prep(a_specific_gr_top_block)
     qapp.exec_()
     ```
     Example usage 2:
     ```python
-    tb, qapp = grc_main_prep(a_specific_gr_top_block)
+    tb, qapp = _grc_main_prep(a_specific_gr_top_block)
     ## hypothetically, if your `tb` has a signal source block
     tb.signal_source.set_frequency(101.3e6)
     qapp.exec_()
@@ -86,7 +86,7 @@ def grc_main_prep(top_block_cls: Type[gr.top_block]) -> Tuple[gr.top_block, QApp
     return tb, qapp
 
 
-def _stop_and_wait(q: cmdqueue) -> None:  # type: ignore
+def _stop_and_wait(q: _cmdqueue) -> None:  # type: ignore
     q.put((_quitcmd, ()))    # type: ignore
     q.put((sys.exit, ()))    # type: ignore
 
@@ -96,14 +96,14 @@ def _quitcmd(tb) -> None:   # type: ignore
     Qt.QApplication.quit()
 
 
-def _event_loop(top_block_cls: gr.top_block, q: cmdqueue[Any]) -> None:
+def _event_loop(top_block_cls: gr.top_block, q: _cmdqueue[Any]) -> None:
     """Used to run the Qt/GR process."""
     def processcmds() -> None:
         while True:
             cmd, args = q.get(block=True)                
             cmd(tb, *args)
 
-    tb, qapp = grc_main_prep(top_block_cls)
+    tb, qapp = _grc_main_prep(top_block_cls)
     thread = Thread(target=processcmds)
     thread.start()
     qapp.aboutToQuit.connect(lambda: _stop_and_wait(q))
@@ -112,7 +112,7 @@ def _event_loop(top_block_cls: gr.top_block, q: cmdqueue[Any]) -> None:
 
 class ParallelGR(Generic[Tgr]):
     def __init__(self, top_block_cls: Type[Tgr]) -> None:
-        self.q: cmdqueue[Any] = mp.Queue()
+        self.q: _cmdqueue[Any] = mp.Queue()
         self.proc = mp.Process(target=lambda: _event_loop(top_block_cls, self.q))
 
     def start(self) -> None:
@@ -131,8 +131,9 @@ class ParallelGR(Generic[Tgr]):
 class HasSigSource(Protocol):
     analog_sig_source_x_0: analog.sig_source_c
 
-def _set_freq_tbaction(tb: HasSigSource, freq: float) -> None:
+def _set_freq_in_child(tb: HasSigSource, freq: float) -> None:
     tb.analog_sig_source_x_0.set_frequency(freq)
 
 def set_freq(pgr: ParallelGR[Any], freq: float) -> None:
-    pgr.put_cmd(_set_freq_tbaction, freq)
+    """Set the frequency of the signal source block."""
+    pgr.put_cmd(_set_freq_in_child, freq)
