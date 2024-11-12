@@ -1,14 +1,22 @@
-import time
-from basicsourcesinkwater import basicsourcesinkwater
-from gluecode2 import ParallelGR, set_freq
+from parallel_gr_v01 import P_turtle_xsquared, PGR_basicsourcesinkwater
 from guizero import App, Slider  # type: ignore[import]
+import time
 
-pgr = ParallelGR(basicsourcesinkwater)
+p = P_turtle_xsquared()
+p.start()
+p.set_scale(0.1)
+time.sleep(2)
+p.set_scale(0.03)
+time.sleep(2)
+p.set_scale(2)
+
+
+pgr = PGR_basicsourcesinkwater()
 pgr.start()
 time.sleep(1)
-set_freq(pgr, 10e3)
+pgr.set_freq(10e3)
 time.sleep(2)
-set_freq(pgr, 4e3)
+pgr.set_freq(4e3)
 
 ## Spec An
 ##  - freq
