@@ -240,8 +240,7 @@ class PGR_specan:
 
     @staticmethod
     def _set_freq_child(tb: "specan", freq: float) -> None:
-        tb.osmosdr_source_0.set_center_freq(freq)
-        tb.qtgui_sink_x_0.set_frequency_range(freq, tb.samp_rate)
+        tb.set_freq(freq)
 
     def set_freq(self, freq: float) -> None:
         """Set the center frequency of the SDR peripheral and the GUI spectrum view."""
@@ -268,6 +267,66 @@ class PGR_specan:
 
     @staticmethod
     def _set_bw_child(tb: "specan", bw: float) -> None:
+        tb.set_samp_rate(bw)
+
+    def set_bw(self, bw: float) -> None:
+        """Set the Bandwidth (amount of viewable spectrum)
+        of the GUI spectrum view. Also sets the sample rate 
+        of the SDR peripheral."""
+        This_Class = self.__class__
+        self.__pgr.put_cmd(This_Class._set_bw_child, bw)
+
+
+if TYPE_CHECKING:
+    from wbfm_rx import wbfm_rx
+
+class PGR_wbfm_rx:
+    def __init__(self, bw: float = 2e6, freq: float = 98e6, if_gain: int = 24) -> None:
+        """Create a {name here} Wideband FM Receiver.
+        Arguments are explained in their associated methods:
+        bw: see `set_bw()`
+        freq: see `set_freq()`
+        if_gain: see `if_gain()`
+        """
+        from wbfm_rx import wbfm_rx
+        self.__pgr = ParallelGR(wbfm_rx)
+        self.set_bw(bw)
+        self.set_freq(freq)
+        self.set_if_gain(if_gain)
+
+    def start(self) -> None:
+        """Start the parallel process and its associated GUI."""
+        self.__pgr.start()
+
+    @staticmethod
+    def _set_freq_child(tb: "wbfm_rx", freq: float) -> None:
+        tb.set_freq(freq)
+
+    def set_freq(self, freq: float) -> None:
+        """Set the center frequency of the SDR peripheral and the GUI spectrum view."""
+        This_Class = self.__class__
+        self.__pgr.put_cmd(This_Class._set_freq_child, freq)
+
+    @staticmethod
+    def _set_if_gain_child(tb: "wbfm_rx", gain: float) -> None:
+        tb.osmosdr_source_0.set_if_gain(gain)
+
+    def set_if_gain(self, gain: float) -> None:
+        """Set the Intermediate Frequency gain of the SDR peripheral."""
+        This_Class = self.__class__
+        self.__pgr.put_cmd(This_Class._set_if_gain_child, gain)
+
+    @staticmethod
+    def _set_bb_gain_child(tb: "wbfm_rx", gain: float) -> None:
+        tb.osmosdr_source_0.set_bb_gain(gain)
+
+    def set_bb_gain(self, gain: float) -> None:
+        """Set the Baseband gain of the SDR peripheral."""
+        This_Class = self.__class__
+        self.__pgr.put_cmd(This_Class._set_bb_gain_child, gain)
+
+    @staticmethod
+    def _set_bw_child(tb: "wbfm_rx", bw: float) -> None:
         tb.set_samp_rate(bw)
 
     def set_bw(self, bw: float) -> None:
