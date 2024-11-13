@@ -72,6 +72,7 @@ class specan(gr.top_block, Qt.QWidget):
         # Variables
         ##################################################
         self.samp_rate = samp_rate = 20e6
+        self.freq = freq = 98e6
 
         ##################################################
         # Blocks
@@ -79,7 +80,7 @@ class specan(gr.top_block, Qt.QWidget):
         self.qtgui_sink_x_0 = qtgui.sink_c(
             8192, #fftsize
             firdes.WIN_BLACKMAN_hARRIS, #wintype
-            98e6, #fc
+            freq, #fc
             samp_rate, #bw
             "", #name
             True, #plotfreq
@@ -98,7 +99,7 @@ class specan(gr.top_block, Qt.QWidget):
         )
         self.osmosdr_source_0.set_time_unknown_pps(osmosdr.time_spec_t())
         self.osmosdr_source_0.set_sample_rate(samp_rate)
-        self.osmosdr_source_0.set_center_freq(98e6, 0)
+        self.osmosdr_source_0.set_center_freq(freq, 0)
         self.osmosdr_source_0.set_freq_corr(0, 0)
         self.osmosdr_source_0.set_gain(0, 0)
         self.osmosdr_source_0.set_if_gain(16, 0)
@@ -124,8 +125,12 @@ class specan(gr.top_block, Qt.QWidget):
     def set_samp_rate(self, samp_rate):
         self.samp_rate = samp_rate
         self.osmosdr_source_0.set_sample_rate(self.samp_rate)
-        self.qtgui_sink_x_0.set_frequency_range(98e6, self.samp_rate)
+        self.qtgui_sink_x_0.set_frequency_range(self.freq, self.samp_rate)
 
+    def set_freq(self, freq):
+        self.freq = freq
+        self.osmosdr_source_0.set_freq(self.freq)
+        self.qtgui_sink_x_0.set_frequency_range(self.freq, self.samp_rate)
 
 
 def main(top_block_cls=specan, options=None):

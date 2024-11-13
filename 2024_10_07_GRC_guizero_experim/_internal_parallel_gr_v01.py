@@ -221,13 +221,21 @@ if TYPE_CHECKING:
     from specan import specan
 
 class PGR_specan:
-    def __init__(self, freq: float, if_gain: int) -> None:
+    def __init__(self, bw: float = 2e6, freq: float = 98e6, if_gain: int = 24) -> None:
+        """Create a {name here} Spectrum Analyzer.
+        Arguments are explained in their associated methods:
+        bw: see `set_bw()`
+        freq: see `set_freq()`
+        if_gain: see `if_gain()`
+        """
         from specan import specan
         self.__pgr = ParallelGR(specan)
+        self.set_bw(bw)
         self.set_freq(freq)
         self.set_if_gain(if_gain)
 
     def start(self) -> None:
+        """Start the parallel process and its associated GUI."""
         self.__pgr.start()
 
     @staticmethod
@@ -236,7 +244,7 @@ class PGR_specan:
         tb.qtgui_sink_x_0.set_frequency_range(freq, tb.samp_rate)
 
     def set_freq(self, freq: float) -> None:
-        """Set the frequency of the SDR peripheral and the GUI spectrum view."""
+        """Set the center frequency of the SDR peripheral and the GUI spectrum view."""
         This_Class = self.__class__
         self.__pgr.put_cmd(This_Class._set_freq_child, freq)
 
@@ -248,3 +256,23 @@ class PGR_specan:
         """Set the Intermediate Frequency gain of the SDR peripheral."""
         This_Class = self.__class__
         self.__pgr.put_cmd(This_Class._set_if_gain_child, gain)
+
+    @staticmethod
+    def _set_bb_gain_child(tb: "specan", gain: float) -> None:
+        tb.osmosdr_source_0.set_bb_gain(gain)
+
+    def set_bb_gain(self, gain: float) -> None:
+        """Set the Baseband gain of the SDR peripheral."""
+        This_Class = self.__class__
+        self.__pgr.put_cmd(This_Class._set_bb_gain_child, gain)
+
+    @staticmethod
+    def _set_bw_child(tb: "specan", bw: float) -> None:
+        tb.set_samp_rate(bw)
+
+    def set_bw(self, bw: float) -> None:
+        """Set the Bandwidth (amount of viewable spectrum)
+        of the GUI spectrum view. Also sets the sample rate 
+        of the SDR peripheral."""
+        This_Class = self.__class__
+        self.__pgr.put_cmd(This_Class._set_bw_child, bw)
