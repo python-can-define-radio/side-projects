@@ -221,9 +221,11 @@ if TYPE_CHECKING:
     from specan import specan
 
 class PGR_specan:
-    def __init__(self) -> None:
+    def __init__(self, freq: float, if_gain: int) -> None:
         from specan import specan
         self.__pgr = ParallelGR(specan)
+        self.set_freq(freq)
+        self.set_if_gain(if_gain)
 
     def start(self) -> None:
         self.__pgr.start()
@@ -234,7 +236,7 @@ class PGR_specan:
         tb.qtgui_sink_x_0.set_frequency_range(freq, tb.samp_rate)
 
     def set_freq(self, freq: float) -> None:
-        """Do something."""
+        """Set the frequency of the SDR peripheral and the GUI spectrum view."""
         This_Class = self.__class__
         self.__pgr.put_cmd(This_Class._set_freq_child, freq)
 
@@ -243,6 +245,6 @@ class PGR_specan:
         tb.osmosdr_source_0.set_if_gain(gain)
 
     def set_if_gain(self, gain: float) -> None:
-        """Do something."""
+        """Set the Intermediate Frequency gain of the SDR peripheral."""
         This_Class = self.__class__
         self.__pgr.put_cmd(This_Class._set_if_gain_child, gain)
