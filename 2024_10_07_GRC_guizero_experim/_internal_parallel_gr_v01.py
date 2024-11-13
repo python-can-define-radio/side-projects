@@ -230,9 +230,19 @@ class PGR_specan:
 
     @staticmethod
     def _set_freq_child(tb: "specan", freq: float) -> None:
-        tb.osmocom_fix_this.set_freq_fix_this(freq)
+        tb.osmosdr_source_0.set_center_freq(freq)
+        tb.qtgui_sink_x_0.set_frequency_range(freq, tb.samp_rate)
 
     def set_freq(self, freq: float) -> None:
         """Do something."""
         This_Class = self.__class__
         self.__pgr.put_cmd(This_Class._set_freq_child, freq)
+
+    @staticmethod
+    def _set_if_gain_child(tb: "specan", gain: float) -> None:
+        tb.osmosdr_source_0.set_if_gain(gain)
+
+    def set_if_gain(self, gain: float) -> None:
+        """Do something."""
+        This_Class = self.__class__
+        self.__pgr.put_cmd(This_Class._set_if_gain_child, gain)
