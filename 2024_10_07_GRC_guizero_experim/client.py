@@ -1,14 +1,14 @@
 from parallel_gr_v01 import P_turtle_xsquared, PGR_basicsourcesinkwater
-from guizero import App, Slider  # type: ignore[import]
+from guizero import App, Slider  # type: ignore[import-untyped]
 import time
 
-p = P_turtle_xsquared()
-p.start()
-p.set_scale(0.1)
-time.sleep(2)
-p.set_scale(0.03)
-time.sleep(2)
-p.set_scale(2)
+# p = P_turtle_xsquared()
+# p.start()
+# p.set_scale(0.1)
+# time.sleep(2)
+# p.set_scale(0.03)
+# time.sleep(2)
+# p.set_scale(2)
 
 
 pgr = PGR_basicsourcesinkwater()
