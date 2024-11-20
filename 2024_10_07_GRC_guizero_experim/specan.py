@@ -95,7 +95,7 @@ class specan(gr.top_block, Qt.QWidget):
 
         self.top_grid_layout.addWidget(self._qtgui_sink_x_0_win)
         self.osmosdr_source_0 = osmosdr.source(
-            args="numchan=" + str(1) + " " + ""
+            args="numchan=" + str(1) + " " + "hackrf=0"
         )
         self.osmosdr_source_0.set_time_unknown_pps(osmosdr.time_spec_t())
         self.osmosdr_source_0.set_sample_rate(samp_rate)
@@ -129,7 +129,7 @@ class specan(gr.top_block, Qt.QWidget):
 
     def set_freq(self, freq):
         self.freq = freq
-        self.osmosdr_source_0.set_freq(self.freq)
+        self.osmosdr_source_0.set_center_freq(self.freq)
         self.qtgui_sink_x_0.set_frequency_range(self.freq, self.samp_rate)
 
 
