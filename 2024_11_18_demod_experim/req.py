@@ -22,8 +22,8 @@ def updatepositions():
     socket.send(f'{myid},{x},{y}'.encode())
     others = json.loads(socket.recv())
     for turtid, x, y in others["data"]:
-        print(turtid, x, y)
         t = getTurtle(turtid, players, exclude=myid)
+        t.penup()
         if t:
             t.goto(x, y)
 
@@ -32,6 +32,18 @@ def updateforever():
     while True:
         updatepositions()
         time.sleep(0.1)
+    
+def playercmds():
+    while True:
+        cmd = input("Cmd (h for help): ")
+        if cmd == "h":
+            print("h:   help")
+            # print("q:   quit")
+            print("cl:  clear pen markings")
+            # print("pu:  Pick up all pens")
+        elif cmd == "cl":
+            turtle.clear()
+        
 
 def left():
     turtle.left(90)
@@ -48,4 +60,5 @@ turtle.onkeyrelease(fwd, "w")
 turtle.onkeyrelease(right, "d")
 turtle.listen()
 Thread(target=updateforever).start()
+Thread(target=playercmds).start()
 turtle.mainloop()
