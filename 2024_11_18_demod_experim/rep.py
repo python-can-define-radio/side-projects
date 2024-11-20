@@ -11,6 +11,10 @@ socket.bind("tcp://0.0.0.0:5555")
 
 players = {}
     
+def serialize():
+    for id_, turt in players.items():
+        x, y = turt.pos()
+        yield [id_, x, y]
 
 while True:
     message: str = socket.recv().decode()
@@ -18,4 +22,4 @@ while True:
     turtid, xs, ys = message.split(",")
     turt = getTurtle(turtid, players)
     turt.goto(float(xs), float(ys))
-    socket.send_string(json.dumps({"data": [[1,2,3],[4,5,6]]}))
+    socket.send_string(json.dumps({"data": list(serialize())}))

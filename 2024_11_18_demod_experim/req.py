@@ -13,6 +13,8 @@ socket.connect("tcp://localhost:5555")
 myid = random.randint(0, 1000000)
 
 
+players = {}
+
 def updatepositions():
     xf, yf = turtle.pos()
     x = int(xf)
@@ -21,6 +23,9 @@ def updatepositions():
     others = json.loads(socket.recv())
     for turtid, x, y in others["data"]:
         print(turtid, x, y)
+        t = getTurtle(turtid, players, exclude=myid)
+        if t:
+            t.goto(x, y)
 
 
 def updateforever():
@@ -30,15 +35,12 @@ def updateforever():
 
 def left():
     turtle.left(90)
-    updatepositions()
 
 def right():
     turtle.right(90)
-    updatepositions()
 
 def fwd():
     turtle.forward(25)
-    updatepositions()
 
 turtle.speed(0)
 turtle.onkeyrelease(left, "a")
