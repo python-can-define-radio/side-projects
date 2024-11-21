@@ -21,7 +21,7 @@ def getsock():
 
 def unserialize(sockdata: str) -> "list[tuple[str, int, int]]":
     sockjson = json.loads(sockdata)
-    return sockjson["locations"]
+    return sockjson["locations"], sockjson["colors"]
 
 
 def updatepositions():
@@ -35,12 +35,16 @@ def updatepositions():
 def readqueue():
     def sendcmd_and_update(cmd: str):
         sock.send(cmd.encode())
-        locations = unserialize(sock.recv())
+        locations, colors = unserialize(sock.recv())
         # Update the local view of where everyone else is.
         for turtid, x, y in locations:
             if turtid != myid:
                 t = getTurtle(turtid, players)
                 t.goto(x, y)
+        for turtid, pc, fc in colors:
+            t = getTurtle(turtid, players)
+            t.pencolor(pc)
+            t.fillcolor(fc)
 
     while True:
         cmd = cmdqueue.get(block=True)
