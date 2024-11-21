@@ -1,5 +1,5 @@
 import zmq
-from shared import getTurtle
+from shared import getTurtle, Player
 import json
 from threading import Thread
 
@@ -17,34 +17,24 @@ def zmqsock(port):
     return socket
 
    
-def serialize(players: "dict[str, Turtle]") -> str:
-    def do():
-        for id_, turt in players.items():
-            x, y = turt.pos()
-            yield [id_, x, y]
-    def docol():
-        for id_, turt in players.items():
-            pc = turt.pencolor()
-            fc = turt.fillcolor()
-            yield [id_, pc, fc]
-    locations = list(do())
-    colors = list(docol())
-    return json.dumps({"locations": locations, "colors": colors})
+def serialize(pturtles: "dict[str, Turtle]") -> str:
+    players = list(map(Player.turttodict, pturtles.items()))
+    return json.dumps(players)
 
 
-def updateAll(sock, players):
+def updateAll(sock, pturtles: "dict[str, Turtle]"):
     message: str = sock.recv().decode()
     try:
         turtid, cmd, clientdata = message.split(" ", 2)
         if cmd == "MOVE":
-            turt = getTurtle(turtid, players)
+            turt = getTurtle(turtid, pturtles)
             xs, ys = clientdata.split(" ")
             turt.goto(int(xs), int(ys))
         elif cmd == "SETPENCOLOR":
-            turt = getTurtle(turtid, players)
+            turt = getTurtle(turtid, pturtles)
             turt.pencolor(clientdata)
         elif cmd == "SETFILLCOLOR":
-            turt = getTurtle(turtid, players)
+            turt = getTurtle(turtid, pturtles)
             turt.fillcolor(clientdata)
         else:
             print("cmd", cmd, "not implemented")
@@ -52,7 +42,7 @@ def updateAll(sock, players):
         print("Invalid command")
     # elif cmd == "STAMP":
     #     turt = getTurtle(f"{turtid}_stamp_{random.randint(0, 100000)}", players)
-    sock.send_string(serialize(players))
+    sock.send_string(serialize(pturtles))
 
 # def cmdloop():
 #     while True:
@@ -63,11 +53,11 @@ def updateAll(sock, players):
 
 def main():
     print("Waiting for connections. You may want to use `ip a` to check your own ip address")
-    players: "dict[str, Turtle]" = {}
+    pturtles: "dict[str, Turtle]" = {}
     sock = zmqsock(5555)
     # Thread(target=cmdloop).start()
     while True:
-        updateAll(sock, players)
+        updateAll(sock, pturtles)
 
 
 if __name__ == "__main__":

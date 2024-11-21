@@ -6,7 +6,7 @@ import time
 import json
 from queue import SimpleQueue
 
-from shared import getTurtle
+from shared import getTurtle, Player
 
 
 # Often, ADDR is set to an ip address, for example, "192.168.1.2"
@@ -19,9 +19,9 @@ def getsock():
     return sock
     
 
-def unserialize(sockdata: str) -> "list[tuple[str, int, int]]":
-    sockjson = json.loads(sockdata)
-    return sockjson["locations"], sockjson["colors"]
+def unserialize(sockdata: str):
+    sockjson: "list[dict]" = json.loads(sockdata)
+    return list(map(Player.fromdict, sockjson))
 
 
 def updatepositions():
@@ -35,16 +35,15 @@ def updatepositions():
 def readqueue():
     def sendcmd_and_update(cmd: str):
         sock.send(cmd.encode())
-        locations, colors = unserialize(sock.recv())
+        players = unserialize(sock.recv())
         # Update the local view of where everyone else is.
-        for turtid, x, y in locations:
-            if turtid != myid:
-                t = getTurtle(turtid, players)
-                t.goto(x, y)
-        for turtid, pc, fc in colors:
-            t = getTurtle(turtid, players)
-            t.pencolor(pc)
-            t.fillcolor(fc)
+        for player in players:
+            t = getTurtle(player.id_, pturtles)
+            t.pencolor(player.pencolor)
+            t.fillcolor(player.fillcolor)
+            # Don't goto because it might cause race condition lag odd movements
+            if player.id_ != myid:
+                t.goto(player.x, player.y)
 
     while True:
         cmd = cmdqueue.get(block=True)
@@ -80,10 +79,10 @@ def fwd():
 
 
 sock = getsock()
-players = {}
+pturtles = {}
 myid = str(random.randint(0, 1000000))
 cmdqueue = SimpleQueue()
-myturtle = getTurtle(myid, players)
+myturtle = getTurtle(myid, pturtles)
 myturtle.speed(0)
 myturtle.penup()
 turtle.onkeyrelease(left, "a")
