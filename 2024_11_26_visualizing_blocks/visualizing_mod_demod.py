@@ -86,8 +86,8 @@ def demodulate(mod_msg: "list[str]") -> str:
 class Datum(Generic[T]):
     def __init__(self, v: T, fullwidth: int):
         self.v = v
-        self.x = fullwidth + 100
-        self.y = 10
+        self.x = fullwidth + 50
+        self.y = 20
         self.done_block_ids: "list[int]" = []
         self.fullwidth = fullwidth
 
@@ -148,7 +148,7 @@ class SBlock(Generic[T, U]):
         self.y = pos[1]
 
     def draw(self, drawing: Drawing):
-        drawing.rectangle(self.x-4, self.y-4, self.x+100, self.y+30, color="cyan", outline=True, outline_color="black")
+        drawing.rectangle(self.x-4, self.y-4, self.x+225, self.y+30, color="cyan", outline=True, outline_color="black")
         drawing.text(self.x, self.y, self.func.__name__)
     
     def __repr__(self):
@@ -187,7 +187,7 @@ class DrawingTracker(Generic[T]):
 
 class Slowgraph:
     def __init__(self, initial_data: "list[T]", funcs: "list[Callable]", dataspacing: int = 150):
-        self.app = App(width=800)
+        self.app = App(width=1400)
         drawing = Drawing(self.app, width="fill", height="fill")
         sblocks = Slowgraph.place_blocks(funcs)
         self.dtr = DrawingTracker(initial_data, sblocks, self.app.width, drawing, dataspacing)
@@ -196,8 +196,8 @@ class Slowgraph:
     @staticmethod
     def place_blocks(funcs: "list[Callable]"):
         grid = [
-            (600, 10),  (350, 10),  (100, 10),
-            (600, 110), (350, 110), (100, 110),
+            (1050, 20),  (600, 20),  (150, 20),
+            (1050, 120), (600, 120), (150, 120),
         ]
         makesblock = lambda x: SBlock(*x)
         funcgrid = lzip(funcs, grid)
