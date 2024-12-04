@@ -132,7 +132,7 @@ def _processcmds(instance: "T", q: "_cmdqueue[T, P]", keepgoing: KeepGoingFlag) 
             cmd, args = q.get(block=False)                
             cmd(instance, *args)  # type: ignore[call-arg]
         except queue.Empty:
-            time.sleep(0.1)
+            time.sleep(0.05)
 
 
 def _event_loop_gr(top_block_cls: "Type[Tgr]", q: "_cmdqueue[Tgr, P]") -> None:
