@@ -6,38 +6,55 @@ import signal
 import sys
 from threading import Thread
 import time
-from typing import Type, TypeVar, Generic, Callable, Protocol, Tuple, Any, Iterable, List, Literal
-from typing_extensions import ParamSpec, Concatenate, runtime_checkable, TYPE_CHECKING
+from typing import (
+    Type, TypeVar, Generic, Callable,
+    Protocol, Tuple, Any, Iterable,
+    List, Literal, runtime_checkable, TYPE_CHECKING
+)
 
-
-Tgr = TypeVar("Tgr", bound="gr.top_block")
-"""A gr top block or a subclass of such."""
 
 T = TypeVar("T")
-P = ParamSpec("P")
-
-TPFunc = Callable[Concatenate[T, P], None]
-"""A function which takes at least one argument.
-In this particular project, the first argument is most often 
-an instance of `gr.top_block` or any subclass.
-
-Examples:
-
-```python
-def f(tb) -> None: ...
-def f(tb, a) -> None: ...
-def f(tb, a, b) -> None: ...
-def f(tb, a, b, c) -> None: ...
-# etc...
-```
-"""
 
 
 if TYPE_CHECKING:
+    from typing_extensions import ParamSpec, Concatenate
     from gnuradio import gr  # type: ignore[import-untyped]
     from turtle import Turtle
-    _cmdqueue = mp.Queue[Tuple[TPFunc[T, P], Iterable[P.args]]]
+    
+    P = ParamSpec("P")
 
+    Tgr = TypeVar("Tgr", bound="gr.top_block")
+    """A gr top block or a subclass of such."""
+
+    TPFunc = Callable[Concatenate[T, P], None]
+    """A function which takes at least one argument.
+    In this particular project, the first argument is most often 
+    an instance of `gr.top_block` or any subclass.
+
+    Examples:
+
+    ```python
+    def f(tb) -> None: ...
+    def f(tb, a) -> None: ...
+    def f(tb, a, b) -> None: ...
+    def f(tb, a, b, c) -> None: ...
+    # etc...
+    ```
+    """
+
+    _cmdqueue = mp.Queue[Tuple[TPFunc[T, P], Iterable[P.args]]]
+    """A queue of tuples. Each tuple is (func, args), 
+    where the function's first argument is of type `T` (generic),
+    and the functions other args are of "the correct type". Example:
+    ```python3
+    def f(a: list, b: str, c: int):
+        ...
+    
+    q = mp.Queue()
+    args = ("foo", 33)
+    q.put((f, args))
+    ```
+    """
 
 
 @runtime_checkable
@@ -139,7 +156,7 @@ def _event_loop_general(cls: Callable[[], T], q: "_cmdqueue[T, P]", loopfunc: Ca
 
 class ParallelGR(Generic[Tgr]):
     def __init__(self, top_block_cls: "Type[Tgr]") -> None:
-        self.__q: _cmdqueue[Tgr, ...] = mp.Queue()
+        self.__q: "_cmdqueue[Tgr, ...]" = mp.Queue()
         self.__proc = mp.Process(target=lambda: _event_loop_gr(top_block_cls, self.__q))
 
     def start(self) -> None:
@@ -154,7 +171,7 @@ class ParallelGR(Generic[Tgr]):
 
 class ParallelGeneral(Generic[T]):
     def __init__(self, cls: Callable[[], T], loopfunc: Callable[[], None]) -> None:
-        self.__q: _cmdqueue[T, ...] = mp.Queue()
+        self.__q: "_cmdqueue[T, ...]" = mp.Queue()
         self.__proc = mp.Process(target=lambda: _event_loop_general(cls, self.__q, loopfunc))
 
     def start(self) -> None:
