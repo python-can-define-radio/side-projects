@@ -1,4 +1,4 @@
-from parallel_gr_v01 import PGR_specan
+from paragradio.v2024_12 import PGR_specan
 from guizero import App, Slider, Text  # type: ignore[import-untyped]
 import time
 

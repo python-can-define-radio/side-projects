@@ -209,11 +209,11 @@ class P_turtle_xsquared:
 ##### commands for student use
 
 if TYPE_CHECKING:
-    from basicsourcesinkwater import basicsourcesinkwater
+    from .basicsourcesinkwater import basicsourcesinkwater
 
 class PGR_basicsourcesinkwater:
     def __init__(self) -> None:
-        from basicsourcesinkwater import basicsourcesinkwater
+        from .basicsourcesinkwater import basicsourcesinkwater
         self.__pgr = ParallelGR(basicsourcesinkwater)
 
     def start(self) -> None:
@@ -230,7 +230,7 @@ class PGR_basicsourcesinkwater:
 
 
 if TYPE_CHECKING:
-    from specan import specan
+    from .specan import specan
 
 class PGR_specan:
     def __init__(self, bw: float = 2e6, freq: float = 98e6, if_gain: int = 24) -> None:
@@ -240,7 +240,7 @@ class PGR_specan:
         freq: see `set_freq()`
         if_gain: see `if_gain()`
         """
-        from specan import specan
+        from .specan import specan
         self.__pgr = ParallelGR(specan)
         self.set_bw(bw)
         self.set_freq(freq)
@@ -290,7 +290,7 @@ class PGR_specan:
 
 
 if TYPE_CHECKING:
-    from wbfm_rx import wbfm_rx
+    from .wbfm_rx import wbfm_rx
 
 class PGR_wbfm_rx:
     def __init__(self, bw: float = 2e6, freq: float = 98e6, if_gain: int = 24) -> None:
@@ -300,7 +300,7 @@ class PGR_wbfm_rx:
         freq: see `set_freq()`
         if_gain: see `if_gain()`
         """
-        from wbfm_rx import wbfm_rx
+        from .wbfm_rx import wbfm_rx
         self.__pgr = ParallelGR(wbfm_rx)
         self.set_bw(bw)
         self.set_freq(freq)

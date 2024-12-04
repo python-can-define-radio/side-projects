@@ -6,7 +6,6 @@
 #
 # GNU Radio Python Flow Graph
 # Title: specan
-# Author: Mr Hutchings
 # GNU Radio version: 3.8.1.0
 
 from distutils.version import StrictVersion
