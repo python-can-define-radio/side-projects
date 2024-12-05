@@ -321,10 +321,14 @@ class PGR_simspecan:
         """Start the parallel process and its associated GUI."""
         self.__pgr.start()
 
-    def set_center_freq(self) -> None:
-        self.__pgr.FILLTHIS
+    @staticmethod
+    def _set_center_freq_child(tb: "simspecan", freq: float) -> None:
+        tb.set_center_freq(freq)
 
-
+    def set_center_freq(self, freq: float) -> None:
+        """Set the center frequency of simulated spectrum view."""
+        This_Class = self.__class__
+        self.__pgr.put_cmd(This_Class._set_center_freq_child, freq)
 
 
 if TYPE_CHECKING:
