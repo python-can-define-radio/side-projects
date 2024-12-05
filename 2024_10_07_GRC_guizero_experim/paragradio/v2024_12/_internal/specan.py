@@ -126,7 +126,7 @@ class specan(gr.top_block, Qt.QWidget):
         self.osmosdr_source_0.set_sample_rate(self.samp_rate)
         self.qtgui_sink_x_0.set_frequency_range(self.freq, self.samp_rate)
 
-    def set_freq(self, freq):
+    def set_center_freq(self, freq):
         self.freq = freq
         self.osmosdr_source_0.set_center_freq(self.freq)
         self.qtgui_sink_x_0.set_frequency_range(self.freq, self.samp_rate)

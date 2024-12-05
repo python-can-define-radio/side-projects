@@ -15,6 +15,9 @@ from typing import (
 
 T = TypeVar("T")
 
+Tgr = TypeVar("Tgr", bound="gr.top_block")
+"""A gr top block or a subclass of such."""
+
 
 if TYPE_CHECKING:
     from typing_extensions import ParamSpec, Concatenate
@@ -22,9 +25,6 @@ if TYPE_CHECKING:
     from turtle import Turtle
     
     P = ParamSpec("P")
-
-    Tgr = TypeVar("Tgr", bound="gr.top_block")
-    """A gr top block or a subclass of such."""
 
     TPFunc = Callable[Concatenate[T, P], None]
     """A function which takes at least one argument.
@@ -237,13 +237,13 @@ class PGR_basicsourcesinkwater:
         self.__pgr.start()
 
     @staticmethod
-    def _set_freq_child(tb: "basicsourcesinkwater", freq: float) -> None:
+    def _set_signal_freq_child(tb: "basicsourcesinkwater", freq: float) -> None:
         tb.analog_sig_source_x_0.set_frequency(freq)
 
-    def set_freq(self, freq: float) -> None:
+    def set_signal_freq(self, freq: float) -> None:
         """Set the frequency of the signal source block."""
         This_Class = self.__class__
-        self.__pgr.put_cmd(This_Class._set_freq_child, freq)
+        self.__pgr.put_cmd(This_Class._set_signal_freq_child, freq)
 
 
 if TYPE_CHECKING:
@@ -251,16 +251,16 @@ if TYPE_CHECKING:
 
 class PGR_specan:
     def __init__(self, bw: float = 2e6, freq: float = 98e6, if_gain: int = 24) -> None:
-        """Create a {name here} Spectrum Analyzer.
+        """Create a Paragradio Spectrum Analyzer.
         Arguments are explained in their associated methods:
         bw: see `set_bw()`
-        freq: see `set_freq()`
+        freq: see `set_center_freq()`
         if_gain: see `if_gain()`
         """
         from .specan import specan
         self.__pgr = ParallelGR(specan)
         self.set_bw(bw)
-        self.set_freq(freq)
+        self.set_center_freq(freq)
         self.set_if_gain(if_gain)
 
     def start(self) -> None:
@@ -268,13 +268,13 @@ class PGR_specan:
         self.__pgr.start()
 
     @staticmethod
-    def _set_freq_child(tb: "specan", freq: float) -> None:
-        tb.set_freq(freq)
+    def _set_center_freq_child(tb: "specan", freq: float) -> None:
+        tb.set_center_freq(freq)
 
-    def set_freq(self, freq: float) -> None:
+    def set_center_freq(self, freq: float) -> None:
         """Set the center frequency of the SDR peripheral and the GUI spectrum view."""
         This_Class = self.__class__
-        self.__pgr.put_cmd(This_Class._set_freq_child, freq)
+        self.__pgr.put_cmd(This_Class._set_center_freq_child, freq)
 
     @staticmethod
     def _set_if_gain_child(tb: "specan", gain: float) -> None:
@@ -306,21 +306,42 @@ class PGR_specan:
         self.__pgr.put_cmd(This_Class._set_bw_child, bw)
 
 
+
+if TYPE_CHECKING:
+    from .simspecan import simspecan
+
+class PGR_simspecan:
+    def __init__(self) -> None:
+        """Create a Paragradio Simulated Spectrum Analyzer.
+        """
+        from .simspecan import simspecan
+        self.__pgr = ParallelGR(simspecan)
+    
+    def start(self) -> None:
+        """Start the parallel process and its associated GUI."""
+        self.__pgr.start()
+
+    def set_center_freq(self) -> None:
+        self.__pgr.FILLTHIS
+
+
+
+
 if TYPE_CHECKING:
     from .wbfm_rx import wbfm_rx
 
 class PGR_wbfm_rx:
     def __init__(self, bw: float = 2e6, freq: float = 98e6, if_gain: int = 24) -> None:
-        """Create a {name here} Wideband FM Receiver.
+        """Create a Paragradio Wideband FM Receiver.
         Arguments are explained in their associated methods:
         bw: see `set_bw()`
-        freq: see `set_freq()`
+        freq: see `set_center_freq()`
         if_gain: see `if_gain()`
         """
         from .wbfm_rx import wbfm_rx
         self.__pgr = ParallelGR(wbfm_rx)
         self.set_bw(bw)
-        self.set_freq(freq)
+        self.set_center_freq(freq)
         self.set_if_gain(if_gain)
 
     def start(self) -> None:
@@ -328,13 +349,13 @@ class PGR_wbfm_rx:
         self.__pgr.start()
 
     @staticmethod
-    def _set_freq_child(tb: "wbfm_rx", freq: float) -> None:
-        tb.set_freq(freq)
+    def _set_center_freq_child(tb: "wbfm_rx", freq: float) -> None:
+        tb.set_center_freq(freq)
 
-    def set_freq(self, freq: float) -> None:
+    def set_center_freq(self, freq: float) -> None:
         """Set the center frequency of the SDR peripheral and the GUI spectrum view."""
         This_Class = self.__class__
-        self.__pgr.put_cmd(This_Class._set_freq_child, freq)
+        self.__pgr.put_cmd(This_Class._set_center_freq_child, freq)
 
     @staticmethod
     def _set_if_gain_child(tb: "wbfm_rx", gain: float) -> None:
