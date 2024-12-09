@@ -34,7 +34,7 @@ from gnuradio.eng_arg import eng_float, intx
 from gnuradio import eng_notation
 from gnuradio import qtgui
 
-class signalsourceguisink(gr.top_block, Qt.QWidget):
+class signalsourceguisinks(gr.top_block, Qt.QWidget):
 
     def __init__(self):
         gr.top_block.__init__(self, "Not titled yet")
@@ -57,7 +57,7 @@ class signalsourceguisink(gr.top_block, Qt.QWidget):
         self.top_grid_layout = Qt.QGridLayout()
         self.top_layout.addLayout(self.top_grid_layout)
 
-        self.settings = Qt.QSettings("GNU Radio", "signalsourceguisink")
+        self.settings = Qt.QSettings("GNU Radio", "signalsourceguisinks")
 
         try:
             if StrictVersion(Qt.qVersion()) < StrictVersion("5.0.0"):
@@ -223,7 +223,7 @@ class signalsourceguisink(gr.top_block, Qt.QWidget):
         self.connect((self.blocks_throttle_0, 0), (self.qtgui_waterfall_sink_x_0, 0))
 
     def closeEvent(self, event):
-        self.settings = Qt.QSettings("GNU Radio", "signalsourceguisink")
+        self.settings = Qt.QSettings("GNU Radio", "signalsourceguisinks")
         self.settings.setValue("geometry", self.saveGeometry())
         event.accept()
 
@@ -240,7 +240,7 @@ class signalsourceguisink(gr.top_block, Qt.QWidget):
 
 
 
-def main(top_block_cls=signalsourceguisink, options=None):
+def main(top_block_cls=signalsourceguisinks, options=None):
 
     if StrictVersion("4.5.0") <= StrictVersion(Qt.qVersion()) < StrictVersion("5.0.0"):
         style = gr.prefs().get_string('qtgui', 'style', 'raster')

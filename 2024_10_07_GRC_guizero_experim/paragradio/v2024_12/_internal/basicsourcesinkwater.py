@@ -7,7 +7,6 @@
 # GNU Radio Python Flow Graph
 # Title: Not titled yet
 # GNU Radio version: 3.8.1.0
-# mypy: ignore-errors
 
 from distutils.version import StrictVersion
 
