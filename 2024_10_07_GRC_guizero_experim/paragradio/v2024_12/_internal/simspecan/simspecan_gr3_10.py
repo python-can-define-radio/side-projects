@@ -6,9 +6,9 @@
 #
 # GNU Radio Python Flow Graph
 # Title: Not titled yet
-# GNU Radio version: 3.8.1.0
+# GNU Radio version: 3.10.5.1
 
-from distutils.version import StrictVersion
+from packaging.version import Version as StrictVersion
 
 if __name__ == '__main__':
     import ctypes
@@ -28,17 +28,21 @@ from gnuradio import analog
 from gnuradio import blocks
 from gnuradio import filter
 from gnuradio import gr
+from gnuradio.fft import window
 import sys
 import signal
 from argparse import ArgumentParser
 from gnuradio.eng_arg import eng_float, intx
 from gnuradio import eng_notation
+
+
+
 from gnuradio import qtgui
 
-class simspecan_gr3_8(gr.top_block, Qt.QWidget):
+class simspecan_gr3_10(gr.top_block, Qt.QWidget):
 
     def __init__(self):
-        gr.top_block.__init__(self, "Not titled yet")
+        gr.top_block.__init__(self, "Not titled yet", catch_exceptions=True)
         Qt.QWidget.__init__(self)
         self.setWindowTitle("Not titled yet")
         qtgui.util.check_set_qss()
@@ -58,7 +62,7 @@ class simspecan_gr3_8(gr.top_block, Qt.QWidget):
         self.top_grid_layout = Qt.QGridLayout()
         self.top_layout.addLayout(self.top_grid_layout)
 
-        self.settings = Qt.QSettings("GNU Radio", "simspecan_gr3_8")
+        self.settings = Qt.QSettings("GNU Radio", "simspecan_gr3_10")
 
         try:
             if StrictVersion(Qt.qVersion()) < StrictVersion("5.0.0"):
@@ -78,18 +82,20 @@ class simspecan_gr3_8(gr.top_block, Qt.QWidget):
         ##################################################
         # Blocks
         ##################################################
+
         self.rational_resampler_xxx_0 = filter.rational_resampler_fff(
-                interpolation=int(samp_rate/10e3),
+                interpolation=(int(samp_rate/10e3)),
                 decimation=1,
-                taps=None,
-                fractional_bw=None)
+                taps=[],
+                fractional_bw=0)
         self.qtgui_waterfall_sink_x_0 = qtgui.waterfall_sink_c(
             1024, #size
-            firdes.WIN_BLACKMAN_hARRIS, #wintype
+            window.WIN_BLACKMAN_hARRIS, #wintype
             center_freq, #fc
             samp_rate, #bw
             "", #name
-            1 #number of inputs
+            1, #number of inputs
+            None # parent
         )
         self.qtgui_waterfall_sink_x_0.set_update_time(0.05)
         self.qtgui_waterfall_sink_x_0.enable_grid(False)
@@ -114,7 +120,8 @@ class simspecan_gr3_8(gr.top_block, Qt.QWidget):
 
         self.qtgui_waterfall_sink_x_0.set_intensity_range(-100, 10)
 
-        self._qtgui_waterfall_sink_x_0_win = sip.wrapinstance(self.qtgui_waterfall_sink_x_0.pyqwidget(), Qt.QWidget)
+        self._qtgui_waterfall_sink_x_0_win = sip.wrapinstance(self.qtgui_waterfall_sink_x_0.qwidget(), Qt.QWidget)
+
         self.top_grid_layout.addWidget(self._qtgui_waterfall_sink_x_0_win, 0, 2, 1, 1)
         for r in range(0, 1):
             self.top_grid_layout.setRowStretch(r, 1)
@@ -124,7 +131,8 @@ class simspecan_gr3_8(gr.top_block, Qt.QWidget):
             100, #size
             samp_rate, #samp_rate
             "", #name
-            1 #number of inputs
+            1, #number of inputs
+            None # parent
         )
         self.qtgui_time_sink_x_0.set_update_time(0.05)
         self.qtgui_time_sink_x_0.set_y_axis(-1, 1)
@@ -168,7 +176,7 @@ class simspecan_gr3_8(gr.top_block, Qt.QWidget):
             self.qtgui_time_sink_x_0.set_line_marker(i, markers[i])
             self.qtgui_time_sink_x_0.set_line_alpha(i, alphas[i])
 
-        self._qtgui_time_sink_x_0_win = sip.wrapinstance(self.qtgui_time_sink_x_0.pyqwidget(), Qt.QWidget)
+        self._qtgui_time_sink_x_0_win = sip.wrapinstance(self.qtgui_time_sink_x_0.qwidget(), Qt.QWidget)
         self.top_grid_layout.addWidget(self._qtgui_time_sink_x_0_win, 0, 0, 1, 1)
         for r in range(0, 1):
             self.top_grid_layout.setRowStretch(r, 1)
@@ -176,14 +184,15 @@ class simspecan_gr3_8(gr.top_block, Qt.QWidget):
             self.top_grid_layout.setColumnStretch(c, 1)
         self.qtgui_freq_sink_x_0 = qtgui.freq_sink_c(
             1024, #size
-            firdes.WIN_BLACKMAN_hARRIS, #wintype
+            window.WIN_BLACKMAN_hARRIS, #wintype
             center_freq, #fc
             samp_rate, #bw
             "", #name
-            1
+            1,
+            None # parent
         )
         self.qtgui_freq_sink_x_0.set_update_time(0.05)
-        self.qtgui_freq_sink_x_0.set_y_axis(-100, 10)
+        self.qtgui_freq_sink_x_0.set_y_axis((-100), 10)
         self.qtgui_freq_sink_x_0.set_y_label('Relative Gain', 'dB')
         self.qtgui_freq_sink_x_0.set_trigger_mode(qtgui.TRIG_MODE_FREE, 0.0, 0, "")
         self.qtgui_freq_sink_x_0.enable_autoscale(False)
@@ -191,6 +200,7 @@ class simspecan_gr3_8(gr.top_block, Qt.QWidget):
         self.qtgui_freq_sink_x_0.set_fft_average(0.2)
         self.qtgui_freq_sink_x_0.enable_axis_labels(True)
         self.qtgui_freq_sink_x_0.enable_control_panel(False)
+        self.qtgui_freq_sink_x_0.set_fft_window_normalized(False)
 
 
 
@@ -212,7 +222,7 @@ class simspecan_gr3_8(gr.top_block, Qt.QWidget):
             self.qtgui_freq_sink_x_0.set_line_color(i, colors[i])
             self.qtgui_freq_sink_x_0.set_line_alpha(i, alphas[i])
 
-        self._qtgui_freq_sink_x_0_win = sip.wrapinstance(self.qtgui_freq_sink_x_0.pyqwidget(), Qt.QWidget)
+        self._qtgui_freq_sink_x_0_win = sip.wrapinstance(self.qtgui_freq_sink_x_0.qwidget(), Qt.QWidget)
         self.top_grid_layout.addWidget(self._qtgui_freq_sink_x_0_win, 0, 1, 1, 1)
         for r in range(0, 1):
             self.top_grid_layout.setRowStretch(r, 1)
@@ -225,16 +235,16 @@ class simspecan_gr3_8(gr.top_block, Qt.QWidget):
                 10e3,
                 2e3,
                 5e3,
-                firdes.WIN_HAMMING,
+                window.WIN_HAMMING,
                 6.76))
         self.low_pass_filter_0 = filter.fir_filter_ccf(
             1,
             firdes.low_pass(
                 1,
                 samp_rate,
-                samp_rate*0.2,
-                samp_rate*0.35,
-                firdes.WIN_HAMMING,
+                (samp_rate*0.2),
+                (samp_rate*0.35),
+                window.WIN_HAMMING,
                 6.76))
         self.blocks_throttle_0 = blocks.throttle(gr.sizeof_gr_complex*1, samp_rate,True)
         self.blocks_multiply_xx_0 = blocks.multiply_vcc(1)
@@ -244,15 +254,14 @@ class simspecan_gr3_8(gr.top_block, Qt.QWidget):
         self.analog_wfm_tx_0 = analog.wfm_tx(
         	audio_rate=2_000_000,
         	quad_rate=int(samp_rate),
-        	tau=75e-6,
+        	tau=(75e-6),
         	max_dev=25e3,
-        	fh=-1.0,
+        	fh=(-1.0),
         )
-        self.analog_sig_source_x_1 = analog.sig_source_c(samp_rate, analog.GR_COS_WAVE, simulated_activity_freq - center_freq, 1, 0, 0)
+        self.analog_sig_source_x_1 = analog.sig_source_c(samp_rate, analog.GR_COS_WAVE, (simulated_activity_freq - center_freq), 1, 0, 0)
         self.analog_noise_source_x_1 = analog.noise_source_f(analog.GR_GAUSSIAN, 1, 0)
         self.analog_noise_source_x_0 = analog.noise_source_c(analog.GR_GAUSSIAN, 0.2, 0)
         self.analog_const_source_x_0 = analog.sig_source_c(0, analog.GR_CONST_WAVE, 0, 0, 0.1)
-
 
 
         ##################################################
@@ -274,9 +283,13 @@ class simspecan_gr3_8(gr.top_block, Qt.QWidget):
         self.connect((self.low_pass_filter_1, 0), (self.rational_resampler_xxx_0, 0))
         self.connect((self.rational_resampler_xxx_0, 0), (self.analog_wfm_tx_0, 0))
 
+
     def closeEvent(self, event):
-        self.settings = Qt.QSettings("GNU Radio", "simspecan_gr3_8")
+        self.settings = Qt.QSettings("GNU Radio", "simspecan_gr3_10")
         self.settings.setValue("geometry", self.saveGeometry())
+        self.stop()
+        self.wait()
+
         event.accept()
 
     def get_simulated_activity_freq(self):
@@ -284,7 +297,7 @@ class simspecan_gr3_8(gr.top_block, Qt.QWidget):
 
     def set_simulated_activity_freq(self, simulated_activity_freq):
         self.simulated_activity_freq = simulated_activity_freq
-        self.analog_sig_source_x_1.set_frequency(self.simulated_activity_freq - self.center_freq)
+        self.analog_sig_source_x_1.set_frequency((self.simulated_activity_freq - self.center_freq))
         self.blocks_multiply_const_vxx_1.set_k(abs(self.center_freq - self.simulated_activity_freq) < self.samp_rate/2)
 
     def get_samp_rate(self):
@@ -295,7 +308,7 @@ class simspecan_gr3_8(gr.top_block, Qt.QWidget):
         self.analog_sig_source_x_1.set_sampling_freq(self.samp_rate)
         self.blocks_multiply_const_vxx_1.set_k(abs(self.center_freq - self.simulated_activity_freq) < self.samp_rate/2)
         self.blocks_throttle_0.set_sample_rate(self.samp_rate)
-        self.low_pass_filter_0.set_taps(firdes.low_pass(1, self.samp_rate, self.samp_rate*0.2, self.samp_rate*0.35, firdes.WIN_HAMMING, 6.76))
+        self.low_pass_filter_0.set_taps(firdes.low_pass(1, self.samp_rate, (self.samp_rate*0.2), (self.samp_rate*0.35), window.WIN_HAMMING, 6.76))
         self.qtgui_freq_sink_x_0.set_frequency_range(self.center_freq, self.samp_rate)
         self.qtgui_time_sink_x_0.set_samp_rate(self.samp_rate)
         self.qtgui_waterfall_sink_x_0.set_frequency_range(self.center_freq, self.samp_rate)
@@ -305,14 +318,15 @@ class simspecan_gr3_8(gr.top_block, Qt.QWidget):
 
     def set_center_freq(self, center_freq):
         self.center_freq = center_freq
-        self.analog_sig_source_x_1.set_frequency(self.simulated_activity_freq - self.center_freq)
+        self.analog_sig_source_x_1.set_frequency((self.simulated_activity_freq - self.center_freq))
         self.blocks_multiply_const_vxx_1.set_k(abs(self.center_freq - self.simulated_activity_freq) < self.samp_rate/2)
         self.qtgui_freq_sink_x_0.set_frequency_range(self.center_freq, self.samp_rate)
         self.qtgui_waterfall_sink_x_0.set_frequency_range(self.center_freq, self.samp_rate)
 
 
 
-def main(top_block_cls=simspecan_gr3_8, options=None):
+
+def main(top_block_cls=simspecan_gr3_10, options=None):
 
     if StrictVersion("4.5.0") <= StrictVersion(Qt.qVersion()) < StrictVersion("5.0.0"):
         style = gr.prefs().get_string('qtgui', 'style', 'raster')
@@ -320,10 +334,15 @@ def main(top_block_cls=simspecan_gr3_8, options=None):
     qapp = Qt.QApplication(sys.argv)
 
     tb = top_block_cls()
+
     tb.start()
+
     tb.show()
 
     def sig_handler(sig=None, frame=None):
+        tb.stop()
+        tb.wait()
+
         Qt.QApplication.quit()
 
     signal.signal(signal.SIGINT, sig_handler)
@@ -333,12 +352,7 @@ def main(top_block_cls=simspecan_gr3_8, options=None):
     timer.start(500)
     timer.timeout.connect(lambda: None)
 
-    def quitting():
-        tb.stop()
-        tb.wait()
-    qapp.aboutToQuit.connect(quitting)
     qapp.exec_()
-
 
 if __name__ == '__main__':
     main()
