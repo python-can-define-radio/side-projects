@@ -1,6 +1,7 @@
 options:
   parameters:
-    author: taurean.j.byrd31
+    author: ''
+    catch_exceptions: 'True'
     category: '[GRC Hier Blocks]'
     cmake_opt: ''
     comment: ''
@@ -10,7 +11,7 @@ options:
     gen_linking: dynamic
     generate_options: qt_gui
     hier_block_src_path: '.:'
-    id: wbfm_rx
+    id: wbfm_rx_gr3_10
     max_nouts: '0'
     output_language: python
     placement: (0,0)
@@ -21,7 +22,7 @@ options:
     run_options: prompt
     sizing_mode: fixed
     thread_safe_setters: ''
-    title: Not titled yet
+    title: wbfm_rx_gr3_10
     window_size: ''
   states:
     bus_sink: false
@@ -136,7 +137,7 @@ blocks:
     samp_rate: samp_rate
     type: fir_filter_ccf
     width: 90e3
-    win: firdes.WIN_HAMMING
+    win: window.WIN_HAMMING
   states:
     bus_sink: false
     bus_source: false
@@ -651,7 +652,7 @@ blocks:
     showports: 'False'
     type: complex
     update_time: '0.10'
-    wintype: firdes.WIN_BLACKMAN_hARRIS
+    wintype: window.WIN_BLACKMAN_hARRIS
   states:
     bus_sink: false
     bus_source: false
@@ -712,7 +713,7 @@ blocks:
     showports: 'False'
     type: complex
     update_time: '0.10'
-    wintype: firdes.WIN_BLACKMAN_hARRIS
+    wintype: window.WIN_BLACKMAN_hARRIS
   states:
     bus_sink: false
     bus_source: false
@@ -752,3 +753,4 @@ connections:
 
 metadata:
   file_format: 1
+  grc_version: 3.10.7.0
