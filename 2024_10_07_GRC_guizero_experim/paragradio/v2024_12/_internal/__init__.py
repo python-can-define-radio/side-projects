@@ -67,6 +67,10 @@ class _QAppProt(Protocol):
     aboutToQuit: _AboutToQuitAttr
 
 
+class ProcessTerminated(RuntimeError):
+    ...
+    
+
 def _grc_main_prep(top_block_cls: "Type[Tgr]") -> "Tuple[Tgr, _QAppProt]":
     """This is a copy/paste of the main() function that is generated
     by GRC for Graphical (Qt) flowgraphs. It omits the last line
@@ -160,6 +164,8 @@ class ParallelGR(Generic[Tgr]):
         """Put a command into the queue for the child
         process to execute. Any extra args provided will be
         passed to `f`."""
+        if not self.__proc.is_alive():
+            raise ProcessTerminated("The parallel process has terminated; cannot execute commands.")
         self.__q.put((f, args))
 
 
