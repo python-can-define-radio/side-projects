@@ -5,7 +5,7 @@
 # SPDX-License-Identifier: GPL-3.0
 #
 # GNU Radio Python Flow Graph
-# Title: simspecan_gr3_8
+# Title: specan_gr3_8
 # GNU Radio version: 3.8.1.0
 
 from distutils.version import StrictVersion
@@ -34,12 +34,12 @@ import osmosdr
 import time
 from gnuradio import qtgui
 
-class simspecan_gr3_8(gr.top_block, Qt.QWidget):
+class specan_gr3_8(gr.top_block, Qt.QWidget):
 
     def __init__(self):
-        gr.top_block.__init__(self, "simspecan_gr3_8")
+        gr.top_block.__init__(self, "specan_gr3_8")
         Qt.QWidget.__init__(self)
-        self.setWindowTitle("simspecan_gr3_8")
+        self.setWindowTitle("specan_gr3_8")
         qtgui.util.check_set_qss()
         try:
             self.setWindowIcon(Qt.QIcon.fromTheme('gnuradio-grc'))
@@ -57,7 +57,7 @@ class simspecan_gr3_8(gr.top_block, Qt.QWidget):
         self.top_grid_layout = Qt.QGridLayout()
         self.top_layout.addLayout(self.top_grid_layout)
 
-        self.settings = Qt.QSettings("GNU Radio", "simspecan_gr3_8")
+        self.settings = Qt.QSettings("GNU Radio", "specan_gr3_8")
 
         try:
             if StrictVersion(Qt.qVersion()) < StrictVersion("5.0.0"):
@@ -234,7 +234,7 @@ class simspecan_gr3_8(gr.top_block, Qt.QWidget):
         self.connect((self.osmosdr_source_0, 0), (self.qtgui_waterfall_sink_x_0, 0))
 
     def closeEvent(self, event):
-        self.settings = Qt.QSettings("GNU Radio", "simspecan_gr3_8")
+        self.settings = Qt.QSettings("GNU Radio", "specan_gr3_8")
         self.settings.setValue("geometry", self.saveGeometry())
         event.accept()
 
@@ -259,7 +259,7 @@ class simspecan_gr3_8(gr.top_block, Qt.QWidget):
 
 
 
-def main(top_block_cls=simspecan_gr3_8, options=None):
+def main(top_block_cls=specan_gr3_8, options=None):
 
     if StrictVersion("4.5.0") <= StrictVersion(Qt.qVersion()) < StrictVersion("5.0.0"):
         style = gr.prefs().get_string('qtgui', 'style', 'raster')

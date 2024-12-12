@@ -5,7 +5,7 @@
 # SPDX-License-Identifier: GPL-3.0
 #
 # GNU Radio Python Flow Graph
-# Title: Not titled yet
+# Title: simspecan_gr3_8
 # GNU Radio version: 3.8.1.0
 
 from distutils.version import StrictVersion
