@@ -3,8 +3,6 @@
 
 ℹ️ This material coincides with material from SDR slideshow D (slides 1-27).  However, the slides are not necessary for building and operating this program.
 
-Prerequisite: basic knowledge of [guizero](https://github.com/python-can-define-radio/python-course/blob/main/classroom_activities/Ch02_Advanced/03_guizero.md), specifically creating an `App` with `Text` and `Slider` widgets.
-
 ### Introduction
 
 Most of us have listened to an FM Radio at least once in our lives. We may even know that the music on these radio stations is transmitted using electromagnetic waves. However, it can be difficult to imagine what these invisible waves look like. A Spectrum Analyzer is one way to **_see_** those frequencies. 
