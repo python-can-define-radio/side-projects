@@ -391,3 +391,9 @@ class PGR_wbfm_rx(
         of the SDR peripheral."""
         This_Class = self.__class__
         self.__pgr.put_cmd(This_Class._set_bw_child, bw)
+
+
+## TODO:
+## for noise transmitter, allow user to set using string.
+## "uniform" -> 200
+## "gaussian" -> 201
