@@ -133,7 +133,10 @@ def _processcmds(instance: "T", q: "_cmdqueue[T, P]") -> None:
 
 
 def _event_loop_gr(top_block_cls: "Type[Tgr]", q: "_cmdqueue[Tgr, P]") -> None:
-    """Used to run the Qt/GR process."""
+    """Run the Qt/GR process.
+    - Sets up the top_block similarly to the `main()` function in the .py file that GRC generates
+    - Starts a repeating Qt timer to get and execute commands from `q`
+    - Runs the Qt application (assumes that `top_block_cls` is a Qt-based GR flowgraph)"""
     from PyQt5 import Qt
     tb, qapp = _grc_main_prep(top_block_cls)
     timer = Qt.QTimer()
@@ -141,15 +144,6 @@ def _event_loop_gr(top_block_cls: "Type[Tgr]", q: "_cmdqueue[Tgr, P]") -> None:
     timer.timeout.connect(lambda: _processcmds(tb, q))
     qapp.aboutToQuit.connect(lambda: print("Gracefully exiting GRC flowgraph."))
     qapp.exec_()
-
-
-def _event_loop_general(cls: Callable[[], T], q: "_cmdqueue[T, P]", loopfunc: Callable[[], None]) -> None:
-    """Used to run a generic process."""
-    from threading import Thread
-    instance = cls()
-    thread = Thread(target=lambda: _processcmds(instance, q))
-    thread.start()
-    loopfunc()
 
 
 class ParallelGR(Generic[Tgr]):
@@ -169,65 +163,11 @@ class ParallelGR(Generic[Tgr]):
         self.__q.put((f, args))
 
 
-class ParallelGeneral(Generic[T]):
-    def __init__(self, cls: Callable[[], T], loopfunc: Callable[[], None]) -> None:
-        self.__q: "_cmdqueue[T, ...]" = mp.Queue()
-        self.__proc = mp.Process(target=lambda: _event_loop_general(cls, self.__q, loopfunc))
-
-    def start(self) -> None:
-        self.__proc.start()
-
-    def put_cmd(self, f: "TPFunc[T, P]", *args: "P.args", **kwargs: "P.kwargs") -> None:
-        """Put a command into the queue for the child
-        process to execute. Any extra args provided will be
-        passed to `f`."""
-        self.__q.put((f, args))
-
-
-
-##### next section is for experimenting without gnuradio
-
-class _xsquaredgrapher:
-    def __init__(self) -> None:
-        global scale
-        scale = 1.0  # type: ignore[name-defined]
-
-
-def _update_graph_loop() -> None:
-    import turtle
-    global scale
-    while True:
-        turtle.clear()
-        turtle.penup()
-        for x in range(-20, 21):
-            y = scale * x**2 - 50   # type: ignore[name-defined]
-            turtle.goto(x*5, y*5)
-            turtle.pendown()
-        time.sleep(0.1)
-
-
-class P_turtle_xsquared:
-    def __init__(self) -> None:
-        self.__pg = ParallelGeneral(_xsquaredgrapher, _update_graph_loop)
-
-    def start(self) -> None:
-        self.__pg.start()
-
-    @staticmethod
-    def _set_scale_child(xsg: _xsquaredgrapher, scale_toset: float) -> None:
-        global scale
-        scale = scale_toset    # type: ignore[name-defined]
-
-    def set_scale(self, scale: float) -> None:
-        """Set the frequency of the signal source block."""
-        self.__pg.put_cmd(P_turtle_xsquared._set_scale_child, scale)
-
-
 ##### commands for student use
 
 if TYPE_CHECKING:
-    from .basicsourcesinkwater import basicsourcesinkwater
     from .specan import specan_fg
+    import numpy as np
 
 
 class PGRWrapperCommon():
@@ -236,19 +176,6 @@ class PGRWrapperCommon():
     def start(self) -> None:
         """Start the parallel process and its associated GUI."""
         self._pgr.start()
-
-
-if TYPE_CHECKING:
-    _can_set_signal_freq: TypeAlias = basicsourcesinkwater
-
-class PGR_can_set_signal_freq(PGRWrapperCommon):
-    @staticmethod
-    def _set_signal_freq_child(tb: "_can_set_signal_freq", freq: float) -> None:
-        tb.analog_sig_source_x_0.set_frequency(freq)
-
-    def set_signal_freq(self, freq: float) -> None:
-        """Set the frequency of the signal source block."""
-        self._pgr.put_cmd(PGR_can_set_signal_freq._set_signal_freq_child, freq)
 
 
 if TYPE_CHECKING:
@@ -308,12 +235,6 @@ class PGR_can_set_bw(PGRWrapperCommon):
         self._pgr.put_cmd(This_Class._set_bw_child, bw)
 
 
-class PGR_basicsourcesinkwater(PGR_can_set_signal_freq):
-    def __init__(self) -> None:
-        from .basicsourcesinkwater import basicsourcesinkwater
-        self._pgr = ParallelGR(basicsourcesinkwater)
-
-
 class SpecAn(
         PGR_can_set_center_freq,
         PGR_can_set_if_gain,
@@ -352,12 +273,11 @@ class SpecAnSim(PGR_can_set_center_freq):
         super().set_center_freq(freq)
 
 
-if TYPE_CHECKING:
-    from .wbfm_rx import wbfm_rx_fg
-
 class WBFM_Rx(
         PGR_can_set_center_freq,
         PGR_can_set_if_gain,
+        PGR_can_set_bb_gain,
+        PGR_can_set_bw,
     ):
     def __init__(self, bw: float = 2e6, freq: float = 98e6, if_gain: int = 24) -> None:
         """Create a Paragradio Wideband FM Receiver.
@@ -367,33 +287,54 @@ class WBFM_Rx(
         if_gain: see `if_gain()`
         """
         from .wbfm_rx import wbfm_rx_fg
-        self.__pgr = ParallelGR(wbfm_rx_fg)
+        self._pgr = ParallelGR(wbfm_rx_fg)
         self.set_bw(bw)
         self.set_center_freq(freq)
         self.set_if_gain(if_gain)
 
-    @staticmethod
-    def _set_bb_gain_child(tb: "wbfm_rx_fg", gain: float) -> None:
-        tb.osmosdr_source_0.set_bb_gain(gain)
-
-    def set_bb_gain(self, gain: float) -> None:
-        """Set the Baseband gain of the SDR peripheral."""
-        This_Class = self.__class__
-        self.__pgr.put_cmd(This_Class._set_bb_gain_child, gain)
-
-    @staticmethod
-    def _set_bw_child(tb: "wbfm_rx_fg", bw: float) -> None:
-        tb.set_samp_rate(bw)
-
     def set_bw(self, bw: float) -> None:
-        """Set the Bandwidth (amount of viewable spectrum)
+        """Sets the bandwidth (the amount of viewable spectrum)
         of the GUI spectrum view. Also sets the sample rate 
         of the SDR peripheral."""
-        This_Class = self.__class__
-        self.__pgr.put_cmd(This_Class._set_bw_child, bw)
+        super().set_bw(bw)
 
 
-## TODO:
-## for noise transmitter, allow user to set using string.
-## "uniform" -> 200
-## "gaussian" -> 201
+class Noise_Tx(
+        PGR_can_set_center_freq,
+        PGR_can_set_if_gain,
+    ):
+    def __init__(self) -> None:
+        from .noise_tx import noise_tx_fg
+        self._pgr = ParallelGR(noise_tx_fg)
+
+    ## TODO:
+    ## for noise transmitter, allow user to set using string.
+    ## "uniform" -> 200
+    ## "gaussian" -> 201
+
+
+def _pick_flowgraph(modulation: Literal["BPSK", "QPSK", "DQPSK", "8PSK", "16QAM"]) -> "gr.top_block":
+    from .psk_tx_loop import bpsk_tx_loop_fg, qpsk_tx_loop_fg
+    if modulation == "BPSK":
+        return bpsk_tx_loop_fg
+    elif modulation == "QPSK":
+        return qpsk_tx_loop_fg
+    ## TODO: fill others
+
+
+class PSK_Tx_loop(
+        PGR_can_set_center_freq,
+        PGR_can_set_if_gain,
+    ):
+    def __init__(
+            self,
+            modulation: Literal["BPSK", "QPSK", "DQPSK", "8PSK", "16QAM"],
+        ) -> None:
+        fg = _pick_flowgraph(modulation)
+        self._pgr = ParallelGR(fg)
+
+    def set_data(self, data: "np.ndarray"):
+        """Update what data is being repeatedly transmitted."""
+        ...
+
+
