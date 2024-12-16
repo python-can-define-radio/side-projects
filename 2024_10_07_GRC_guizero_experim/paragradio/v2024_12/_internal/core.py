@@ -314,7 +314,7 @@ class PGR_basicsourcesinkwater(PGR_can_set_signal_freq):
         self._pgr = ParallelGR(basicsourcesinkwater)
 
 
-class specan(
+class SpecAn(
         PGR_can_set_center_freq,
         PGR_can_set_if_gain,
         PGR_can_set_bb_gain,
@@ -340,12 +340,12 @@ class specan(
         super().set_bw(bw)
 
 
-class simspecan(PGR_can_set_center_freq):
+class SpecAnSim(PGR_can_set_center_freq):
     def __init__(self) -> None:
         """Create a Paragradio Simulated Spectrum Analyzer with simulated activity on 93.5 MHz.
         """
-        from .simspecan import simspecan_fg
-        self._pgr = ParallelGR(simspecan_fg)
+        from .specansim import specansim_fg
+        self._pgr = ParallelGR(specansim_fg)
 
     def set_center_freq(self, freq: float) -> None:
         """Set the center frequency of simulated spectrum view."""
@@ -355,7 +355,7 @@ class simspecan(PGR_can_set_center_freq):
 if TYPE_CHECKING:
     from .wbfm_rx import wbfm_rx_fg
 
-class wbfm_rx(
+class WBFM_Rx(
         PGR_can_set_center_freq,
         PGR_can_set_if_gain,
     ):
