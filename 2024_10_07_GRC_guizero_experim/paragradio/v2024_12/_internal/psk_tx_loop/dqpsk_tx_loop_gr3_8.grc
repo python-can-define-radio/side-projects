@@ -11,7 +11,7 @@ options:
     gen_linking: dynamic
     generate_options: qt_gui
     hier_block_src_path: '.:'
-    id: bpsk_tx_loop_gr3_8
+    id: dqpsk_tx_loop_gr3_8
     max_nouts: '0'
     output_language: python
     placement: (0,0)
@@ -22,7 +22,7 @@ options:
     run_options: prompt
     sizing_mode: fixed
     thread_safe_setters: ''
-    title: bpsk_tx_loop_gr3_8
+    title: dqpsk_tx_loop_gr3_8
     window_size: ''
   states:
     bus_sink: false

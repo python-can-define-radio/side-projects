@@ -314,12 +314,17 @@ class Noise_Tx(
 
 
 def _pick_flowgraph(modulation: Literal["BPSK", "QPSK", "DQPSK", "8PSK", "16QAM"]) -> "gr.top_block":
-    from .psk_tx_loop import bpsk_tx_loop_fg, qpsk_tx_loop_fg
+    from .psk_tx_loop import bpsk_tx_loop_fg, qpsk_tx_loop_fg, dqpsk_tx_loop_fg, psk8_tx_loop_fg, qam16_tx_loop_fg
     if modulation == "BPSK":
         return bpsk_tx_loop_fg
     elif modulation == "QPSK":
         return qpsk_tx_loop_fg
-    ## TODO: fill others
+    elif modulation == "DQPSK":
+        return dqpsk_tx_loop_fg
+    elif modulation == "8PSK":
+        return psk8_tx_loop_fg
+    elif modulation == "16QAM":
+        return qam16_tx_loop_fg
 
 
 class PSK_Tx_loop(

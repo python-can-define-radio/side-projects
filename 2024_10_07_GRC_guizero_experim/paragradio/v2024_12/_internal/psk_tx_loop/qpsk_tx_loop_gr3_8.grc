@@ -1,6 +1,7 @@
 options:
   parameters:
     author: ''
+    catch_exceptions: 'True'
     category: '[GRC Hier Blocks]'
     cmake_opt: ''
     comment: ''
@@ -21,7 +22,7 @@ options:
     run_options: prompt
     sizing_mode: fixed
     thread_safe_setters: ''
-    title: Not titled yet
+    title: qpsk_tx_loop_gr3_8
     window_size: ''
   states:
     bus_sink: false
@@ -48,3 +49,4 @@ connections: []
 
 metadata:
   file_format: 1
+  grc_version: 3.10.7.0
