@@ -32,6 +32,18 @@ options:
     state: enabled
 
 blocks:
+- name: bb_gain
+  id: variable
+  parameters:
+    comment: ''
+    value: '32'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [474, 13]
+    rotation: 0
+    state: enabled
 - name: center_freq
   id: variable
   parameters:
@@ -41,9 +53,33 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [409, 32]
+    coordinate: [295, 13]
     rotation: 0
-    state: true
+    state: enabled
+- name: hw_filt_bw
+  id: variable
+  parameters:
+    comment: ''
+    value: 2.75e6
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [557, 13]
+    rotation: 0
+    state: enabled
+- name: if_gain
+  id: variable
+  parameters:
+    comment: ''
+    value: '24'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [397, 14]
+    rotation: 0
+    state: enabled
 - name: samp_rate
   id: variable
   parameters:
@@ -94,7 +130,7 @@ blocks:
     ant8: ''
     ant9: ''
     args: '"hackrf=0"'
-    bb_gain0: '32'
+    bb_gain0: bb_gain
     bb_gain1: '20'
     bb_gain10: '20'
     bb_gain11: '20'
@@ -327,7 +363,7 @@ blocks:
     gain_mode7: 'False'
     gain_mode8: 'False'
     gain_mode9: 'False'
-    if_gain0: '24'
+    if_gain0: if_gain
     if_gain1: '20'
     if_gain10: '20'
     if_gain11: '20'

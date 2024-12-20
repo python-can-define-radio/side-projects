@@ -71,7 +71,10 @@ class specan_gr3_8(gr.top_block, Qt.QWidget):
         # Variables
         ##################################################
         self.samp_rate = samp_rate = 2e6
+        self.if_gain = if_gain = 24
+        self.hw_filt_bw = hw_filt_bw = 2.75e6
         self.center_freq = center_freq = 93e6
+        self.bb_gain = bb_gain = 32
 
         ##################################################
         # Blocks
@@ -219,8 +222,8 @@ class specan_gr3_8(gr.top_block, Qt.QWidget):
         self.osmosdr_source_0.set_center_freq(center_freq, 0)
         self.osmosdr_source_0.set_freq_corr(0, 0)
         self.osmosdr_source_0.set_gain(0, 0)
-        self.osmosdr_source_0.set_if_gain(24, 0)
-        self.osmosdr_source_0.set_bb_gain(32, 0)
+        self.osmosdr_source_0.set_if_gain(if_gain, 0)
+        self.osmosdr_source_0.set_bb_gain(bb_gain, 0)
         self.osmosdr_source_0.set_antenna('', 0)
         self.osmosdr_source_0.set_bandwidth(0, 0)
 
@@ -248,6 +251,19 @@ class specan_gr3_8(gr.top_block, Qt.QWidget):
         self.qtgui_time_sink_x_0.set_samp_rate(self.samp_rate)
         self.qtgui_waterfall_sink_x_0.set_frequency_range(self.center_freq, self.samp_rate)
 
+    def get_if_gain(self):
+        return self.if_gain
+
+    def set_if_gain(self, if_gain):
+        self.if_gain = if_gain
+        self.osmosdr_source_0.set_if_gain(self.if_gain, 0)
+
+    def get_hw_filt_bw(self):
+        return self.hw_filt_bw
+
+    def set_hw_filt_bw(self, hw_filt_bw):
+        self.hw_filt_bw = hw_filt_bw
+
     def get_center_freq(self):
         return self.center_freq
 
@@ -256,6 +272,13 @@ class specan_gr3_8(gr.top_block, Qt.QWidget):
         self.osmosdr_source_0.set_center_freq(self.center_freq, 0)
         self.qtgui_freq_sink_x_0.set_frequency_range(self.center_freq, self.samp_rate)
         self.qtgui_waterfall_sink_x_0.set_frequency_range(self.center_freq, self.samp_rate)
+
+    def get_bb_gain(self):
+        return self.bb_gain
+
+    def set_bb_gain(self, bb_gain):
+        self.bb_gain = bb_gain
+        self.osmosdr_source_0.set_bb_gain(self.bb_gain, 0)
 
 
 

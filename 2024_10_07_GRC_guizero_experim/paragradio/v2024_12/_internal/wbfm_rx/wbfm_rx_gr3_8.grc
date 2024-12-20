@@ -1,6 +1,6 @@
 options:
   parameters:
-    author: 
+    author: None
     category: '[GRC Hier Blocks]'
     cmake_opt: ''
     comment: ''
@@ -27,11 +27,23 @@ options:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [8, 8]
+    coordinate: [24, 12.0]
     rotation: 0
     state: enabled
 
 blocks:
+- name: bb_gain
+  id: variable
+  parameters:
+    comment: ''
+    value: '32'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [448, 12.0]
+    rotation: 0
+    state: enabled
 - name: center_freq
   id: variable
   parameters:
@@ -41,24 +53,19 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [361, 16]
+    coordinate: [352, 12.0]
     rotation: 0
     state: true
-- name: hardware_filter
-  id: variable_qtgui_check_box
+- name: hw_filt_bw
+  id: variable
   parameters:
     comment: ''
-    'false': 'False'
-    gui_hint: ''
-    label: ''
-    'true': 'True'
-    type: int
-    value: 'False'
+    value: 2.75e6
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [624, 11]
+    coordinate: [528, 12.0]
     rotation: 0
     state: true
 - name: if_gain
@@ -70,9 +77,9 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [278, 12]
+    coordinate: [280, 12.0]
     rotation: 0
-    state: true
+    state: enabled
 - name: samp_rate
   id: variable
   parameters:
@@ -82,7 +89,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [184, 12]
+    coordinate: [192, 12.0]
     rotation: 0
     state: enabled
 - name: analog_wfm_rcv_0
@@ -182,7 +189,7 @@ blocks:
     ant8: ''
     ant9: ''
     args: '"hackrf=0"'
-    bb_gain0: '50'
+    bb_gain0: bb_gain
     bb_gain1: '20'
     bb_gain10: '20'
     bb_gain11: '20'
@@ -214,7 +221,7 @@ blocks:
     bb_gain7: '20'
     bb_gain8: '20'
     bb_gain9: '20'
-    bw0: hardware_filter * 2.75e6
+    bw0: hw_filt_bw
     bw1: '0'
     bw10: '0'
     bw11: '0'

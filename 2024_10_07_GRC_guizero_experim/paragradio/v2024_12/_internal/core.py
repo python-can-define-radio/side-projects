@@ -8,7 +8,8 @@ import time
 from typing import (
     Type, TypeVar, Generic, Callable,
     Protocol, Tuple, Any, Iterable,
-    List, Literal, runtime_checkable, TYPE_CHECKING
+    List, Literal, runtime_checkable, TYPE_CHECKING,
+    Union,
 )
 
 
@@ -166,7 +167,9 @@ class ParallelGR(Generic[Tgr]):
 ##### commands for student use
 
 if TYPE_CHECKING:
-    from .specan import specan_fg
+    from .specan.specan_gr3_8 import specan_gr3_8
+    from .specan.specan_gr3_10 import specan_gr3_10
+    _SpecAn: TypeAlias = Union[specan_gr3_8, specan_gr3_10]
     import numpy as np
 
 
@@ -179,7 +182,7 @@ class PGRWrapperCommon():
 
 
 if TYPE_CHECKING:
-    _can_set_center_freq: TypeAlias = specan_fg
+    _can_set_center_freq = _SpecAn
 
 class PGR_can_set_center_freq(PGRWrapperCommon):
     @staticmethod
@@ -193,12 +196,12 @@ class PGR_can_set_center_freq(PGRWrapperCommon):
 
 
 if TYPE_CHECKING:
-    _can_set_if_gain: TypeAlias = specan_fg
+    _can_set_if_gain = _SpecAn
 
 class PGR_can_set_if_gain(PGRWrapperCommon):
     @staticmethod
     def _set_if_gain_child(tb: "_can_set_if_gain", gain: float) -> None:
-        tb.osmosdr_source_0.set_if_gain(gain)
+        tb.set_if_gain(gain)
 
     def set_if_gain(self, gain: float) -> None:
         """Set the Intermediate Frequency gain of the SDR peripheral."""
@@ -207,12 +210,12 @@ class PGR_can_set_if_gain(PGRWrapperCommon):
 
 
 if TYPE_CHECKING:
-    _can_set_bb_gain: TypeAlias = specan_fg
+    _can_set_bb_gain = _SpecAn
 
 class PGR_can_set_bb_gain(PGRWrapperCommon):
     @staticmethod
     def _set_bb_gain_child(tb: "_can_set_bb_gain", gain: float) -> None:
-        tb.osmosdr_source_0.set_bb_gain(gain)
+        tb.set_bb_gain(gain)
 
     def set_bb_gain(self, gain: float) -> None:
         """Set the Baseband gain of the SDR peripheral."""
@@ -221,7 +224,7 @@ class PGR_can_set_bb_gain(PGRWrapperCommon):
 
 
 if TYPE_CHECKING:
-    _can_set_bw: TypeAlias = specan_fg
+    _can_set_bw = _SpecAn
 
 class PGR_can_set_bw(PGRWrapperCommon):
     @staticmethod
@@ -235,29 +238,44 @@ class PGR_can_set_bw(PGRWrapperCommon):
         self._pgr.put_cmd(This_Class._set_bw_child, bw)
 
 
+if TYPE_CHECKING:
+    _can_set_hw_filt_bw = _SpecAn
+
+class PGR_can_set_hw_filt_bw(PGRWrapperCommon):
+    @staticmethod
+    def _set_hw_filt_bw_child(tb: "_can_set_hw_filt_bw", hw_filt_bw: float) -> None:
+        tb.set_samp_rate(hw_filt_bw)  # type: ignore[no-untyped-call]
+
+    def set_hw_filt_bw(self, hw_filt_bw: float) -> None:
+        """Set the Hardware Filter Bandwidth.
+        
+        The HackRF One and many other SDR peripherals have a built-in filter that
+        precedes the Analog to Digital conversion. It is able to reduce or prevent
+        aliasing, which software filters cannot do.
+        For more info, see the Hack RF One documentation about Sampling Rate and 
+        Baseband Filters <https://hackrf.readthedocs.io/en/latest/sampling_rate.html>."""
+        This_Class = self.__class__
+        self._pgr.put_cmd(This_Class._set_hw_filt_bw_child, hw_filt_bw)
+
+
 class SpecAn(
         PGR_can_set_center_freq,
         PGR_can_set_if_gain,
         PGR_can_set_bb_gain,
         PGR_can_set_bw,
+        PGR_can_set_hw_filt_bw,
     ):
-    def __init__(self, bw: float = 2e6, freq: float = 98e6, if_gain: int = 24) -> None:
-        """Create a Paragradio Spectrum Analyzer.
-        Arguments are explained in their associated methods:
-        bw: see `set_bw()`
-        freq: see `set_center_freq()`
-        if_gain: see `if_gain()`
-        """
+    def __init__(self) -> None:
+        """Create a Paragradio Spectrum Analyzer."""
         from .specan import specan_fg
         self._pgr = ParallelGR(specan_fg)
-        self.set_bw(bw)
-        self.set_center_freq(freq)
-        self.set_if_gain(if_gain)
 
     def set_bw(self, bw: float) -> None:
         """Sets the bandwidth (the amount of viewable spectrum)
         of the GUI spectrum view. Also sets the sample rate 
-        of the SDR peripheral."""
+        of the SDR peripheral.
+        
+        To set the hardware filter bandwidth, use `set_hw_filt_bw`."""
         super().set_bw(bw)
 
 
@@ -278,24 +296,19 @@ class WBFM_Rx(
         PGR_can_set_if_gain,
         PGR_can_set_bb_gain,
         PGR_can_set_bw,
+        PGR_can_set_hw_filt_bw,
     ):
-    def __init__(self, bw: float = 2e6, freq: float = 98e6, if_gain: int = 24) -> None:
-        """Create a Paragradio Wideband FM Receiver.
-        Arguments are explained in their associated methods:
-        bw: see `set_bw()`
-        freq: see `set_center_freq()`
-        if_gain: see `if_gain()`
-        """
+    def __init__(self) -> None:
+        """Create a Paragradio Wideband FM Receiver."""
         from .wbfm_rx import wbfm_rx_fg
         self._pgr = ParallelGR(wbfm_rx_fg)
-        self.set_bw(bw)
-        self.set_center_freq(freq)
-        self.set_if_gain(if_gain)
 
     def set_bw(self, bw: float) -> None:
         """Sets the bandwidth (the amount of viewable spectrum)
         of the GUI spectrum view. Also sets the sample rate 
-        of the SDR peripheral."""
+        of the SDR peripheral.
+        
+        To set the hardware filter bandwidth, use `set_hw_filt_bw`."""
         super().set_bw(bw)
 
 

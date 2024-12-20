@@ -76,19 +76,13 @@ class wbfm_rx_gr3_8(gr.top_block, Qt.QWidget):
         ##################################################
         self.samp_rate = samp_rate = 8e6
         self.if_gain = if_gain = 24
-        self.hardware_filter = hardware_filter = False
+        self.hw_filt_bw = hw_filt_bw = 2.75e6
         self.center_freq = center_freq = 97.3e6
+        self.bb_gain = bb_gain = 32
 
         ##################################################
         # Blocks
         ##################################################
-        _hardware_filter_check_box = Qt.QCheckBox('hardware_filter')
-        self._hardware_filter_choices = {True: True, False: False}
-        self._hardware_filter_choices_inv = dict((v,k) for k,v in self._hardware_filter_choices.items())
-        self._hardware_filter_callback = lambda i: Qt.QMetaObject.invokeMethod(_hardware_filter_check_box, "setChecked", Qt.Q_ARG("bool", self._hardware_filter_choices_inv[i]))
-        self._hardware_filter_callback(self.hardware_filter)
-        _hardware_filter_check_box.stateChanged.connect(lambda i: self.set_hardware_filter(self._hardware_filter_choices[bool(i)]))
-        self.top_grid_layout.addWidget(_hardware_filter_check_box)
         self.rational_resampler_xxx_0 = filter.rational_resampler_fff(
                 interpolation=int(48e3),
                 decimation=int(samp_rate),
@@ -219,9 +213,9 @@ class wbfm_rx_gr3_8(gr.top_block, Qt.QWidget):
         self.osmosdr_source_0.set_freq_corr(0, 0)
         self.osmosdr_source_0.set_gain(0, 0)
         self.osmosdr_source_0.set_if_gain(if_gain, 0)
-        self.osmosdr_source_0.set_bb_gain(50, 0)
+        self.osmosdr_source_0.set_bb_gain(bb_gain, 0)
         self.osmosdr_source_0.set_antenna('', 0)
-        self.osmosdr_source_0.set_bandwidth(hardware_filter * 2.75e6, 0)
+        self.osmosdr_source_0.set_bandwidth(hw_filt_bw, 0)
         self.band_pass_filter_0 = filter.fir_filter_ccf(
             1,
             firdes.band_pass(
@@ -274,13 +268,12 @@ class wbfm_rx_gr3_8(gr.top_block, Qt.QWidget):
         self.if_gain = if_gain
         self.osmosdr_source_0.set_if_gain(self.if_gain, 0)
 
-    def get_hardware_filter(self):
-        return self.hardware_filter
+    def get_hw_filt_bw(self):
+        return self.hw_filt_bw
 
-    def set_hardware_filter(self, hardware_filter):
-        self.hardware_filter = hardware_filter
-        self._hardware_filter_callback(self.hardware_filter)
-        self.osmosdr_source_0.set_bandwidth(self.hardware_filter * 2.75e6, 0)
+    def set_hw_filt_bw(self, hw_filt_bw):
+        self.hw_filt_bw = hw_filt_bw
+        self.osmosdr_source_0.set_bandwidth(self.hw_filt_bw, 0)
 
     def get_center_freq(self):
         return self.center_freq
@@ -289,6 +282,13 @@ class wbfm_rx_gr3_8(gr.top_block, Qt.QWidget):
         self.center_freq = center_freq
         self.osmosdr_source_0.set_center_freq(self.center_freq, 0)
         self.qtgui_waterfall_sink_x_1.set_frequency_range(self.center_freq, self.samp_rate)
+
+    def get_bb_gain(self):
+        return self.bb_gain
+
+    def set_bb_gain(self, bb_gain):
+        self.bb_gain = bb_gain
+        self.osmosdr_source_0.set_bb_gain(self.bb_gain, 0)
 
 
 
