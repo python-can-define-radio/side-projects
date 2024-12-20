@@ -33,6 +33,8 @@ import signal
 from argparse import ArgumentParser
 from gnuradio.eng_arg import eng_float, intx
 from gnuradio import eng_notation
+import osmosdr
+import time
 from gnuradio import qtgui
 
 class noise_tx_gr3_8(gr.top_block, Qt.QWidget):
@@ -77,7 +79,7 @@ class noise_tx_gr3_8(gr.top_block, Qt.QWidget):
         self.filter_transition_width = filter_transition_width = 70e3
         self.filter_cutoff_freq = filter_cutoff_freq = 300e3
         self.center_freq = center_freq = 2.4e9
-        self.amplitude = amplitude = 1
+        self.amplitude = amplitude = 0
 
         ##################################################
         # Blocks
@@ -115,6 +117,18 @@ class noise_tx_gr3_8(gr.top_block, Qt.QWidget):
 
         self._qtgui_waterfall_sink_x_0_win = sip.wrapinstance(self.qtgui_waterfall_sink_x_0.pyqwidget(), Qt.QWidget)
         self.top_grid_layout.addWidget(self._qtgui_waterfall_sink_x_0_win)
+        self.osmosdr_sink_0 = osmosdr.sink(
+            args="numchan=" + str(1) + " " + "hackrf=0"
+        )
+        self.osmosdr_sink_0.set_time_unknown_pps(osmosdr.time_spec_t())
+        self.osmosdr_sink_0.set_sample_rate(samp_rate)
+        self.osmosdr_sink_0.set_center_freq(center_freq, 0)
+        self.osmosdr_sink_0.set_freq_corr(0, 0)
+        self.osmosdr_sink_0.set_gain(0, 0)
+        self.osmosdr_sink_0.set_if_gain(if_gain, 0)
+        self.osmosdr_sink_0.set_bb_gain(0, 0)
+        self.osmosdr_sink_0.set_antenna('', 0)
+        self.osmosdr_sink_0.set_bandwidth(0, 0)
         self.low_pass_filter_0 = filter.fir_filter_ccf(
             1,
             firdes.low_pass(
@@ -132,6 +146,7 @@ class noise_tx_gr3_8(gr.top_block, Qt.QWidget):
         # Connections
         ##################################################
         self.connect((self.analog_noise_source_x_0, 0), (self.low_pass_filter_0, 0))
+        self.connect((self.low_pass_filter_0, 0), (self.osmosdr_sink_0, 0))
         self.connect((self.low_pass_filter_0, 0), (self.qtgui_waterfall_sink_x_0, 0))
 
     def closeEvent(self, event):
@@ -145,6 +160,7 @@ class noise_tx_gr3_8(gr.top_block, Qt.QWidget):
     def set_samp_rate(self, samp_rate):
         self.samp_rate = samp_rate
         self.low_pass_filter_0.set_taps(firdes.low_pass(1, self.samp_rate, self.filter_cutoff_freq, self.filter_transition_width, firdes.WIN_HAMMING, 6.76))
+        self.osmosdr_sink_0.set_sample_rate(self.samp_rate)
         self.qtgui_waterfall_sink_x_0.set_frequency_range(self.center_freq, self.samp_rate)
 
     def get_noise_type(self):
@@ -159,6 +175,7 @@ class noise_tx_gr3_8(gr.top_block, Qt.QWidget):
 
     def set_if_gain(self, if_gain):
         self.if_gain = if_gain
+        self.osmosdr_sink_0.set_if_gain(self.if_gain, 0)
 
     def get_filter_transition_width(self):
         return self.filter_transition_width
@@ -179,6 +196,7 @@ class noise_tx_gr3_8(gr.top_block, Qt.QWidget):
 
     def set_center_freq(self, center_freq):
         self.center_freq = center_freq
+        self.osmosdr_sink_0.set_center_freq(self.center_freq, 0)
         self.qtgui_waterfall_sink_x_0.set_frequency_range(self.center_freq, self.samp_rate)
 
     def get_amplitude(self):
