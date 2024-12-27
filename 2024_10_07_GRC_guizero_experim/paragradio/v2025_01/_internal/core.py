@@ -175,6 +175,8 @@ if TYPE_CHECKING:
 
 class PGRWrapperCommon():
     _pgr: ParallelGR[Any]
+    """This handles interfacing with the parallel process. It 
+    shouldn't be used externally unless you know what you're doing."""
 
     def start(self) -> None:
         """Start the parallel process and its associated GUI."""
@@ -184,68 +186,59 @@ class PGRWrapperCommon():
 if TYPE_CHECKING:
     _can_set_center_freq = _SpecAn
 
-class PGR_can_set_center_freq(PGRWrapperCommon):
-    @staticmethod
-    def _set_center_freq_child(tb: "_can_set_center_freq", freq: float) -> None:
-        tb.set_center_freq(freq)  # type: ignore[no-untyped-call]
+def _set_center_freq_child(tb: "_can_set_center_freq", freq: float) -> None:
+    tb.set_center_freq(freq)  # type: ignore[no-untyped-call]
 
+class PGR_can_set_center_freq(PGRWrapperCommon):
     def set_center_freq(self, freq: float) -> None:
         """Set the center frequency of the SDR peripheral and any associated GUI elements."""
-        This_Class = self.__class__
-        self._pgr.put_cmd(This_Class._set_center_freq_child, freq)
+        self._pgr.put_cmd(_set_center_freq_child, freq)
 
 
 if TYPE_CHECKING:
     _can_set_if_gain = _SpecAn
 
-class PGR_can_set_if_gain(PGRWrapperCommon):
-    @staticmethod
-    def _set_if_gain_child(tb: "_can_set_if_gain", gain: float) -> None:
-        tb.set_if_gain(gain)
+def _set_if_gain_child(tb: "_can_set_if_gain", gain: float) -> None:
+    tb.set_if_gain(gain)
 
-    def set_if_gain(self, gain: float) -> None:
+class PGR_can_set_if_gain(PGRWrapperCommon):
+    def set_if_gain(self, if_gain: float) -> None:
         """Set the Intermediate Frequency gain of the SDR peripheral."""
-        This_Class = self.__class__
-        self._pgr.put_cmd(This_Class._set_if_gain_child, gain)
+        self._pgr.put_cmd(_set_if_gain_child, if_gain)
 
 
 if TYPE_CHECKING:
     _can_set_bb_gain = _SpecAn
 
-class PGR_can_set_bb_gain(PGRWrapperCommon):
-    @staticmethod
-    def _set_bb_gain_child(tb: "_can_set_bb_gain", gain: float) -> None:
-        tb.set_bb_gain(gain)
+def _set_bb_gain_child(tb: "_can_set_bb_gain", gain: float) -> None:
+    tb.set_bb_gain(gain)
 
+class PGR_can_set_bb_gain(PGRWrapperCommon):
     def set_bb_gain(self, gain: float) -> None:
         """Set the Baseband gain of the SDR peripheral."""
-        This_Class = self.__class__
-        self._pgr.put_cmd(This_Class._set_bb_gain_child, gain)
+        self._pgr.put_cmd(_set_bb_gain_child, gain)
 
 
 if TYPE_CHECKING:
     _can_set_bw = _SpecAn
 
-class PGR_can_set_bw(PGRWrapperCommon):
-    @staticmethod
-    def _set_bw_child(tb: "_can_set_bw", bw: float) -> None:
-        tb.set_samp_rate(bw)  # type: ignore[no-untyped-call]
+def _set_bw_child(tb: "_can_set_bw", bw: float) -> None:
+    tb.set_samp_rate(bw)  # type: ignore[no-untyped-call]
 
+class PGR_can_set_bw(PGRWrapperCommon):
     def set_bw(self, bw: float) -> None:
         """Set the Bandwidth. The specific meaning is
         documented in the docstring of child classes."""
-        This_Class = self.__class__
-        self._pgr.put_cmd(This_Class._set_bw_child, bw)
+        self._pgr.put_cmd(_set_bw_child, bw)
 
 
 if TYPE_CHECKING:
     _can_set_hw_filt_bw = _SpecAn
 
-class PGR_can_set_hw_filt_bw(PGRWrapperCommon):
-    @staticmethod
-    def _set_hw_filt_bw_child(tb: "_can_set_hw_filt_bw", hw_filt_bw: float) -> None:
-        tb.set_samp_rate(hw_filt_bw)  # type: ignore[no-untyped-call]
+def _set_hw_filt_bw_child(tb: "_can_set_hw_filt_bw", hw_filt_bw: float) -> None:
+    tb.set_samp_rate(hw_filt_bw)  # type: ignore[no-untyped-call]
 
+class PGR_can_set_hw_filt_bw(PGRWrapperCommon):
     def set_hw_filt_bw(self, hw_filt_bw: float) -> None:
         """Set the Hardware Filter Bandwidth.
         
@@ -254,8 +247,7 @@ class PGR_can_set_hw_filt_bw(PGRWrapperCommon):
         aliasing, which software filters cannot do.
         For more info, see the Hack RF One documentation about Sampling Rate and 
         Baseband Filters <https://hackrf.readthedocs.io/en/latest/sampling_rate.html>."""
-        This_Class = self.__class__
-        self._pgr.put_cmd(This_Class._set_hw_filt_bw_child, hw_filt_bw)
+        self._pgr.put_cmd(_set_hw_filt_bw_child, hw_filt_bw)
 
 
 class SpecAn(
