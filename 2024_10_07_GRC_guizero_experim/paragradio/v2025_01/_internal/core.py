@@ -169,7 +169,10 @@ class ParallelGR(Generic[Tgr]):
 if TYPE_CHECKING:
     from .specan.specan_gr3_8 import specan_gr3_8
     from .specan.specan_gr3_10 import specan_gr3_10
+    from .wbfm_rx.wbfm_rx_gr3_8 import wbfm_rx_gr3_8
+    from .wbfm_rx.wbfm_rx_gr3_10 import wbfm_rx_gr3_10
     _SpecAn: TypeAlias = Union[specan_gr3_8, specan_gr3_10]
+    _WBFM_Rx: TypeAlias = Union[wbfm_rx_gr3_8, wbfm_rx_gr3_10]
     import numpy as np
 
 
@@ -198,8 +201,8 @@ class PGR_can_set_center_freq(PGRWrapperCommon):
 if TYPE_CHECKING:
     _can_set_if_gain = _SpecAn
 
-def _set_if_gain_child(tb: "_can_set_if_gain", gain: float) -> None:
-    tb.set_if_gain(gain)
+def _set_if_gain_child(tb: "_can_set_if_gain", if_gain: float) -> None:
+    tb.set_if_gain(if_gain)
 
 class PGR_can_set_if_gain(PGRWrapperCommon):
     def set_if_gain(self, if_gain: float) -> None:
@@ -210,13 +213,13 @@ class PGR_can_set_if_gain(PGRWrapperCommon):
 if TYPE_CHECKING:
     _can_set_bb_gain = _SpecAn
 
-def _set_bb_gain_child(tb: "_can_set_bb_gain", gain: float) -> None:
-    tb.set_bb_gain(gain)
+def _set_bb_gain_child(tb: "_can_set_bb_gain", bb_gain: float) -> None:
+    tb.set_bb_gain(bb_gain)
 
 class PGR_can_set_bb_gain(PGRWrapperCommon):
-    def set_bb_gain(self, gain: float) -> None:
+    def set_bb_gain(self, bb_gain: float) -> None:
         """Set the Baseband gain of the SDR peripheral."""
-        self._pgr.put_cmd(_set_bb_gain_child, gain)
+        self._pgr.put_cmd(_set_bb_gain_child, bb_gain)
 
 
 if TYPE_CHECKING:
@@ -248,6 +251,17 @@ class PGR_can_set_hw_filt_bw(PGRWrapperCommon):
         For more info, see the Hack RF One documentation about Sampling Rate and 
         Baseband Filters <https://hackrf.readthedocs.io/en/latest/sampling_rate.html>."""
         self._pgr.put_cmd(_set_hw_filt_bw_child, hw_filt_bw)
+
+
+def _set_freq_offset_child(tb: "_WBFM_Rx", freq_offset: float) -> None:
+    tb.set_freq_offset(freq_offset)  # type: ignore[no-untyped-call]
+
+class PGR_can_set_freq_offset(PGRWrapperCommon):
+    def set_freq_offset(self, freq_offset: float):
+        """Set the frequency offset.
+        
+        When tuning the FM Radio, TODO FINISH EXPLANATION"""
+        self._pgr.put_cmd(_set_freq_offset_child, freq_offset)
 
 
 class SpecAn(
@@ -287,22 +301,15 @@ class WBFM_Rx(
         PGR_can_set_center_freq,
         PGR_can_set_if_gain,
         PGR_can_set_bb_gain,
-        PGR_can_set_bw,
         PGR_can_set_hw_filt_bw,
+        PGR_can_set_freq_offset,
+        # Note: Can't add set_bw because the rational resampler doesn't update at runtime
     ):
     def __init__(self) -> None:
         """Create a Paragradio Wideband FM Receiver."""
         from .wbfm_rx import wbfm_rx_fg
         self._pgr = ParallelGR(wbfm_rx_fg)
-
-    def set_bw(self, bw: float) -> None:
-        """Sets the bandwidth (the amount of viewable spectrum)
-        of the GUI spectrum view. Also sets the sample rate 
-        of the SDR peripheral.
-        
-        To set the hardware filter bandwidth, use `set_hw_filt_bw`."""
-        super().set_bw(bw)
-
+    
 
 class Noise_Tx(
         PGR_can_set_center_freq,

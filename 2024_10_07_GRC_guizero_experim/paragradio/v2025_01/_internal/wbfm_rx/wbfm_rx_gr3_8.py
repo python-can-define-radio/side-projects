@@ -27,6 +27,7 @@ from gnuradio.filter import firdes
 import sip
 from gnuradio import analog
 from gnuradio import audio
+from gnuradio import blocks
 from gnuradio import filter
 from gnuradio import gr
 import sys
@@ -77,6 +78,8 @@ class wbfm_rx_gr3_8(gr.top_block, Qt.QWidget):
         self.samp_rate = samp_rate = 8e6
         self.if_gain = if_gain = 24
         self.hw_filt_bw = hw_filt_bw = 2.75e6
+        self.freq_offset = freq_offset = 0
+        self.channel_width = channel_width = 200e3
         self.center_freq = center_freq = 97.3e6
         self.bb_gain = bb_gain = 32
 
@@ -124,7 +127,7 @@ class wbfm_rx_gr3_8(gr.top_block, Qt.QWidget):
         self.qtgui_waterfall_sink_x_0 = qtgui.waterfall_sink_c(
             1024, #size
             firdes.WIN_BLACKMAN_hARRIS, #wintype
-            0, #fc
+            center_freq, #fc
             samp_rate, #bw
             "Original Spectrum", #name
             1 #number of inputs
@@ -216,13 +219,14 @@ class wbfm_rx_gr3_8(gr.top_block, Qt.QWidget):
         self.osmosdr_source_0.set_bb_gain(bb_gain, 0)
         self.osmosdr_source_0.set_antenna('', 0)
         self.osmosdr_source_0.set_bandwidth(hw_filt_bw, 0)
-        self.band_pass_filter_0 = filter.fir_filter_ccf(
+        self.blocks_multiply_xx_0 = blocks.multiply_vcc(1)
+        self.band_pass_filter_0 = filter.fir_filter_ccc(
             1,
-            firdes.band_pass(
+            firdes.complex_band_pass(
                 1,
                 samp_rate,
-                -100e3,
-                100e3,
+                freq_offset - channel_width/2,
+                freq_offset + channel_width/2,
                 90e3,
                 firdes.WIN_HAMMING,
                 6.76))
@@ -231,15 +235,18 @@ class wbfm_rx_gr3_8(gr.top_block, Qt.QWidget):
         	quad_rate=samp_rate,
         	audio_decimation=1,
         )
+        self.analog_sig_source_x_0 = analog.sig_source_c(samp_rate, analog.GR_COS_WAVE, -freq_offset, 1, 0, 0)
 
 
 
         ##################################################
         # Connections
         ##################################################
+        self.connect((self.analog_sig_source_x_0, 0), (self.blocks_multiply_xx_0, 1))
         self.connect((self.analog_wfm_rcv_0, 0), (self.rational_resampler_xxx_0, 0))
-        self.connect((self.band_pass_filter_0, 0), (self.analog_wfm_rcv_0, 0))
+        self.connect((self.band_pass_filter_0, 0), (self.blocks_multiply_xx_0, 0))
         self.connect((self.band_pass_filter_0, 0), (self.qtgui_waterfall_sink_x_1, 0))
+        self.connect((self.blocks_multiply_xx_0, 0), (self.analog_wfm_rcv_0, 0))
         self.connect((self.osmosdr_source_0, 0), (self.band_pass_filter_0, 0))
         self.connect((self.osmosdr_source_0, 0), (self.qtgui_time_sink_x_0, 0))
         self.connect((self.osmosdr_source_0, 0), (self.qtgui_waterfall_sink_x_0, 0))
@@ -255,10 +262,11 @@ class wbfm_rx_gr3_8(gr.top_block, Qt.QWidget):
 
     def set_samp_rate(self, samp_rate):
         self.samp_rate = samp_rate
-        self.band_pass_filter_0.set_taps(firdes.band_pass(1, self.samp_rate, -100e3, 100e3, 90e3, firdes.WIN_HAMMING, 6.76))
+        self.analog_sig_source_x_0.set_sampling_freq(self.samp_rate)
+        self.band_pass_filter_0.set_taps(firdes.complex_band_pass(1, self.samp_rate, self.freq_offset - self.channel_width/2, self.freq_offset + self.channel_width/2, 90e3, firdes.WIN_HAMMING, 6.76))
         self.osmosdr_source_0.set_sample_rate(self.samp_rate)
         self.qtgui_time_sink_x_0.set_samp_rate(self.samp_rate)
-        self.qtgui_waterfall_sink_x_0.set_frequency_range(0, self.samp_rate)
+        self.qtgui_waterfall_sink_x_0.set_frequency_range(self.center_freq, self.samp_rate)
         self.qtgui_waterfall_sink_x_1.set_frequency_range(self.center_freq, self.samp_rate)
 
     def get_if_gain(self):
@@ -275,12 +283,28 @@ class wbfm_rx_gr3_8(gr.top_block, Qt.QWidget):
         self.hw_filt_bw = hw_filt_bw
         self.osmosdr_source_0.set_bandwidth(self.hw_filt_bw, 0)
 
+    def get_freq_offset(self):
+        return self.freq_offset
+
+    def set_freq_offset(self, freq_offset):
+        self.freq_offset = freq_offset
+        self.analog_sig_source_x_0.set_frequency(-self.freq_offset)
+        self.band_pass_filter_0.set_taps(firdes.complex_band_pass(1, self.samp_rate, self.freq_offset - self.channel_width/2, self.freq_offset + self.channel_width/2, 90e3, firdes.WIN_HAMMING, 6.76))
+
+    def get_channel_width(self):
+        return self.channel_width
+
+    def set_channel_width(self, channel_width):
+        self.channel_width = channel_width
+        self.band_pass_filter_0.set_taps(firdes.complex_band_pass(1, self.samp_rate, self.freq_offset - self.channel_width/2, self.freq_offset + self.channel_width/2, 90e3, firdes.WIN_HAMMING, 6.76))
+
     def get_center_freq(self):
         return self.center_freq
 
     def set_center_freq(self, center_freq):
         self.center_freq = center_freq
         self.osmosdr_source_0.set_center_freq(self.center_freq, 0)
+        self.qtgui_waterfall_sink_x_0.set_frequency_range(self.center_freq, self.samp_rate)
         self.qtgui_waterfall_sink_x_1.set_frequency_range(self.center_freq, self.samp_rate)
 
     def get_bb_gain(self):

@@ -56,6 +56,30 @@ blocks:
     coordinate: [352, 12.0]
     rotation: 0
     state: true
+- name: channel_width
+  id: variable
+  parameters:
+    comment: ''
+    value: 200e3
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [712, 12.0]
+    rotation: 0
+    state: true
+- name: freq_offset
+  id: variable
+  parameters:
+    comment: ''
+    value: '0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [616, 12.0]
+    rotation: 0
+    state: enabled
 - name: hw_filt_bw
   id: variable
   parameters:
@@ -92,6 +116,28 @@ blocks:
     coordinate: [192, 12.0]
     rotation: 0
     state: enabled
+- name: analog_sig_source_x_0
+  id: analog_sig_source_x
+  parameters:
+    affinity: ''
+    alias: ''
+    amp: '1'
+    comment: ''
+    freq: -freq_offset
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    offset: '0'
+    phase: '0'
+    samp_rate: samp_rate
+    type: complex
+    waveform: analog.GR_COS_WAVE
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [392, 556.0]
+    rotation: 0
+    state: true
 - name: analog_wfm_rcv_0
   id: analog_wfm_rcv
   parameters:
@@ -106,7 +152,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [689, 375]
+    coordinate: [816, 460.0]
     rotation: 0
     state: true
 - name: audio_sink_0
@@ -135,20 +181,38 @@ blocks:
     comment: ''
     decim: '1'
     gain: '1'
-    high_cutoff_freq: 100e3
+    high_cutoff_freq: freq_offset + channel_width/2
     interp: '1'
-    low_cutoff_freq: -100e3
+    low_cutoff_freq: freq_offset - channel_width/2
     maxoutbuf: '0'
     minoutbuf: '0'
     samp_rate: samp_rate
-    type: fir_filter_ccf
+    type: fir_filter_ccc
     width: 90e3
     win: firdes.WIN_HAMMING
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [423, 391]
+    coordinate: [416, 372.0]
+    rotation: 0
+    state: true
+- name: blocks_multiply_xx_0
+  id: blocks_multiply_xx
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    num_inputs: '2'
+    type: complex
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [680, 464.0]
     rotation: 0
     state: true
 - name: osmosdr_source_0
@@ -633,7 +697,7 @@ blocks:
     color8: '0'
     color9: '0'
     comment: ''
-    fc: '0'
+    fc: center_freq
     fftsize: '1024'
     freqhalf: 'True'
     grid: 'False'
@@ -744,14 +808,16 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [936, 359]
+    coordinate: [1016, 412.0]
     rotation: 0
     state: true
 
 connections:
+- [analog_sig_source_x_0, '0', blocks_multiply_xx_0, '1']
 - [analog_wfm_rcv_0, '0', rational_resampler_xxx_0, '0']
-- [band_pass_filter_0, '0', analog_wfm_rcv_0, '0']
+- [band_pass_filter_0, '0', blocks_multiply_xx_0, '0']
 - [band_pass_filter_0, '0', qtgui_waterfall_sink_x_1, '0']
+- [blocks_multiply_xx_0, '0', analog_wfm_rcv_0, '0']
 - [osmosdr_source_0, '0', band_pass_filter_0, '0']
 - [osmosdr_source_0, '0', qtgui_time_sink_x_0, '0']
 - [osmosdr_source_0, '0', qtgui_waterfall_sink_x_0, '0']
