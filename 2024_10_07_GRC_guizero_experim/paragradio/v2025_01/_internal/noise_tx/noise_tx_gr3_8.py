@@ -6,7 +6,7 @@
 #
 # GNU Radio Python Flow Graph
 # Title: Not titled yet
-# Author: james.i.j.omeara61
+# Author: None
 # GNU Radio version: 3.8.1.0
 
 from distutils.version import StrictVersion
