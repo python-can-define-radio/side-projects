@@ -163,6 +163,9 @@ class ParallelGR(Generic[Tgr]):
             raise ProcessTerminated("The parallel process has terminated; cannot execute commands.")
         self.__q.put((f, args))
 
+    def is_alive(self) -> bool:
+        time.sleep(2.0)
+        return self.__proc.is_alive()
 
 ##### commands for student use
 
@@ -184,6 +187,9 @@ class PGRWrapperCommon():
     def start(self) -> None:
         """Start the parallel process and its associated GUI."""
         self._pgr.start()
+
+    def is_alive(self) -> bool:
+        return self._pgr.is_alive()
 
 
 if TYPE_CHECKING:
