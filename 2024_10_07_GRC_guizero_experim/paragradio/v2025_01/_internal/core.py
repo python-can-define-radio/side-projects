@@ -346,6 +346,7 @@ class PSK_Tx_loop(
     ):
     def __init__(
             self,
+            *, 
             modulation: Literal["BPSK", "QPSK", "DQPSK", "8PSK", "16QAM"],
         ) -> None:
         fg = _pick_flowgraph(modulation)
