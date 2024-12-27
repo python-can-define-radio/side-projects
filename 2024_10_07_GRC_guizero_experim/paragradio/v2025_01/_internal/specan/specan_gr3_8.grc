@@ -484,7 +484,7 @@ blocks:
     fftsize: '1024'
     freqhalf: 'False'
     grid: 'False'
-    gui_hint: (0, 1, 1, 1)
+    gui_hint: (1, 0, 1, 1)
     label: Relative Gain
     label1: ''
     label10: ''''''
@@ -658,7 +658,7 @@ blocks:
     fftsize: '1024'
     freqhalf: 'False'
     grid: 'False'
-    gui_hint: (0, 2, 1, 1)
+    gui_hint: (2, 0, 1, 1)
     int_max: '10'
     int_min: '-100'
     label1: ''
