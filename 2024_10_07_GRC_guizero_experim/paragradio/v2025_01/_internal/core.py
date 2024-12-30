@@ -234,9 +234,9 @@ if TYPE_CHECKING:
 def _set_bw_child(tb: "_can_set_bw", bw: float) -> None:
     tb.set_samp_rate(bw)  # type: ignore[no-untyped-call]
 
-class PGR_can_set_bw(PGRWrapperCommon):
-    def set_bw(self, bw: float) -> None:
-        """Set the Bandwidth. The specific meaning is
+class PGR_can_set_samp_rate(PGRWrapperCommon):
+    def set_samp_rate(self, bw: float) -> None:
+        """Set the sample rate. The specific meaning is
         documented in the docstring of child classes."""
         self._pgr.put_cmd(_set_bw_child, bw)
 
@@ -285,12 +285,13 @@ class SpecAn(
         from .specan import specan_fg
         self._pgr = ParallelGR(specan_fg)
 
-    def set_bw(self, bw: float) -> None:
-        """Sets the bandwidth (the amount of viewable spectrum)
-        of the GUI spectrum view. Also sets the sample rate 
-        of the SDR peripheral.
+    def set_samp_rate(self, bw: float) -> None:
+        """Sets the sample rate of the SDR peripheral and the bandwidth
+        (the amount of viewable spectrum) of the GUI spectrum view.
+
+        Due to the physics of digital sampling, your sample rate is your bandwidth. 
         
-        To set the hardware filter bandwidth, use `set_hw_filt_bw`."""
+        To set the TODO, use `set_hw_filt_bw TODO fix`."""
         super().set_bw(bw)
 
 
