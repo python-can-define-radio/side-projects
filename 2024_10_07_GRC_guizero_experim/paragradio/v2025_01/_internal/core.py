@@ -245,11 +245,11 @@ if TYPE_CHECKING:
     _can_set_hw_filt_bw = _SpecAn
 
 def _set_hw_filt_bw_child(tb: "_can_set_hw_filt_bw", hw_filt_bw: float) -> None:
-    tb.set_samp_rate(hw_filt_bw)  # type: ignore[no-untyped-call]
+    tb.set_hw_filt_bw(hw_filt_bw)  # type: ignore[no-untyped-call]
 
 class PGR_can_set_hw_filt_bw(PGRWrapperCommon):
     def set_hw_filt_bw(self, hw_filt_bw: float) -> None:
-        """Set the Hardware Filter Bandwidth.
+        """Set the Hardware Filter Bandwidth, which is proportional to the cutoff frequency of the baseband filter.
         
         The HackRF One and many other SDR peripherals have a built-in filter that
         precedes the Analog to Digital conversion. It is able to reduce or prevent
