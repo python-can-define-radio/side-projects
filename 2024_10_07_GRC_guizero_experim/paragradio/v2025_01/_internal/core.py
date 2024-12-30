@@ -248,12 +248,15 @@ def _set_hw_filt_bw_child(tb: "_can_set_hw_filt_bw", hw_filt_bw: float) -> None:
     tb.set_hw_filt_bw(hw_filt_bw)  # type: ignore[no-untyped-call]
 
 class PGR_can_set_hw_filt_bw(PGRWrapperCommon):
-    def set_hw_filt_bw(self, hw_filt_bw: float) -> None:
-        """Set the Hardware Filter Bandwidth, which is proportional to the cutoff frequency of the baseband filter.
+    def set_hw_bb_filt(self, either_bw_or_cut_freq_TODO: float) -> None:
+        """Set the Hardware Baseband Filter SOMETHING TODO ABOUT CUTOFF FREQUENCY, which is proportional to the cutoff frequency of the baseband filter.
         
         The HackRF One and many other SDR peripherals have a built-in filter that
         precedes the Analog to Digital conversion. It is able to reduce or prevent
         aliasing, which software filters cannot do.
+
+        Typically, you should set the baseband filter as low as possible for the signals that you wish to receive -- a tighter filter will more effectively reduce aliasing.
+        
         For more info, see the Hack RF One documentation about Sampling Rate and 
         Baseband Filters <https://hackrf.readthedocs.io/en/latest/sampling_rate.html>."""
         self._pgr.put_cmd(_set_hw_filt_bw_child, hw_filt_bw)
