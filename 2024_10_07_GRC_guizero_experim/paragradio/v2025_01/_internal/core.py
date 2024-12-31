@@ -347,6 +347,8 @@ def _pick_flowgraph(modulation: Literal["BPSK", "QPSK", "DQPSK", "8PSK", "16QAM"
         return psk8_tx_loop_fg
     elif modulation == "16QAM":
         return qam16_tx_loop_fg
+    else:
+        raise ValueError("modulation must be one of the options in the type signature")
 
 
 class PSK_Tx_loop(
