@@ -1,4 +1,4 @@
-from paragradio.v2025_01 import SpecAnSim
+from paragradio.v2025_02 import SpecAnSim
 
 sa = SpecAnSim()
 sa.start()
