@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=42.0"]
+build-backend = "setuptools.build_meta"
+
+
+[project]
+name = "paragradio"
+version = "2025.02.0a"
+authors = [
+  { name="james-pcdr" },
+]
+description = "Parallel GNU Radio. Launches a flowgraph using `multiprocessing`, provides methods for flowgraph. Includes pre-built flowgraphs."
+readme = "README.md"
+requires-python = ">=3.8,<3.12"
+dependencies = []
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/python-can-define-radio/side-projects/tree/main/2024_10_07_GRC_guizero_experim"
+"Bug Tracker" = "https://github.com/python-can-define-radio/side-projects/issues"
+
+[tool.mypy]
+disable_error_code = [
+  'import-untyped',  # because of gnuradio, PyQt5, etc
+]
+
+# mypy_path = './typings'
