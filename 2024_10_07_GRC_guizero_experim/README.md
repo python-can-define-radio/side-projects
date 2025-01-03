@@ -4,12 +4,12 @@ paragradio (Parallel GNU Radio) module.
     
 Note that much of the functionality also depends on GNU Radio. However, `gnuradio` is not listed in the dependencies as it is not pip-installable (as far as the authors know).
 
-Also uses PyQt5, which you likely have if you have gnuradio.
+Most of the flowgraphs also use PyQt5, which you likely have if you have gnuradio.
     
 ### Example usage
     
 ```python3
-from paragradio.v2025_01 import SpecAnSim
+from paragradio.v2025_02 import SpecAnSim
 
 sa = SpecAnSim()
 sa.start()
@@ -30,10 +30,6 @@ Examples:
 | v2025_05 | Before May 1, 2025    | Starting May 1, 2025   | 
 | v2026_01 | Before Jan 1, 2026    | Starting Jan 1, 2026   | 
 | etc.     |                       |                        |
-    
-### Current status
-
-As of January 2025, we are using this to teach a class. We are still deciding what the roadmap will be. Pull requests are welcome.
 
 ### License
 
