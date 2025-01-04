@@ -1,4 +1,3 @@
-# from nullsourcenullsink import nullsourcenullsink
 from distutils.version import StrictVersion
 import multiprocessing as mp
 import queue
@@ -174,9 +173,14 @@ if TYPE_CHECKING:
     from .specan.specan_gr3_10 import specan_gr3_10
     from .wbfm_rx.wbfm_rx_gr3_8 import wbfm_rx_gr3_8
     from .wbfm_rx.wbfm_rx_gr3_10 import wbfm_rx_gr3_10
+    from .noise_tx.noise_tx_gr3_8 import noise_tx_gr3_8
+    from .noise_tx.noise_tx_gr3_10 import noise_tx_gr3_10
+    from .psk_tx_loop.bpsk_tx_loop_gr3_8 import bpsk_tx_loop_gr3_8
+    from .psk_tx_loop.psk8_tx_loop_gr3_8 import psk8_tx_loop_gr3_8
     _SpecAn: TypeAlias = Union[specan_gr3_8, specan_gr3_10]
+    _Noise_Tx: TypeAlias = Union[noise_tx_gr3_8, noise_tx_gr3_10]    
     _WBFM_Rx: TypeAlias = Union[wbfm_rx_gr3_8, wbfm_rx_gr3_10]
-    import numpy as np
+    _PSK_Tx: TypeAlias = Union[bpsk_tx_loop_gr3_8, psk8_tx_loop_gr3_8]
 
 
 class PGRWrapperCommon():
@@ -273,11 +277,62 @@ class PGR_can_set_freq_offset(PGRWrapperCommon):
         self._pgr.put_cmd(_set_freq_offset_child, freq_offset)
 
 
+def _set_noise_type_child(tb: "_Noise_Tx", noise_type: int) -> None:
+    tb.set_noise_type(noise_type)  # type: ignore[no-untyped-call]
+
+class PGR_can_set_noise_type(PGRWrapperCommon):
+    def set_noise_type(self, noise_type: str):
+        """Set the noise type to uniform or gaussian."""
+        if noise_type == "uniform":
+            nt = 200
+        elif noise_type == "gaussian":
+            nt = 201
+        else:
+            raise ValueError("Noise type must be uniform or gaussian.")
+        self._pgr.put_cmd(_set_noise_type_child, nt)
+
+
+def _set_amplitude_child(tb: "_Noise_Tx", amplitude: float) -> None:
+    tb.set_amplitude(amplitude)  # type: ignore[no-untyped-call]
+
+class PGR_can_set_amplitude(PGRWrapperCommon):
+    def set_amplitude(self, amplitude: float):
+        """Update the amplitude of the generated noise."""
+        self._pgr.put_cmd(_set_amplitude_child, amplitude)
+
+## cutoff
+def _set_filter_cutoff_freq_child(tb: "_Noise_Tx", filter_cutoff_freq: float) -> None:
+    tb.set_filter_cutoff_freq(filter_cutoff_freq)  # type: ignore[no-untyped-call]
+
+class PGR_can_set_filter_cutoff_freq(PGRWrapperCommon):
+    def set_filter_cutoff_freq(self, filter_cutoff_freq: float):
+        """Update the cutoff frequency of the filter that shapes the generated noise before transmitting it."""
+        self._pgr.put_cmd(_set_filter_cutoff_freq_child, filter_cutoff_freq)
+
+
+def _set_filter_transition_width_child(tb: "_Noise_Tx", filter_transition_width: float) -> None:
+    tb.set_filter_transition_width(filter_transition_width)  # type: ignore[no-untyped-call]
+
+class PGR_can_set_filter_transition_width(PGRWrapperCommon):
+    def set_filter_transition_width(self, filter_transition_width: float):
+        """Update the transition width of the filter that shapes the generated noise before transmitting it."""
+        self._pgr.put_cmd(_set_filter_transition_width_child, filter_transition_width)
+
+
+def _set_data_child(tb: "_PSK_Tx", data: List[int]) -> None:
+    tb.set_data(data)  # type: ignore[no-untyped-call]
+
+class PGR_can_set_data(PGRWrapperCommon):
+    def set_data(self, data: List[int]):
+        """Update what data is being repeatedly transmitted."""
+        self._pgr.put_cmd(_set_data_child, data)
+
+
 class SpecAn(
         PGR_can_set_center_freq,
         PGR_can_set_if_gain,
         PGR_can_set_bb_gain,
-        PGR_can_set_bw,
+        PGR_can_set_samp_rate,
         PGR_can_set_hw_filt_bw,
     ):
     def __init__(self) -> None:
@@ -292,7 +347,7 @@ class SpecAn(
         Due to the physics of digital sampling, your sample rate is your bandwidth. 
         
         To set the TODO, use `set_hw_filt_bw TODO fix`."""
-        super().set_bw(bw)
+        super().set_samp_rate(bw)
 
 
 class SpecAnSim(PGR_can_set_center_freq):
@@ -313,7 +368,7 @@ class WBFM_Rx(
         PGR_can_set_bb_gain,
         PGR_can_set_hw_filt_bw,
         PGR_can_set_freq_offset,
-        # Note: Can't add set_bw because the rational resampler doesn't update at runtime
+        # Note: Can't add set_samp_rate because the rational resampler doesn't update at runtime
     ):
     def __init__(self) -> None:
         """Create a Paragradio Wideband FM Receiver."""
@@ -322,17 +377,17 @@ class WBFM_Rx(
     
 
 class Noise_Tx(
+        PGR_can_set_samp_rate,
+        PGR_can_set_amplitude,
         PGR_can_set_center_freq,
         PGR_can_set_if_gain,
+        PGR_can_set_noise_type,
+        PGR_can_set_filter_cutoff_freq,
+        PGR_can_set_filter_transition_width,
     ):
     def __init__(self) -> None:
         from .noise_tx import noise_tx_fg
         self._pgr = ParallelGR(noise_tx_fg)
-
-    ## TODO:
-    ## for noise transmitter, allow user to set using string.
-    ## "uniform" -> 200
-    ## "gaussian" -> 201
 
 
 def _pick_flowgraph(modulation: Literal["BPSK", "QPSK", "DQPSK", "8PSK", "16QAM"]) -> "gr.top_block":
@@ -354,6 +409,9 @@ def _pick_flowgraph(modulation: Literal["BPSK", "QPSK", "DQPSK", "8PSK", "16QAM"
 class PSK_Tx_loop(
         PGR_can_set_center_freq,
         PGR_can_set_if_gain,
+        PGR_can_set_amplitude,
+        PGR_can_set_data,
+        PGR_can_set_samp_rate,
     ):
     def __init__(
             self,
@@ -362,9 +420,3 @@ class PSK_Tx_loop(
         ) -> None:
         fg = _pick_flowgraph(modulation)
         self._pgr = ParallelGR(fg)
-
-    def set_data(self, data: "np.ndarray"):
-        """Update what data is being repeatedly transmitted."""
-        ...
-
-
