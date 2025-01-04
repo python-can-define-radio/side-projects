@@ -162,9 +162,6 @@ class ParallelGR(Generic[Tgr]):
             raise ProcessTerminated("The parallel process has terminated; cannot execute commands.")
         self.__q.put((f, args))
 
-    def is_alive(self) -> bool:
-        time.sleep(2.0)
-        return self.__proc.is_alive()
 
 ##### commands for student use
 
@@ -192,14 +189,8 @@ class PGRWrapperCommon():
         """Start the parallel process and its associated GUI."""
         self._pgr.start()
 
-    def is_alive(self) -> bool:
-        return self._pgr.is_alive()
 
-
-if TYPE_CHECKING:
-    _can_set_center_freq = _SpecAn
-
-def _set_center_freq_child(tb: "_can_set_center_freq", freq: float) -> None:
+def _set_center_freq_child(tb: "_SpecAn", freq: float) -> None:
     tb.set_center_freq(freq)  # type: ignore[no-untyped-call]
 
 class PGR_can_set_center_freq(PGRWrapperCommon):
@@ -208,10 +199,7 @@ class PGR_can_set_center_freq(PGRWrapperCommon):
         self._pgr.put_cmd(_set_center_freq_child, freq)
 
 
-if TYPE_CHECKING:
-    _can_set_if_gain = _SpecAn
-
-def _set_if_gain_child(tb: "_can_set_if_gain", if_gain: float) -> None:
+def _set_if_gain_child(tb: "_SpecAn", if_gain: float) -> None:
     tb.set_if_gain(if_gain)
 
 class PGR_can_set_if_gain(PGRWrapperCommon):
@@ -220,10 +208,7 @@ class PGR_can_set_if_gain(PGRWrapperCommon):
         self._pgr.put_cmd(_set_if_gain_child, if_gain)
 
 
-if TYPE_CHECKING:
-    _can_set_bb_gain = _SpecAn
-
-def _set_bb_gain_child(tb: "_can_set_bb_gain", bb_gain: float) -> None:
+def _set_bb_gain_child(tb: "_SpecAn", bb_gain: float) -> None:
     tb.set_bb_gain(bb_gain)
 
 class PGR_can_set_bb_gain(PGRWrapperCommon):
@@ -232,28 +217,24 @@ class PGR_can_set_bb_gain(PGRWrapperCommon):
         self._pgr.put_cmd(_set_bb_gain_child, bb_gain)
 
 
-if TYPE_CHECKING:
-    _can_set_bw = _SpecAn
-
-def _set_bw_child(tb: "_can_set_bw", bw: float) -> None:
-    tb.set_samp_rate(bw)  # type: ignore[no-untyped-call]
+def _set_samp_rate_child(tb: "_SpecAn", samp_rate: float) -> None:
+    tb.set_samp_rate(samp_rate)  # type: ignore[no-untyped-call]
 
 class PGR_can_set_samp_rate(PGRWrapperCommon):
-    def set_samp_rate(self, bw: float) -> None:
-        """Set the sample rate. The specific meaning is
-        documented in the docstring of child classes."""
-        self._pgr.put_cmd(_set_bw_child, bw)
+    def set_samp_rate(self, samp_rate: float) -> None:
+        """Sets the sample rate of the SDR peripheral and the bandwidth
+        (the amount of viewable spectrum) of the GUI spectrum view.
+
+        Due to the physics of digital sampling, your sample rate is your bandwidth."""
+        self._pgr.put_cmd(_set_samp_rate_child, samp_rate)
 
 
-if TYPE_CHECKING:
-    _can_set_hw_filt_bw = _SpecAn
+def _set_hw_bb_filt_child(tb: "_WBFM_Rx", val: float) -> None:
+    tb.set_hw_filt_bw(val)  # type: ignore[no-untyped-call]
 
-def _set_hw_filt_bw_child(tb: "_can_set_hw_filt_bw", hw_filt_bw: float) -> None:
-    tb.set_hw_filt_bw(hw_filt_bw)  # type: ignore[no-untyped-call]
-
-class PGR_can_set_hw_filt_bw(PGRWrapperCommon):
-    def set_hw_bb_filt(self, either_bw_or_cut_freq_TODO: float) -> None:
-        """Set the Hardware Baseband Filter SOMETHING TODO ABOUT CUTOFF FREQUENCY, which is proportional to the cutoff frequency of the baseband filter.
+class PGR_can_set_hw_bb_filt(PGRWrapperCommon):
+    def set_hw_bb_filt(self, val: float) -> None:
+        """Set the Hardware Baseband Filter.
         
         The HackRF One and many other SDR peripherals have a built-in filter that
         precedes the Analog to Digital conversion. It is able to reduce or prevent
@@ -263,7 +244,7 @@ class PGR_can_set_hw_filt_bw(PGRWrapperCommon):
         
         For more info, see the Hack RF One documentation about Sampling Rate and 
         Baseband Filters <https://hackrf.readthedocs.io/en/latest/sampling_rate.html>."""
-        self._pgr.put_cmd(_set_hw_filt_bw_child, hw_filt_bw)
+        self._pgr.put_cmd(_set_hw_bb_filt_child, val)
 
 
 def _set_freq_offset_child(tb: "_WBFM_Rx", freq_offset: float) -> None:
@@ -273,7 +254,8 @@ class PGR_can_set_freq_offset(PGRWrapperCommon):
     def set_freq_offset(self, freq_offset: float):
         """Set the frequency offset.
         
-        When tuning the FM Radio, TODO FINISH EXPLANATION"""
+        When tuning the FM Radio, you'll often get a clearer sound if
+        you tune offset to avoid the DC Spike."""
         self._pgr.put_cmd(_set_freq_offset_child, freq_offset)
 
 
@@ -300,7 +282,7 @@ class PGR_can_set_amplitude(PGRWrapperCommon):
         """Update the amplitude of the generated noise."""
         self._pgr.put_cmd(_set_amplitude_child, amplitude)
 
-## cutoff
+
 def _set_filter_cutoff_freq_child(tb: "_Noise_Tx", filter_cutoff_freq: float) -> None:
     tb.set_filter_cutoff_freq(filter_cutoff_freq)  # type: ignore[no-untyped-call]
 
@@ -333,21 +315,12 @@ class SpecAn(
         PGR_can_set_if_gain,
         PGR_can_set_bb_gain,
         PGR_can_set_samp_rate,
-        PGR_can_set_hw_filt_bw,
+        PGR_can_set_hw_bb_filt,
     ):
     def __init__(self) -> None:
         """Create a Paragradio Spectrum Analyzer."""
         from .specan import specan_fg
         self._pgr = ParallelGR(specan_fg)
-
-    def set_samp_rate(self, bw: float) -> None:
-        """Sets the sample rate of the SDR peripheral and the bandwidth
-        (the amount of viewable spectrum) of the GUI spectrum view.
-
-        Due to the physics of digital sampling, your sample rate is your bandwidth. 
-        
-        To set the TODO, use `set_hw_filt_bw TODO fix`."""
-        super().set_samp_rate(bw)
 
 
 class SpecAnSim(PGR_can_set_center_freq):
@@ -356,7 +329,7 @@ class SpecAnSim(PGR_can_set_center_freq):
         """
         from .specansim import specansim_fg
         self._pgr = ParallelGR(specansim_fg)
-
+        
     def set_center_freq(self, freq: float) -> None:
         """Set the center frequency of simulated spectrum view."""
         super().set_center_freq(freq)
@@ -366,7 +339,7 @@ class WBFM_Rx(
         PGR_can_set_center_freq,
         PGR_can_set_if_gain,
         PGR_can_set_bb_gain,
-        PGR_can_set_hw_filt_bw,
+        PGR_can_set_hw_bb_filt,
         PGR_can_set_freq_offset,
         # Note: Can't add set_samp_rate because the rational resampler doesn't update at runtime
     ):
