@@ -80,7 +80,7 @@ blocks:
     coordinate: [616, 12.0]
     rotation: 0
     state: enabled
-- name: hw_filt_bw
+- name: hw_bb_filt
   id: variable
   parameters:
     comment: ''
@@ -285,7 +285,7 @@ blocks:
     bb_gain7: '20'
     bb_gain8: '20'
     bb_gain9: '20'
-    bw0: hw_filt_bw
+    bw0: hw_bb_filt
     bw1: '0'
     bw10: '0'
     bw11: '0'

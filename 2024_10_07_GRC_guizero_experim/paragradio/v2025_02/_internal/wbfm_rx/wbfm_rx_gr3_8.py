@@ -77,7 +77,7 @@ class wbfm_rx_gr3_8(gr.top_block, Qt.QWidget):
         ##################################################
         self.samp_rate = samp_rate = 8e6
         self.if_gain = if_gain = 24
-        self.hw_filt_bw = hw_filt_bw = 2.75e6
+        self.hw_bb_filt = hw_bb_filt = 2.75e6
         self.freq_offset = freq_offset = 0
         self.channel_width = channel_width = 200e3
         self.center_freq = center_freq = 97.3e6
@@ -218,7 +218,7 @@ class wbfm_rx_gr3_8(gr.top_block, Qt.QWidget):
         self.osmosdr_source_0.set_if_gain(if_gain, 0)
         self.osmosdr_source_0.set_bb_gain(bb_gain, 0)
         self.osmosdr_source_0.set_antenna('', 0)
-        self.osmosdr_source_0.set_bandwidth(hw_filt_bw, 0)
+        self.osmosdr_source_0.set_bandwidth(hw_bb_filt, 0)
         self.blocks_multiply_xx_0 = blocks.multiply_vcc(1)
         self.band_pass_filter_0 = filter.fir_filter_ccc(
             1,
@@ -276,12 +276,12 @@ class wbfm_rx_gr3_8(gr.top_block, Qt.QWidget):
         self.if_gain = if_gain
         self.osmosdr_source_0.set_if_gain(self.if_gain, 0)
 
-    def get_hw_filt_bw(self):
-        return self.hw_filt_bw
+    def get_hw_bb_filt(self):
+        return self.hw_bb_filt
 
-    def set_hw_filt_bw(self, hw_filt_bw):
-        self.hw_filt_bw = hw_filt_bw
-        self.osmosdr_source_0.set_bandwidth(self.hw_filt_bw, 0)
+    def set_hw_bb_filt(self, hw_bb_filt):
+        self.hw_bb_filt = hw_bb_filt
+        self.osmosdr_source_0.set_bandwidth(self.hw_bb_filt, 0)
 
     def get_freq_offset(self):
         return self.freq_offset

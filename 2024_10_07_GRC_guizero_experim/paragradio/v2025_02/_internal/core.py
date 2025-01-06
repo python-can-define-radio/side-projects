@@ -233,7 +233,7 @@ class PGR_can_set_samp_rate(PGRWrapperCommon):
 
 
 def _set_hw_bb_filt_child(tb: "_WBFM_Rx", val: float) -> None:
-    tb.set_hw_filt_bw(val)
+    tb.set_hw_bb_filt(val)
 
 class PGR_can_set_hw_bb_filt(PGRWrapperCommon):
     def set_hw_bb_filt(self, val: float) -> None:
