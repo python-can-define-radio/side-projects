@@ -700,7 +700,7 @@ blocks:
     bus_structure: null
     coordinate: [816, 165]
     rotation: 0
-    state: disabled
+    state: enabled
 - name: qtgui_waterfall_sink_x_0
   id: qtgui_waterfall_sink_x
   parameters:
