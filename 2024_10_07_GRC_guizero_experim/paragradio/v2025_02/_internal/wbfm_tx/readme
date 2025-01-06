@@ -1,0 +1,11 @@
+fm transmitter flowgraphs:
+- wbfm_tx_microphone
+- wbfm_tx_monitor
+- wbfm_tx_wavfile
+  - For this one, __init__ will have 
+        Wav file filename to transmit
+        Sample rate of filename to transmit
+
+All three will have
+        PGR_can_set_center_freq,
+        PGR_can_set_if_gain,
