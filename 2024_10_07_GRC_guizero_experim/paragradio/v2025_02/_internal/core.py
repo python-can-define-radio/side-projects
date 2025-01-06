@@ -160,6 +160,10 @@ class ParallelGR(Generic[Tgr]):
         passed to `f`."""
         if not self.__proc.is_alive():
             raise ProcessTerminated("The parallel process has terminated; cannot execute commands.")
+        self.put_cmd_nolivecheck(f, *args, **kwargs)
+    
+    def put_cmd_nolivecheck(self, f: "TPFunc[Tgr, P]", *args: "P.args", **kwargs: "P.kwargs") -> None:
+        """Same as `put_cmd`, but doesn't check that the process is alive."""
         self.__q.put((f, args))
 
 
@@ -172,12 +176,11 @@ if TYPE_CHECKING:
     from .wbfm_rx.wbfm_rx_gr3_10 import wbfm_rx_gr3_10
     from .noise_tx.noise_tx_gr3_8 import noise_tx_gr3_8
     from .noise_tx.noise_tx_gr3_10 import noise_tx_gr3_10
-    from .psk_tx_loop.bpsk_tx_loop_gr3_8 import bpsk_tx_loop_gr3_8
-    from .psk_tx_loop.psk8_tx_loop_gr3_8 import psk8_tx_loop_gr3_8
+    from .psk_tx_loop.psk_tx_loop_gr3_8 import psk_tx_loop_gr3_8
     _SpecAn: TypeAlias = Union[specan_gr3_8, specan_gr3_10]
     _Noise_Tx: TypeAlias = Union[noise_tx_gr3_8, noise_tx_gr3_10]    
     _WBFM_Rx: TypeAlias = Union[wbfm_rx_gr3_8, wbfm_rx_gr3_10]
-    _PSK_Tx: TypeAlias = Union[bpsk_tx_loop_gr3_8, psk8_tx_loop_gr3_8]
+    _PSK_Tx: TypeAlias = psk_tx_loop_gr3_8
 
 
 class PGRWrapperCommon():
@@ -230,7 +233,7 @@ class PGR_can_set_samp_rate(PGRWrapperCommon):
 
 
 def _set_hw_bb_filt_child(tb: "_WBFM_Rx", val: float) -> None:
-    tb.set_hw_filt_bw(val)  # type: ignore[no-untyped-call]
+    tb.set_hw_filt_bw(val)
 
 class PGR_can_set_hw_bb_filt(PGRWrapperCommon):
     def set_hw_bb_filt(self, val: float) -> None:
@@ -248,10 +251,10 @@ class PGR_can_set_hw_bb_filt(PGRWrapperCommon):
 
 
 def _set_freq_offset_child(tb: "_WBFM_Rx", freq_offset: float) -> None:
-    tb.set_freq_offset(freq_offset)  # type: ignore[no-untyped-call]
+    tb.set_freq_offset(freq_offset)
 
 class PGR_can_set_freq_offset(PGRWrapperCommon):
-    def set_freq_offset(self, freq_offset: float):
+    def set_freq_offset(self, freq_offset: float) -> None:
         """Set the frequency offset.
         
         When tuning the FM Radio, you'll often get a clearer sound if
@@ -263,7 +266,7 @@ def _set_noise_type_child(tb: "_Noise_Tx", noise_type: int) -> None:
     tb.set_noise_type(noise_type)  # type: ignore[no-untyped-call]
 
 class PGR_can_set_noise_type(PGRWrapperCommon):
-    def set_noise_type(self, noise_type: str):
+    def set_noise_type(self, noise_type: str) -> None:
         """Set the noise type to uniform or gaussian."""
         if noise_type == "uniform":
             nt = 200
@@ -278,7 +281,7 @@ def _set_amplitude_child(tb: "_Noise_Tx", amplitude: float) -> None:
     tb.set_amplitude(amplitude)  # type: ignore[no-untyped-call]
 
 class PGR_can_set_amplitude(PGRWrapperCommon):
-    def set_amplitude(self, amplitude: float):
+    def set_amplitude(self, amplitude: float) -> None:
         """Update the amplitude of the generated noise."""
         self._pgr.put_cmd(_set_amplitude_child, amplitude)
 
@@ -287,7 +290,7 @@ def _set_filter_cutoff_freq_child(tb: "_Noise_Tx", filter_cutoff_freq: float) ->
     tb.set_filter_cutoff_freq(filter_cutoff_freq)  # type: ignore[no-untyped-call]
 
 class PGR_can_set_filter_cutoff_freq(PGRWrapperCommon):
-    def set_filter_cutoff_freq(self, filter_cutoff_freq: float):
+    def set_filter_cutoff_freq(self, filter_cutoff_freq: float) -> None:
         """Update the cutoff frequency of the filter that shapes the generated noise before transmitting it."""
         self._pgr.put_cmd(_set_filter_cutoff_freq_child, filter_cutoff_freq)
 
@@ -296,7 +299,7 @@ def _set_filter_transition_width_child(tb: "_Noise_Tx", filter_transition_width:
     tb.set_filter_transition_width(filter_transition_width)  # type: ignore[no-untyped-call]
 
 class PGR_can_set_filter_transition_width(PGRWrapperCommon):
-    def set_filter_transition_width(self, filter_transition_width: float):
+    def set_filter_transition_width(self, filter_transition_width: float) -> None:
         """Update the transition width of the filter that shapes the generated noise before transmitting it."""
         self._pgr.put_cmd(_set_filter_transition_width_child, filter_transition_width)
 
@@ -305,7 +308,7 @@ def _set_data_child(tb: "_PSK_Tx", data: List[int]) -> None:
     tb.set_data(data)  # type: ignore[no-untyped-call]
 
 class PGR_can_set_data(PGRWrapperCommon):
-    def set_data(self, data: List[int]):
+    def set_data(self, data: List[int]) -> None:
         """Update what data is being repeatedly transmitted."""
         self._pgr.put_cmd(_set_data_child, data)
 
@@ -363,20 +366,24 @@ class Noise_Tx(
         self._pgr = ParallelGR(noise_tx_fg)
 
 
-def _pick_flowgraph(modulation: Literal["BPSK", "QPSK", "DQPSK", "8PSK", "16QAM"]) -> "gr.top_block":
-    from .psk_tx_loop import bpsk_tx_loop_fg, qpsk_tx_loop_fg, dqpsk_tx_loop_fg, psk8_tx_loop_fg, qam16_tx_loop_fg
+if TYPE_CHECKING:
+    _Modulations: TypeAlias = Literal["BPSK", "QPSK", "DQPSK", "8PSK", "16QAM"]
+modulationslist = ["BPSK", "QPSK", "DQPSK", "8PSK", "16QAM"]
+
+def set_cstel(tb: "psk_tx_loop_gr3_8", modulation: "_Modulations") -> None:
+    """Set the appropriate constellation in the psk tx flowgraph."""
     if modulation == "BPSK":
-        return bpsk_tx_loop_fg
+        tb.set_constel_pick(0)  # type: ignore[no-untyped-call]
     elif modulation == "QPSK":
-        return qpsk_tx_loop_fg
+        tb.set_constel_pick(1)  # type: ignore[no-untyped-call]
     elif modulation == "DQPSK":
-        return dqpsk_tx_loop_fg
+        tb.set_constel_pick(2)  # type: ignore[no-untyped-call]
     elif modulation == "8PSK":
-        return psk8_tx_loop_fg
+        tb.set_constel_pick(3)  # type: ignore[no-untyped-call]
     elif modulation == "16QAM":
-        return qam16_tx_loop_fg
+        tb.set_constel_pick(4)  # type: ignore[no-untyped-call]
     else:
-        raise ValueError("modulation must be one of the options in the type signature")
+        raise ValueError(f"modulation must be one of {modulationslist}, but was {modulation}")
 
 
 class PSK_Tx_loop(
@@ -389,7 +396,10 @@ class PSK_Tx_loop(
     def __init__(
             self,
             *, 
-            modulation: Literal["BPSK", "QPSK", "DQPSK", "8PSK", "16QAM"],
+            modulation: "_Modulations",
         ) -> None:
-        fg = _pick_flowgraph(modulation)
-        self._pgr = ParallelGR(fg)
+        if modulation not in modulationslist:
+            raise ValueError(f"Modulation must be one of {modulationslist}, but was {modulation}")
+        from .psk_tx_loop import psk_tx_loop_fg
+        self._pgr = ParallelGR(psk_tx_loop_fg)
+        self._pgr.put_cmd_nolivecheck(set_cstel, modulation)
