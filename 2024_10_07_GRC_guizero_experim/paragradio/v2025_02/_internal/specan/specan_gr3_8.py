@@ -225,7 +225,7 @@ class specan_gr3_8(gr.top_block, Qt.QWidget):
         self.osmosdr_source_0.set_if_gain(if_gain, 0)
         self.osmosdr_source_0.set_bb_gain(bb_gain, 0)
         self.osmosdr_source_0.set_antenna('', 0)
-        self.osmosdr_source_0.set_bandwidth(0, 0)
+        self.osmosdr_source_0.set_bandwidth(hw_filt_bw, 0)
 
 
 
@@ -263,6 +263,7 @@ class specan_gr3_8(gr.top_block, Qt.QWidget):
 
     def set_hw_filt_bw(self, hw_filt_bw):
         self.hw_filt_bw = hw_filt_bw
+        self.osmosdr_source_0.set_bandwidth(self.hw_filt_bw, 0)
 
     def get_center_freq(self):
         return self.center_freq
