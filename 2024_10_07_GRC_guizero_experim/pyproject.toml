@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "paragradio"
-version = "2025.02.0"
+version = "2025.02.1"  # NOTE: the version on PyPI that is labelled as 2025.02.1 is actually from one commit ago, that is, just after commit d8f06fb, approx 24 hours ago from when this commit was done.
 authors = [
   { name="james-pcdr" },
 ]
