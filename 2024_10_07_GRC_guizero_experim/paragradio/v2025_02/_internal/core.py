@@ -198,7 +198,7 @@ def _set_center_freq_child(tb: "_SpecAn", freq: float) -> None:
 
 class PGR_can_set_center_freq(PGRWrapperCommon):
     def set_center_freq(self, freq: float) -> None:
-        """Set the center frequency of the SDR peripheral and any associated GUI elements."""
+        """Set the center frequency of the SDR peripheral and any associated GUI elements. Units are Hz."""
         self._pgr.put_cmd(_set_center_freq_child, freq)
 
 
@@ -207,7 +207,7 @@ def _set_if_gain_child(tb: "_SpecAn", if_gain: float) -> None:
 
 class PGR_can_set_if_gain(PGRWrapperCommon):
     def set_if_gain(self, if_gain: float) -> None:
-        """Set the Intermediate Frequency gain of the SDR peripheral."""
+        """Set the Intermediate Frequency gain of the SDR peripheral. Units are dB."""
         self._pgr.put_cmd(_set_if_gain_child, if_gain)
 
 
@@ -216,7 +216,7 @@ def _set_bb_gain_child(tb: "_SpecAn", bb_gain: float) -> None:
 
 class PGR_can_set_bb_gain(PGRWrapperCommon):
     def set_bb_gain(self, bb_gain: float) -> None:
-        """Set the Baseband gain of the SDR peripheral."""
+        """Set the Baseband gain of the SDR peripheral. Units are dB."""
         self._pgr.put_cmd(_set_bb_gain_child, bb_gain)
 
 
@@ -226,7 +226,7 @@ def _set_samp_rate_child(tb: "_SpecAn", samp_rate: float) -> None:
 class PGR_can_set_samp_rate(PGRWrapperCommon):
     def set_samp_rate(self, samp_rate: float) -> None:
         """Sets the sample rate of the SDR peripheral and the bandwidth
-        (the amount of viewable spectrum) of the GUI spectrum view.
+        (the amount of viewable spectrum) of the GUI spectrum view. Units are samples per second (which, in this context, is roughly the same as Hz).
 
         Due to the physics of digital sampling, your sample rate is your bandwidth."""
         self._pgr.put_cmd(_set_samp_rate_child, samp_rate)
@@ -237,7 +237,7 @@ def _set_hw_bb_filt_child(tb: "_WBFM_Rx", val: float) -> None:
 
 class PGR_can_set_hw_bb_filt(PGRWrapperCommon):
     def set_hw_bb_filt(self, val: float) -> None:
-        """Set the Hardware Baseband Filter.
+        """Set the Hardware Baseband Filter. Units are Hz.
         
         The HackRF One and many other SDR peripherals have a built-in filter that
         precedes the Analog to Digital conversion. It is able to reduce or prevent
@@ -255,10 +255,13 @@ def _set_freq_offset_child(tb: "_WBFM_Rx", freq_offset: float) -> None:
 
 class PGR_can_set_freq_offset(PGRWrapperCommon):
     def set_freq_offset(self, freq_offset: float) -> None:
-        """Set the frequency offset.
+        """Set the frequency offset. Units are Hz.
         
         When tuning the FM Radio, you'll often get a clearer sound if
-        you tune offset to avoid the DC Spike."""
+        you tune offset to avoid the DC Spike.
+        
+        Example: `fmrx.set_freq_offset(400e3)`
+        """
         self._pgr.put_cmd(_set_freq_offset_child, freq_offset)
 
 
@@ -266,7 +269,7 @@ def _set_noise_type_child(tb: "_Noise_Tx", noise_type: int) -> None:
     tb.set_noise_type(noise_type)  # type: ignore[no-untyped-call]
 
 class PGR_can_set_noise_type(PGRWrapperCommon):
-    def set_noise_type(self, noise_type: str) -> None:
+    def set_noise_type(self, noise_type: Literal["uniform", "gaussian"]) -> None:
         """Set the noise type to uniform or gaussian."""
         if noise_type == "uniform":
             nt = 200
@@ -282,7 +285,7 @@ def _set_amplitude_child(tb: "_Noise_Tx", amplitude: float) -> None:
 
 class PGR_can_set_amplitude(PGRWrapperCommon):
     def set_amplitude(self, amplitude: float) -> None:
-        """Update the amplitude of the generated noise."""
+        """Update the amplitude of the generated signal. Units are difficult to explain; try setting it to `1` and then adjust higher or lower based on what fits your situation."""
         self._pgr.put_cmd(_set_amplitude_child, amplitude)
 
 
@@ -291,7 +294,7 @@ def _set_filter_cutoff_freq_child(tb: "_Noise_Tx", filter_cutoff_freq: float) ->
 
 class PGR_can_set_filter_cutoff_freq(PGRWrapperCommon):
     def set_filter_cutoff_freq(self, filter_cutoff_freq: float) -> None:
-        """Update the cutoff frequency of the filter that shapes the generated noise before transmitting it."""
+        """Update the cutoff frequency of the filter that shapes the generated noise before transmitting it. Units are Hz."""
         self._pgr.put_cmd(_set_filter_cutoff_freq_child, filter_cutoff_freq)
 
 
@@ -300,7 +303,7 @@ def _set_filter_transition_width_child(tb: "_Noise_Tx", filter_transition_width:
 
 class PGR_can_set_filter_transition_width(PGRWrapperCommon):
     def set_filter_transition_width(self, filter_transition_width: float) -> None:
-        """Update the transition width of the filter that shapes the generated noise before transmitting it."""
+        """Update the transition width of the filter that shapes the generated noise before transmitting it. Units are Hz."""
         self._pgr.put_cmd(_set_filter_transition_width_child, filter_transition_width)
 
 
