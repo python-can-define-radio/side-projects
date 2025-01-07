@@ -265,6 +265,20 @@ class PGR_can_set_freq_offset(PGRWrapperCommon):
         self._pgr.put_cmd(_set_freq_offset_child, freq_offset)
 
 
+def _set_channel_width_child(tb: "_WBFM_Rx", channel_width: float) -> None:
+    tb.set_channel_width(channel_width)
+
+class PGR_can_set_channel_width(PGRWrapperCommon):
+    def set_channel_width(self, channel_width: float) -> None:
+        """Set the width of the software bandpass filter. Units are Hz.
+        
+        This reduces the interference from nearby stations by filtering to a single radio station. In the United States, Broadcast FM radio stations are 200 kHz wide, so a channel width of 200 kHz is a good option. A slightly narrower width sometimes helps improve the Signal to Noise Ratio.
+        
+        Example: `fmrx.set_channel_width(160e3)`
+        """
+        self._pgr.put_cmd(_set_channel_width_child, channel_width)
+
+
 def _set_noise_type_child(tb: "_Noise_Tx", noise_type: int) -> None:
     tb.set_noise_type(noise_type)  # type: ignore[no-untyped-call]
 
@@ -347,6 +361,7 @@ class WBFM_Rx(
         PGR_can_set_bb_gain,
         PGR_can_set_hw_bb_filt,
         PGR_can_set_freq_offset,
+        PGR_can_set_channel_width,
         # Note: Can't add set_samp_rate because the rational resampler doesn't update at runtime
     ):
     def __init__(self) -> None:
