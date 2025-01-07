@@ -77,7 +77,7 @@ class wbfm_rx_gr3_8(gr.top_block, Qt.QWidget):
         ##################################################
         self.samp_rate = samp_rate = 8e6
         self.if_gain = if_gain = 24
-        self.hw_bb_filt = hw_bb_filt = 2.75e6
+        self.hw_bb_filt = hw_bb_filt = 0
         self.freq_offset = freq_offset = 0
         self.channel_width = channel_width = 200e3
         self.center_freq = center_freq = 97.3e6

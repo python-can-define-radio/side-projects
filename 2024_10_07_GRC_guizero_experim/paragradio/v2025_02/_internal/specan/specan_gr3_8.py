@@ -72,7 +72,7 @@ class specan_gr3_8(gr.top_block, Qt.QWidget):
         ##################################################
         self.samp_rate = samp_rate = 2e6
         self.if_gain = if_gain = 24
-        self.hw_bb_filt = hw_bb_filt = 2.75e6
+        self.hw_bb_filt = hw_bb_filt = 0
         self.center_freq = center_freq = 93e6
         self.bb_gain = bb_gain = 32
 
