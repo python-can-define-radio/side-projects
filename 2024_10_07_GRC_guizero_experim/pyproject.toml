@@ -12,7 +12,7 @@ authors = [
 description = "Parallel GNU Radio. Launches a flowgraph using `multiprocessing`, provides methods for flowgraph. Includes pre-built flowgraphs."
 readme = "README.md"
 requires-python = ">=3.8,<3.12"
-dependencies = []
+dependencies = ['typeguard>=4,<5']
 classifiers = [
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent",
