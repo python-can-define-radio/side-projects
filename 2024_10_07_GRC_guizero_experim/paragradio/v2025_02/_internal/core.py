@@ -3,12 +3,14 @@ import multiprocessing as mp
 import queue
 import signal
 import sys
+import datetime
 import time
+from typeguard import typechecked
 from typing import (
     Type, TypeVar, Generic, Callable,
     Protocol, Tuple, Any, Iterable,
     List, Literal, runtime_checkable, TYPE_CHECKING,
-    Union,
+    Union, Optional,
 )
 
 
@@ -70,6 +72,11 @@ class _QAppProt(Protocol):
 class ProcessTerminated(RuntimeError):
     ...
     
+
+class UnableToLaunch(RuntimeError):
+    ...
+
+
 
 def _grc_main_prep(top_block_cls: "Type[Tgr]") -> "Tuple[Tgr, _QAppProt]":
     """This is a copy/paste of the main() function that is generated
@@ -165,6 +172,9 @@ class ParallelGR(Generic[Tgr]):
     def put_cmd_nolivecheck(self, f: "TPFunc[Tgr, P]", *args: "P.args", **kwargs: "P.kwargs") -> None:
         """Same as `put_cmd`, but doesn't check that the process is alive."""
         self.__q.put((f, args))
+    
+    def is_alive(self) -> bool:
+        return self.__proc.is_alive()
 
 
 ##### commands for student use
@@ -330,6 +340,22 @@ class PGR_can_set_data(PGRWrapperCommon):
         self._pgr.put_cmd(_set_data_child, data)
 
 
+def startnewinstance(cls: "SpecAn") -> None:
+    cls._ci = cls()
+    cls._ci.start()
+    time.sleep(0.5)
+    if not cls._ci._pgr.is_alive():
+        raise UnableToLaunch("Possible fixes: plug in Hack RF; ensure there are no other programs using the Hack RF; press reset button on Hack RF")
+
+
+def decidemakenew(cls: "SpecAn") -> None:
+    if cls._ci is None:
+        startnewinstance(cls)
+    elif not cls._ci._pgr.is_alive():
+        ## TODO: Is there cleanup to do on the dead process?
+        startnewinstance(cls)
+
+
 class SpecAn(
         PGR_can_set_center_freq,
         PGR_can_set_if_gain,
@@ -337,10 +363,42 @@ class SpecAn(
         PGR_can_set_samp_rate,
         PGR_can_set_hw_bb_filt,
     ):
+    _ci: "Optional[SpecAn]" = None
+    "Current instance"
+
     def __init__(self) -> None:
         """Create a Paragradio Spectrum Analyzer."""
         from .specan import specan_fg
         self._pgr = ParallelGR(specan_fg)
+    
+    @classmethod
+    def __set_all(cls, center_freq, if_gain, bb_gain, samp_rate, hw_bb_filt):
+        cls._ci.set_center_freq(center_freq)
+        cls._ci.set_if_gain(if_gain)
+        cls._ci.set_bb_gain(bb_gain)
+        cls._ci.set_samp_rate(samp_rate)
+        cls._ci.set_hw_bb_filt(hw_bb_filt)
+
+    @typechecked
+    @classmethod
+    def launch_or_existing(
+            cls,
+            *,
+            center_freq: float = 93e6,
+            if_gain: int = 24,
+            bb_gain: int = 32,
+            samp_rate: float = 2e6,
+            hw_bb_filt: float = 2.75e6,
+        ) -> dict:
+        """If there is not an instance of this Paragradio process running, launch a new one, and set the settings.  
+        If one is already running, update the settings of the existing one.
+        Returns the timestamp of the update.
+        """
+        decidemakenew(cls)
+        cls.__set_all(center_freq, if_gain, bb_gain, samp_rate, hw_bb_filt)
+        return {
+            "timestamp": datetime.datetime.now(),
+        }
 
 
 class SpecAnSim(PGR_can_set_center_freq):
@@ -364,24 +422,94 @@ class WBFM_Rx(
         PGR_can_set_channel_width,
         # Note: Can't add set_samp_rate because the rational resampler doesn't update at runtime
     ):
+    _ci: "Optional[WBFM_Rx]" = None
+    "Current instance"
+
     def __init__(self) -> None:
         """Create a Paragradio Wideband FM Receiver."""
         from .wbfm_rx import wbfm_rx_fg
         self._pgr = ParallelGR(wbfm_rx_fg)
     
+    @classmethod
+    def __set_all(cls, center_freq, if_gain, bb_gain, hw_bb_filt, freq_offset, channel_width):
+        cls._ci.set_center_freq(center_freq)
+        cls._ci.set_if_gain(if_gain)
+        cls._ci.set_bb_gain(bb_gain)
+        cls._ci.set_hw_bb_filt(hw_bb_filt)
+        cls._ci.set_freq_offset(freq_offset)
+        cls._ci.set_channel_width(channel_width)
+
+    @typechecked
+    @classmethod
+    def launch_or_existing(
+            cls,
+            *,
+            center_freq: float = 93e6,
+            if_gain: int = 24,
+            bb_gain: int = 32,
+            hw_bb_filt: float = 2.75e6,
+            freq_offset: float = 0.0,
+            channel_width: float = 200e3,
+        ) -> dict:
+        """If there is not an instance of this Paragradio process running, launch a new one, and set the settings.  
+        If one is already running, update the settings of the existing one.
+        Returns the timestamp of the update.
+        """
+        decidemakenew(cls)
+        cls.__set_all(center_freq, if_gain, bb_gain, hw_bb_filt, freq_offset, channel_width)
+        return {
+            "timestamp": datetime.datetime.now(),
+        }
+
 
 class Noise_Tx(
-        PGR_can_set_samp_rate,
-        PGR_can_set_amplitude,
         PGR_can_set_center_freq,
+        PGR_can_set_amplitude,
         PGR_can_set_if_gain,
         PGR_can_set_noise_type,
         PGR_can_set_filter_cutoff_freq,
         PGR_can_set_filter_transition_width,
+        PGR_can_set_samp_rate,
     ):
+    _ci: "Optional[Noise_Tx]" = None
+    "Current instance"
+
     def __init__(self) -> None:
         from .noise_tx import noise_tx_fg
         self._pgr = ParallelGR(noise_tx_fg)
+
+    @classmethod
+    def __set_all(cls, center_freq, amplitude, if_gain, noise_type, filter_cutoff_freq, filter_transition_width, samp_rate):
+        cls._ci.set_center_freq(center_freq)
+        cls._ci.set_amplitude(amplitude)
+        cls._ci.set_if_gain(if_gain)
+        cls._ci.set_noise_type(noise_type)
+        cls._ci.set_filter_cutoff_freq(filter_cutoff_freq)
+        cls._ci.set_filter_transition_width(filter_transition_width)
+        cls._ci.set_samp_rate(samp_rate)
+
+    @typechecked
+    @classmethod
+    def launch_or_existing(
+            cls,
+            *,
+            center_freq: float = 2.4e9,
+            amplitude: float = 0,
+            if_gain: int = 0,
+            noise_type: Literal["uniform", "gaussian"] = "uniform",
+            filter_cutoff_freq: float = 50e3,
+            filter_transition_width: float = 200e3,
+            samp_rate: float = 2e6,
+        ) -> dict:
+        """If there is not an instance of this Paragradio process running, launch a new one, and set the settings.  
+        If one is already running, update the settings of the existing one.
+        Returns the timestamp of the update.
+        """
+        decidemakenew(cls)
+        cls.__set_all(center_freq, amplitude, if_gain, noise_type, filter_cutoff_freq, filter_transition_width, samp_rate)
+        return {
+            "timestamp": datetime.datetime.now(),
+        }
 
 
 if TYPE_CHECKING:
