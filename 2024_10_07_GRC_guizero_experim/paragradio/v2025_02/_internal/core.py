@@ -539,6 +539,9 @@ class PSK_Tx_loop(
         PGR_can_set_data,
         PGR_can_set_samp_rate,
     ):
+    _ci: "Optional[PSK_Tx_loop]" = None
+    "Current instance"
+
     def __init__(
             self,
             *, 
@@ -549,3 +552,33 @@ class PSK_Tx_loop(
         from .psk_tx_loop import psk_tx_loop_fg
         self._pgr = ParallelGR(psk_tx_loop_fg)
         self._pgr.put_cmd_nolivecheck(set_cstel, modulation)
+
+
+    @classmethod
+    def __set_all(cls, center_freq, if_gain, amplitude, data, samp_rate):
+        cls._ci.set_center_freq(center_freq)
+        cls._ci.set_if_gain(if_gain)
+        cls._ci.set_amplitude(amplitude)
+        cls._ci.set_data(data)
+        cls._ci.set_samp_rate(samp_rate)
+
+    @typechecked
+    @classmethod
+    def launch_or_existing(
+            cls,
+            *,
+            center_freq: float = 2.4e9,
+            if_gain: int = 0,
+            amplitude: float = 0,
+            data: List[int],
+            samp_rate: float = 2e6,
+        ) -> dict:
+        """If there is not an instance of this Paragradio process running, launch a new one, and set the settings.  
+        If one is already running, update the settings of the existing one.
+        Returns the timestamp of the update.
+        """
+        decidemakenew(cls)
+        cls.__set_all(center_freq, if_gain, amplitude, data, samp_rate)
+        return {
+            "timestamp": datetime.datetime.now(),
+        }
