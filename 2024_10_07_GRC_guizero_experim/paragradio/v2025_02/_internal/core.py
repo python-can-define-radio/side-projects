@@ -380,9 +380,8 @@ class SpecAn(
         cls._ci.set_hw_bb_filt(hw_bb_filt)
 
     @typechecked
-    @classmethod
+    @staticmethod
     def launch_or_existing(
-            cls,
             *,
             center_freq: float = 93e6,
             if_gain: int = 24,
@@ -394,8 +393,8 @@ class SpecAn(
         If one is already running, update the settings of the existing one.
         Returns the timestamp of the update.
         """
-        decidemakenew(cls)
-        cls.__set_all(center_freq, if_gain, bb_gain, samp_rate, hw_bb_filt)
+        decidemakenew(SpecAn)
+        SpecAn.__set_all(center_freq, if_gain, bb_gain, samp_rate, hw_bb_filt)
         return {
             "timestamp": datetime.datetime.now(),
         }
@@ -421,9 +420,8 @@ class SpecAnSim(PGR_can_set_center_freq):
         cls._ci.set_center_freq(center_freq)
        
     @typechecked
-    @classmethod
+    @staticmethod
     def launch_or_existing(
-            cls,
             *,
             center_freq: float = 93e6,
         ) -> dict:
@@ -431,8 +429,8 @@ class SpecAnSim(PGR_can_set_center_freq):
         If one is already running, update the settings of the existing one.
         Returns the timestamp of the update.
         """
-        decidemakenew(cls)
-        cls.__set_all(center_freq)
+        decidemakenew(SpecAnSim)
+        SpecAnSim.__set_all(center_freq)
         return {
             "timestamp": datetime.datetime.now(),
         }
@@ -464,9 +462,8 @@ class WBFM_Rx(
         cls._ci.set_channel_width(channel_width)
 
     @typechecked
-    @classmethod
+    @staticmethod
     def launch_or_existing(
-            cls,
             *,
             center_freq: float = 93e6,
             if_gain: int = 24,
@@ -479,8 +476,8 @@ class WBFM_Rx(
         If one is already running, update the settings of the existing one.
         Returns the timestamp of the update.
         """
-        decidemakenew(cls)
-        cls.__set_all(center_freq, if_gain, bb_gain, hw_bb_filt, freq_offset, channel_width)
+        decidemakenew(WBFM_Rx)
+        WBFM_Rx.__set_all(center_freq, if_gain, bb_gain, hw_bb_filt, freq_offset, channel_width)
         return {
             "timestamp": datetime.datetime.now(),
         }
@@ -513,9 +510,8 @@ class Noise_Tx(
         cls._ci.set_samp_rate(samp_rate)
 
     @typechecked
-    @classmethod
+    @staticmethod
     def launch_or_existing(
-            cls,
             *,
             center_freq: float = 2.4e9,
             amplitude: float = 0,
@@ -529,8 +525,8 @@ class Noise_Tx(
         If one is already running, update the settings of the existing one.
         Returns the timestamp of the update.
         """
-        decidemakenew(cls)
-        cls.__set_all(center_freq, amplitude, if_gain, noise_type, filter_cutoff_freq, filter_transition_width, samp_rate)
+        decidemakenew(Noise_Tx)
+        Noise_Tx.__set_all(center_freq, amplitude, if_gain, noise_type, filter_cutoff_freq, filter_transition_width, samp_rate)
         return {
             "timestamp": datetime.datetime.now(),
         }
@@ -587,9 +583,8 @@ class PSK_Tx_loop(
         cls._ci.set_samp_rate(samp_rate)
 
     @typechecked
-    @classmethod
+    @staticmethod
     def launch_or_existing(
-            cls,
             *,
             center_freq: float = 2.4e9,
             if_gain: int = 0,
@@ -601,8 +596,8 @@ class PSK_Tx_loop(
         If one is already running, update the settings of the existing one.
         Returns the timestamp of the update.
         """
-        decidemakenew(cls)
-        cls.__set_all(center_freq, if_gain, amplitude, data, samp_rate)
+        decidemakenew(PSK_Tx_loop)
+        PSK_Tx_loop.__set_all(center_freq, if_gain, amplitude, data, samp_rate)
         return {
             "timestamp": datetime.datetime.now(),
         }
