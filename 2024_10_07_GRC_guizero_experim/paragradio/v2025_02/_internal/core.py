@@ -402,6 +402,10 @@ class SpecAn(
 
 
 class SpecAnSim(PGR_can_set_center_freq):
+
+    _ci: "Optional[SpecAnSim]" = None
+    "Current instance"
+
     def __init__(self) -> None:
         """Create a Paragradio Simulated Spectrum Analyzer with simulated activity on 93.5 MHz.
         """
@@ -412,6 +416,26 @@ class SpecAnSim(PGR_can_set_center_freq):
         """Set the center frequency of simulated spectrum view."""
         super().set_center_freq(freq)
 
+    @classmethod
+    def __set_all(cls, center_freq):
+        cls._ci.set_center_freq(center_freq)
+       
+    @typechecked
+    @classmethod
+    def launch_or_existing(
+            cls,
+            *,
+            center_freq: float = 93e6,
+        ) -> dict:
+        """If there is not an instance of this Paragradio process running, launch a new one, and set the settings.  
+        If one is already running, update the settings of the existing one.
+        Returns the timestamp of the update.
+        """
+        decidemakenew(cls)
+        cls.__set_all(center_freq)
+        return {
+            "timestamp": datetime.datetime.now(),
+        }
 
 class WBFM_Rx(
         PGR_can_set_center_freq,
