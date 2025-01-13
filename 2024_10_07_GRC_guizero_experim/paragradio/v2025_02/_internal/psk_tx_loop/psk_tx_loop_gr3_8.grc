@@ -56,11 +56,11 @@ blocks:
     coordinate: [352, 12.0]
     rotation: 0
     state: enabled
-- name: constel_pick
+- name: converted_constellationindex_from_modulation
   id: variable
   parameters:
     comment: ''
-    value: '0'
+    value: '["BPSK", "QPSK", "DQPSK", "8PSK", "16QAM"].index(modulation)'
   states:
     bus_sink: false
     bus_source: false
@@ -92,6 +92,18 @@ blocks:
     coordinate: [448, 12.0]
     rotation: 0
     state: enabled
+- name: modulation
+  id: variable
+  parameters:
+    comment: ''
+    value: '"BPSK"'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1078, 110]
+    rotation: 0
+    state: true
 - name: samp_rate
   id: variable
   parameters:
@@ -219,7 +231,7 @@ blocks:
     alias: ''
     comment: ''
     enabled: 'True'
-    input_index: constel_pick
+    input_index: converted_constellationindex_from_modulation
     maxoutbuf: '0'
     minoutbuf: '0'
     num_inputs: '5'

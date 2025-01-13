@@ -72,6 +72,7 @@ class psk_tx_loop_gr3_8(gr.top_block, Qt.QWidget):
         ##################################################
         # Variables
         ##################################################
+        self.modulation = modulation = "BPSK"
         self.stel_qpsk = stel_qpsk = digital.constellation_qpsk().base()
         self.stel_dqpsk = stel_dqpsk = digital.constellation_dqpsk().base()
         self.stel_bpsk = stel_bpsk = digital.constellation_bpsk().base()
@@ -80,7 +81,7 @@ class psk_tx_loop_gr3_8(gr.top_block, Qt.QWidget):
         self.samp_rate = samp_rate = 2e6
         self.if_gain = if_gain = 0
         self.data = data = [0,0]
-        self.constel_pick = constel_pick = 0
+        self.converted_constellationindex_from_modulation = converted_constellationindex_from_modulation = ["BPSK", "QPSK", "DQPSK", "8PSK", "16QAM"].index(modulation)
         self.center_freq = center_freq = 2.4e9
         self.amplitude = amplitude = 0
 
@@ -177,7 +178,7 @@ class psk_tx_loop_gr3_8(gr.top_block, Qt.QWidget):
         self.blocks_vector_source_x_0_1 = blocks.vector_source_b(data, True, 1, [])
         self.blocks_vector_source_x_0_0 = blocks.vector_source_b(data, True, 1, [])
         self.blocks_vector_source_x_0 = blocks.vector_source_b(data, True, 1, [])
-        self.blocks_selector_0 = blocks.selector(gr.sizeof_gr_complex*1,constel_pick,0)
+        self.blocks_selector_0 = blocks.selector(gr.sizeof_gr_complex*1,converted_constellationindex_from_modulation,0)
         self.blocks_selector_0.set_enabled(True)
         self.blocks_multiply_const_vxx_0 = blocks.multiply_const_cc(complex(amplitude))
 
@@ -204,6 +205,13 @@ class psk_tx_loop_gr3_8(gr.top_block, Qt.QWidget):
         self.settings = Qt.QSettings("GNU Radio", "psk_tx_loop_gr3_8")
         self.settings.setValue("geometry", self.saveGeometry())
         event.accept()
+
+    def get_modulation(self):
+        return self.modulation
+
+    def set_modulation(self, modulation):
+        self.modulation = modulation
+        self.set_converted_constellationindex_from_modulation(["BPSK", "QPSK", "DQPSK", "8PSK", "16QAM"].index(self.modulation))
 
     def get_stel_qpsk(self):
         return self.stel_qpsk
@@ -261,12 +269,12 @@ class psk_tx_loop_gr3_8(gr.top_block, Qt.QWidget):
         self.blocks_vector_source_x_0_1_0.set_data(self.data, [])
         self.blocks_vector_source_x_0_1_0_0.set_data(self.data, [])
 
-    def get_constel_pick(self):
-        return self.constel_pick
+    def get_converted_constellationindex_from_modulation(self):
+        return self.converted_constellationindex_from_modulation
 
-    def set_constel_pick(self, constel_pick):
-        self.constel_pick = constel_pick
-        self.blocks_selector_0.set_input_index(self.constel_pick)
+    def set_converted_constellationindex_from_modulation(self, converted_constellationindex_from_modulation):
+        self.converted_constellationindex_from_modulation = converted_constellationindex_from_modulation
+        self.blocks_selector_0.set_input_index(self.converted_constellationindex_from_modulation)
 
     def get_center_freq(self):
         return self.center_freq

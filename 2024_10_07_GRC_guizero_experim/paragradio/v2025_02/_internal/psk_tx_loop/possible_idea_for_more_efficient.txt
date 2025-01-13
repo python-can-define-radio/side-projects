@@ -1,0 +1,21 @@
+import numpy as np
+from gnuradio import gr
+
+
+class blk(gr.basic_block):
+    def __init__(self, input_index=0):
+        gr.basic_block.__init__(
+            self,
+            name='Python block:\nSelector\nconsuming only one port',
+            in_sig=[np.complex64, np.complex64, np.complex64, np.complex64, np.complex64],
+            out_sig=[np.complex64]
+        )
+        self.input_index = input_index
+
+    def general_work(self, input_items, output_items):
+        inport = input_items[self.input_index]
+        outport = output_items[0]
+        mlen = min(len(inport), len(outport))
+        outport[:mlen] = inport[:mlen]
+        self.consume(self.input_index, mlen)
+        return mlen

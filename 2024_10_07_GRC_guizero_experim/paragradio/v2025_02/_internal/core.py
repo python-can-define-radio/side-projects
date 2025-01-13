@@ -340,6 +340,16 @@ class PGR_can_set_data(PGRWrapperCommon):
         self._pgr.put_cmd(_set_data_child, data)
 
 
+def _set_modulation_child(tb: "_PSK_Tx", modulation: "_Modulations") -> None:
+    tb.set_modulation(modulation)  # type: ignore[no-untyped-call]
+
+class PGR_can_set_modulation(PGRWrapperCommon):
+    @typechecked
+    def set_modulation(self, modulation: Literal["BPSK", "QPSK", "DQPSK", "8PSK", "16QAM"]) -> None:
+        """Update the modulation. Options are in type signature."""
+        self._pgr.put_cmd(_set_modulation_child, modulation)
+
+
 def startnewinstance(cls: "SpecAn") -> None:
     cls._ci = cls()
     cls._ci.start()
@@ -536,21 +546,6 @@ if TYPE_CHECKING:
     _Modulations: TypeAlias = Literal["BPSK", "QPSK", "DQPSK", "8PSK", "16QAM"]
 modulationslist = ["BPSK", "QPSK", "DQPSK", "8PSK", "16QAM"]
 
-def set_cstel(tb: "psk_tx_loop_gr3_8", modulation: "_Modulations") -> None:
-    """Set the appropriate constellation in the psk tx flowgraph."""
-    if modulation == "BPSK":
-        tb.set_constel_pick(0)  # type: ignore[no-untyped-call]
-    elif modulation == "QPSK":
-        tb.set_constel_pick(1)  # type: ignore[no-untyped-call]
-    elif modulation == "DQPSK":
-        tb.set_constel_pick(2)  # type: ignore[no-untyped-call]
-    elif modulation == "8PSK":
-        tb.set_constel_pick(3)  # type: ignore[no-untyped-call]
-    elif modulation == "16QAM":
-        tb.set_constel_pick(4)  # type: ignore[no-untyped-call]
-    else:
-        raise ValueError(f"modulation must be one of {modulationslist}, but was {modulation}")
-
 
 class PSK_Tx_loop(
         PGR_can_set_center_freq,
@@ -558,29 +553,25 @@ class PSK_Tx_loop(
         PGR_can_set_amplitude,
         PGR_can_set_data,
         PGR_can_set_samp_rate,
+        PGR_can_set_modulation,
     ):
     _ci: "Optional[PSK_Tx_loop]" = None
     "Current instance"
 
-    def __init__(
-            self,
-            *, 
-            modulation: "_Modulations",
-        ) -> None:
-        if modulation not in modulationslist:
-            raise ValueError(f"Modulation must be one of {modulationslist}, but was {modulation}")
+    def __init__(self, *, modulation = None) -> None:
+        if modulation is not None:
+            raise ValueError("Due to a recent update, modulation should be set in either (a) the launch_or_existing method, or (b) using `.set_modulation`.")
         from .psk_tx_loop import psk_tx_loop_fg
         self._pgr = ParallelGR(psk_tx_loop_fg)
-        self._pgr.put_cmd_nolivecheck(set_cstel, modulation)
-
 
     @classmethod
-    def __set_all(cls, center_freq, if_gain, amplitude, data, samp_rate):
+    def __set_all(cls, center_freq, if_gain, amplitude, data, samp_rate, modulation):
         cls._ci.set_center_freq(center_freq)
         cls._ci.set_if_gain(if_gain)
         cls._ci.set_amplitude(amplitude)
         cls._ci.set_data(data)
         cls._ci.set_samp_rate(samp_rate)
+        cls._ci.set_modulation(modulation)
 
     @typechecked
     @staticmethod
@@ -591,13 +582,14 @@ class PSK_Tx_loop(
             amplitude: float = 0,
             data: List[int],
             samp_rate: float = 2e6,
+            modulation: Literal["BPSK", "QPSK", "DQPSK", "8PSK", "16QAM"] = "BPSK",
         ) -> dict:
         """If there is not an instance of this Paragradio process running, launch a new one, and set the settings.  
         If one is already running, update the settings of the existing one.
         Returns the timestamp of the update.
         """
         decidemakenew(PSK_Tx_loop)
-        PSK_Tx_loop.__set_all(center_freq, if_gain, amplitude, data, samp_rate)
+        PSK_Tx_loop.__set_all(center_freq, if_gain, amplitude, data, samp_rate, modulation)
         return {
             "timestamp": datetime.datetime.now(),
         }
