@@ -7,7 +7,9 @@ Note that much of the functionality also depends on GNU Radio. However, `gnuradi
 Most of the flowgraphs also use PyQt5, which you likely have if you have gnuradio.
     
 ### Example usage
-    
+
+Example for version 2025.02:
+
 ```python3
 from paragradio.v2025_02 import SpecAnSim
 
