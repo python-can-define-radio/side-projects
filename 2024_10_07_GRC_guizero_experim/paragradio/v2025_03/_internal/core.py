@@ -262,6 +262,22 @@ def decidemakenew(cls: "SpecAn") -> None:
         startnewinstance(cls)
 
 
+class _EXPLANATIONS:
+    amplitude = "\n**amplitude**: The amplitude is ... .\n"
+    bb_gain = "\n**bb_gain**: The bb gain is ... .\n"
+    center_freq = "\n**center_freq**: The frequency that is ... .\n"
+    channel_width = "\n**channel_width**: The channel width is ... .\n"
+    data = "\n**data**: The data is ... .\n"
+    filter_cutoff_freq = "\n**filter_cutoff_freq**: The filter cutoff frequency is ... .\n"
+    filter_transition_width = "\n**filter_transition_width**: The filter transition width is ... .\n"
+    freq_offset = "\n**freq_offset**: The frequency offset is ... .\n"
+    hw_bb_filt = "\n**hw_bb_filt**: The hardware baseband filter is ... .\n"
+    if_gain = "\n**if_gain**: The if gain is ... .\n"
+    modulation = "\n**modulation**: The modulation is ... .\n"
+    noise_type = "\n**noise_type**: The noise type is ... .\n"
+    samp_rate = "\n**samp_rate**: The sample rate is ... .\n"
+
+
 class SpecAn():
     _ci: "Optional[SpecAn]" = None
     "Current instance"
@@ -300,6 +316,8 @@ class SpecAn():
         }
 
 
+SpecAn.config.__doc__ += _EXPLANATIONS.center_freq + _EXPLANATIONS.if_gain +_EXPLANATIONS.bb_gain + _EXPLANATIONS.samp_rate + _EXPLANATIONS.hw_bb_filt
+
 class SpecAnSim():
 
     _ci: "Optional[SpecAnSim]" = None
@@ -334,6 +352,8 @@ class SpecAnSim():
         return {
             "timestamp": datetime.datetime.now(),
         }
+    
+SpecAnSim.config.__doc__ += _EXPLANATIONS.center_freq
 
 class WBFM_Rx():
     _ci: "Optional[WBFM_Rx]" = None
@@ -374,6 +394,9 @@ class WBFM_Rx():
         return {
             "timestamp": datetime.datetime.now(),
         }
+    
+
+WBFM_Rx.config.__doc__ += _EXPLANATIONS.center_freq + _EXPLANATIONS.if_gain + _EXPLANATIONS.bb_gain + _EXPLANATIONS.hw_bb_filt + _EXPLANATIONS.freq_offset + _EXPLANATIONS.channel_width
 
 
 class Noise_Tx():
@@ -394,6 +417,7 @@ class Noise_Tx():
         cls._ci._pgr.put_cmd(_set_filter_transition_width_child, filter_transition_width)
         cls._ci._pgr.put_cmd(_set_samp_rate_child, samp_rate)
 
+
     @typechecked
     @staticmethod
     def config(
@@ -409,12 +433,16 @@ class Noise_Tx():
         """If there is not an instance of this Paragradio process running, launch a new one, and set the settings.  
         If one is already running, update the settings of the existing one.
         Returns the timestamp of the update.
+
+        For more details, run `from paragradio.v2025_03 import Noise_Tx; help(Noise_Tx)`
         """
         decidemakenew(Noise_Tx)
         Noise_Tx.__set_all(center_freq, amplitude, if_gain, noise_type, filter_cutoff_freq, filter_transition_width, samp_rate)
         return {
             "timestamp": datetime.datetime.now(),
         }
+
+Noise_Tx.config.__doc__ += _EXPLANATIONS.center_freq + _EXPLANATIONS.amplitude + _EXPLANATIONS.if_gain + _EXPLANATIONS.noise_type + _EXPLANATIONS.filter_cutoff_freq + _EXPLANATIONS.filter_transition_width + _EXPLANATIONS.samp_rate
 
 
 if TYPE_CHECKING:
@@ -461,3 +489,6 @@ class PSK_Tx_loop():
         return {
             "timestamp": datetime.datetime.now(),
         }
+    
+
+PSK_Tx_loop.config.__doc__ += _EXPLANATIONS.center_freq + _EXPLANATIONS.if_gain + _EXPLANATIONS.amplitude + _EXPLANATIONS.data + _EXPLANATIONS.samp_rate + _EXPLANATIONS.modulation
