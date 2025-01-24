@@ -72,8 +72,9 @@ class noise_tx_gr3_8(gr.top_block, Qt.QWidget):
         ##################################################
         # Variables
         ##################################################
+        self.noise_type = noise_type = "uniform"
         self.samp_rate = samp_rate = 2e6
-        self.noise_type = noise_type = 201
+        self.noise_type_numeric = noise_type_numeric = {"uniform": 200, "gaussian": 201}[noise_type]
         self.if_gain = if_gain = 0
         self.filter_transition_width = filter_transition_width = 70e3
         self.filter_cutoff_freq = filter_cutoff_freq = 300e3
@@ -187,7 +188,7 @@ class noise_tx_gr3_8(gr.top_block, Qt.QWidget):
                 filter_transition_width,
                 firdes.WIN_HAMMING,
                 6.76))
-        self.analog_noise_source_x_0 = analog.noise_source_c(noise_type, amplitude, 0)
+        self.analog_noise_source_x_0 = analog.noise_source_c(noise_type_numeric, amplitude, 0)
 
 
 
@@ -204,6 +205,13 @@ class noise_tx_gr3_8(gr.top_block, Qt.QWidget):
         self.settings.setValue("geometry", self.saveGeometry())
         event.accept()
 
+    def get_noise_type(self):
+        return self.noise_type
+
+    def set_noise_type(self, noise_type):
+        self.noise_type = noise_type
+        self.set_noise_type_numeric({"uniform": 200, "gaussian": 201}[self.noise_type])
+
     def get_samp_rate(self):
         return self.samp_rate
 
@@ -214,12 +222,12 @@ class noise_tx_gr3_8(gr.top_block, Qt.QWidget):
         self.qtgui_time_sink_x_0.set_samp_rate(self.samp_rate)
         self.qtgui_waterfall_sink_x_0.set_frequency_range(self.center_freq, self.samp_rate)
 
-    def get_noise_type(self):
-        return self.noise_type
+    def get_noise_type_numeric(self):
+        return self.noise_type_numeric
 
-    def set_noise_type(self, noise_type):
-        self.noise_type = noise_type
-        self.analog_noise_source_x_0.set_type(self.noise_type)
+    def set_noise_type_numeric(self, noise_type_numeric):
+        self.noise_type_numeric = noise_type_numeric
+        self.analog_noise_source_x_0.set_type(self.noise_type_numeric)
 
     def get_if_gain(self):
         return self.if_gain

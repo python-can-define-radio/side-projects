@@ -96,7 +96,19 @@ blocks:
   id: variable
   parameters:
     comment: ''
-    value: '201'
+    value: '"uniform"'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [951, 14]
+    rotation: 0
+    state: enabled
+- name: noise_type_numeric
+  id: variable
+  parameters:
+    comment: ''
+    value: '{"uniform": 200, "gaussian": 201}[noise_type]'
   states:
     bus_sink: false
     bus_source: false
@@ -125,7 +137,7 @@ blocks:
     comment: ''
     maxoutbuf: '0'
     minoutbuf: '0'
-    noise_type: noise_type
+    noise_type: noise_type_numeric
     seed: '0'
     type: complex
   states:
