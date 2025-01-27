@@ -265,12 +265,9 @@ def startnewinstance(cls: hasCI) -> None:
 
 
 def decidemakenew(cls: hasCI) -> None:
-    if cls._ci is None:
+    if (cls._ci is None) or (not cls._ci._pgr.is_alive()):
         startnewinstance(cls)
-    elif not cls._ci._pgr.is_alive():
-        ## TODO: Is there cleanup to do on the dead process?
-        startnewinstance(cls)
-
+        
 
 class _EXPLANATIONS:
     _introductory = """If there is not an instance of this Paragradio app running, launch a new one, and set the settings. If one is already running, update the settings of the existing one. Returns a dictionary containing the timestamp of the update."""
@@ -279,7 +276,7 @@ class _EXPLANATIONS:
     center_freq = "\n**center_freq**: Update the center frequency of the SDR peripheral and any associated GUI elements. Units are Hz.\n"
     channel_width = """\n**channel_width**: Update the width of the software bandpass filter. Units are Hz.
         This reduces the interference from nearby stations by filtering to a single radio station. In the United States, Broadcast FM radio stations are 200 kHz wide, so a channel width of 200 kHz is a good option. A slightly narrower width sometimes helps improve the Signal to Noise Ratio.\n"""
-    data = "\n**data**: Update what data is being repeatedly transmitted.\n"
+    data = "\n**data**: Update what binary data is being repeatedly transmitted. Example: [1, 0, 1, 1] \n"
     filter_cutoff_freq = "\n**filter_cutoff_freq**: Update the cutoff frequency of the filter that shapes the generated noise before transmitting it. Units are Hz.\n"
     filter_transition_width = "\n**filter_transition_width**: Update the transition width of the filter that shapes the generated noise before transmitting it. Units are Hz.\n"
     freq_offset = """\n**freq_offset**: Update the frequency offset. Units are Hz.
@@ -291,6 +288,7 @@ class _EXPLANATIONS:
     modulation = "\n**modulation**: Update the modulation. Options: 'BPSK', 'QPSK', 'DQPSK', '8PSK', '16QAM'.\n"
     noise_type = """\n**noise_type**: Update the noise type to 'uniform' or 'gaussian'.
     In the underlying GNU Radio noise generator, there are two further options, 'impulse' and 'laplacian'. Those two options do not function (as of 2025 January), therefore paragradio does not provide them.\n"""
+    running = "\n**running**: Runs the GNU Radio app if this is set to True. Terminates the app if set to False. \n"
     samp_rate = "\n**samp_rate**: Update the sample rate of the SDR peripheral and the bandwidth (the amount of viewable spectrum) of the GUI spectrum view. Units are samples per second (which, in this context, is roughly the same as Hz).\n"
 
 
@@ -439,7 +437,7 @@ class Noise_Tx():
             *,
             running: bool,
             center_freq: float = 2.4e9,
-            amplitude: float = 0,
+            amplitude: float = 0.01,
             if_gain: int = 0,
             noise_type: Literal["uniform", "gaussian"] = "uniform",
             filter_cutoff_freq: float = 50e3,
@@ -468,9 +466,7 @@ class PSK_Tx_loop():
     _ci: "Optional[PSK_Tx_loop]" = None
     "Current instance"
 
-    def __init__(self, *, modulation = None) -> None:
-        if modulation is not None:
-            raise ValueError("Due to a recent update, modulation should be set in either (a) the config method, or (b) using `.set_modulation`.")
+    def __init__(self) -> None:
         from .psk_tx_loop import psk_tx_loop_fg
         self._pgr = ParallelGR(psk_tx_loop_fg)
 
@@ -490,7 +486,7 @@ class PSK_Tx_loop():
             running: bool,
             center_freq: float = 2.4e9,
             if_gain: int = 0,
-            amplitude: float = 0,
+            amplitude: float = 0.01,
             data: List[int],
             samp_rate: float = 2e6,
             modulation: Literal["BPSK", "QPSK", "DQPSK", "8PSK", "16QAM"] = "BPSK",
