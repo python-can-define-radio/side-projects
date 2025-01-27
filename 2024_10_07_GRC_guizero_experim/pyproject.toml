@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "paragradio"
-version = "2025.03.0"
+version = "2025.03.0"  # published 2025 Jan 27 around 3 pm (Eastern Time)
 authors = [
   { name="james-pcdr" },
 ]
