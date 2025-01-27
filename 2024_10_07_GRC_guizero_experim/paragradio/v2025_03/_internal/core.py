@@ -160,6 +160,9 @@ class ParallelGR(Generic[Tgr]):
 
     def start(self) -> None:
         self.__proc.start()
+    
+    def terminate(self) -> None:
+        self.__proc.terminate()
 
     def put_cmd(self, f: "TPFunc[Tgr, P]", *args: "P.args", **kwargs: "P.kwargs") -> None:
         """Put a command into the queue for the child
@@ -179,6 +182,13 @@ class ParallelGR(Generic[Tgr]):
 
 ##### commands for student use
 
+class hasPGR(Protocol):
+    _pgr: ParallelGR
+
+class hasCI(Protocol):
+    _ci: hasPGR
+
+
 if TYPE_CHECKING:
     from .specan.specan_gr3_8 import specan_gr3_8
     from .specan.specan_gr3_10 import specan_gr3_10
@@ -194,59 +204,59 @@ if TYPE_CHECKING:
 
 
 
-def _set_center_freq_child(tb: "_SpecAn", freq: float) -> None:
+def _set_center_freq(tb: "_SpecAn", freq: float) -> None:
     tb.set_center_freq(freq)  # type: ignore[no-untyped-call]
 
 
-def _set_if_gain_child(tb: "_SpecAn", if_gain: float) -> None:
+def _set_if_gain(tb: "_SpecAn", if_gain: float) -> None:
     tb.set_if_gain(if_gain)
 
 
-def _set_bb_gain_child(tb: "_SpecAn", bb_gain: float) -> None:
+def _set_bb_gain(tb: "_SpecAn", bb_gain: float) -> None:
     tb.set_bb_gain(bb_gain)
 
 
-def _set_samp_rate_child(tb: "_SpecAn", samp_rate: float) -> None:
+def _set_samp_rate(tb: "_SpecAn", samp_rate: float) -> None:
     tb.set_samp_rate(samp_rate)  # type: ignore[no-untyped-call]
 
 
-def _set_hw_bb_filt_child(tb: "_WBFM_Rx", val: float) -> None:
+def _set_hw_bb_filt(tb: "_WBFM_Rx", val: float) -> None:
     tb.set_hw_bb_filt(val)
 
 
-def _set_freq_offset_child(tb: "_WBFM_Rx", freq_offset: float) -> None:
+def _set_freq_offset(tb: "_WBFM_Rx", freq_offset: float) -> None:
     tb.set_freq_offset(freq_offset)
 
 
-def _set_channel_width_child(tb: "_WBFM_Rx", channel_width: float) -> None:
+def _set_channel_width(tb: "_WBFM_Rx", channel_width: float) -> None:
     tb.set_channel_width(channel_width)
 
 
-def _set_noise_type_child(tb: "_Noise_Tx", noise_type: str) -> None:
+def _set_noise_type(tb: "_Noise_Tx", noise_type: str) -> None:
     tb.set_noise_type(noise_type)  # type: ignore[no-untyped-call]
 
 
-def _set_amplitude_child(tb: "_Noise_Tx", amplitude: float) -> None:
+def _set_amplitude(tb: "_Noise_Tx", amplitude: float) -> None:
     tb.set_amplitude(amplitude)  # type: ignore[no-untyped-call]
 
 
-def _set_filter_cutoff_freq_child(tb: "_Noise_Tx", filter_cutoff_freq: float) -> None:
+def _set_filter_cutoff_freq(tb: "_Noise_Tx", filter_cutoff_freq: float) -> None:
     tb.set_filter_cutoff_freq(filter_cutoff_freq)  # type: ignore[no-untyped-call]
 
 
-def _set_filter_transition_width_child(tb: "_Noise_Tx", filter_transition_width: float) -> None:
+def _set_filter_transition_width(tb: "_Noise_Tx", filter_transition_width: float) -> None:
     tb.set_filter_transition_width(filter_transition_width)  # type: ignore[no-untyped-call]
 
 
-def _set_data_child(tb: "_PSK_Tx", data: List[int]) -> None:
+def _set_data(tb: "_PSK_Tx", data: List[int]) -> None:
     tb.set_data(data)  # type: ignore[no-untyped-call]
 
 
-def _set_modulation_child(tb: "_PSK_Tx", modulation: "_Modulations") -> None:
+def _set_modulation(tb: "_PSK_Tx", modulation: "_Modulations") -> None:
     tb.set_modulation(modulation)  # type: ignore[no-untyped-call]
 
 
-def startnewinstance(cls: "SpecAn") -> None:
+def startnewinstance(cls: hasCI) -> None:
     cls._ci = cls()
     cls._ci._pgr.start()
     time.sleep(0.5)
@@ -254,7 +264,7 @@ def startnewinstance(cls: "SpecAn") -> None:
         raise UnableToLaunch("Possible fixes: plug in Hack RF; ensure there are no other programs using the Hack RF; press reset button on Hack RF")
 
 
-def decidemakenew(cls: "SpecAn") -> None:
+def decidemakenew(cls: hasCI) -> None:
     if cls._ci is None:
         startnewinstance(cls)
     elif not cls._ci._pgr.is_alive():
@@ -263,19 +273,25 @@ def decidemakenew(cls: "SpecAn") -> None:
 
 
 class _EXPLANATIONS:
-    amplitude = "\n**amplitude**: The amplitude is ... .\n"
-    bb_gain = "\n**bb_gain**: The bb gain is ... .\n"
-    center_freq = "\n**center_freq**: The frequency that is ... .\n"
-    channel_width = "\n**channel_width**: The channel width is ... .\n"
-    data = "\n**data**: The data is ... .\n"
-    filter_cutoff_freq = "\n**filter_cutoff_freq**: The filter cutoff frequency is ... .\n"
-    filter_transition_width = "\n**filter_transition_width**: The filter transition width is ... .\n"
-    freq_offset = "\n**freq_offset**: The frequency offset is ... .\n"
-    hw_bb_filt = "\n**hw_bb_filt**: The hardware baseband filter is ... .\n"
-    if_gain = "\n**if_gain**: The if gain is ... .\n"
-    modulation = "\n**modulation**: The modulation is ... .\n"
-    noise_type = "\n**noise_type**: The noise type is ... .\n"
-    samp_rate = "\n**samp_rate**: The sample rate is ... .\n"
+    _introductory = """If there is not an instance of this Paragradio app running, launch a new one, and set the settings. If one is already running, update the settings of the existing one. Returns a dictionary containing the timestamp of the update."""
+    amplitude = "\n**amplitude**: Update the amplitude of the generated signal. Units are difficult to explain; try setting it to `1` and then adjust higher or lower based on what fits your situation.\n"
+    bb_gain = "\n**bb_gain**: Update the Baseband gain of the SDR peripheral. Units are dB.\n"
+    center_freq = "\n**center_freq**: Update the center frequency of the SDR peripheral and any associated GUI elements. Units are Hz.\n"
+    channel_width = """\n**channel_width**: Update the width of the software bandpass filter. Units are Hz.
+        This reduces the interference from nearby stations by filtering to a single radio station. In the United States, Broadcast FM radio stations are 200 kHz wide, so a channel width of 200 kHz is a good option. A slightly narrower width sometimes helps improve the Signal to Noise Ratio.\n"""
+    data = "\n**data**: Update what data is being repeatedly transmitted.\n"
+    filter_cutoff_freq = "\n**filter_cutoff_freq**: Update the cutoff frequency of the filter that shapes the generated noise before transmitting it. Units are Hz.\n"
+    filter_transition_width = "\n**filter_transition_width**: Update the transition width of the filter that shapes the generated noise before transmitting it. Units are Hz.\n"
+    freq_offset = """\n**freq_offset**: Update the frequency offset. Units are Hz.
+        When tuning the FM Radio, you'll often get a clearer sound if
+        you tune offset to avoid the DC Spike.\n"""
+    hw_bb_filt = """\n**hw_bb_filt**: Update the Hardware Baseband Filter. Units are Hz. 
+    Details: The HackRF One and many other SDR peripherals have a built-in filter that precedes the Analog to Digital conversion. It is able to reduce or prevent aliasing, which software filters cannot do. Typically, you should set the baseband filter as low as possible for the signals that you wish to receive -- a tighter filter will more effectively reduce aliasing. For more info, see the Hack RF One documentation about Sampling Rate and Baseband Filters <https://hackrf.readthedocs.io/en/latest/sampling_rate.html>.\n"""
+    if_gain = "\n**if_gain**: Update the Intermediate Frequency gain of the SDR peripheral. Units are dB.\n"
+    modulation = "\n**modulation**: Update the modulation. Options: 'BPSK', 'QPSK', 'DQPSK', '8PSK', '16QAM'.\n"
+    noise_type = """\n**noise_type**: Update the noise type to 'uniform' or 'gaussian'.
+    In the underlying GNU Radio noise generator, there are two further options, 'impulse' and 'laplacian'. Those two options do not function (as of 2025 January), therefore paragradio does not provide them.\n"""
+    samp_rate = "\n**samp_rate**: Update the sample rate of the SDR peripheral and the bandwidth (the amount of viewable spectrum) of the GUI spectrum view. Units are samples per second (which, in this context, is roughly the same as Hz).\n"
 
 
 class SpecAn():
@@ -289,26 +305,27 @@ class SpecAn():
     
     @classmethod
     def __set_all(cls, center_freq, if_gain, bb_gain, samp_rate, hw_bb_filt):
-        cls._ci._pgr.put_cmd(_set_center_freq_child, center_freq)
-        cls._ci._pgr.put_cmd(_set_if_gain_child, if_gain)
-        cls._ci._pgr.put_cmd(_set_bb_gain_child, bb_gain)
-        cls._ci._pgr.put_cmd(_set_samp_rate_child, samp_rate)
-        cls._ci._pgr.put_cmd(_set_hw_bb_filt_child, hw_bb_filt)
+        cls._ci._pgr.put_cmd(_set_center_freq, center_freq)
+        cls._ci._pgr.put_cmd(_set_if_gain, if_gain)
+        cls._ci._pgr.put_cmd(_set_bb_gain, bb_gain)
+        cls._ci._pgr.put_cmd(_set_samp_rate, samp_rate)
+        cls._ci._pgr.put_cmd(_set_hw_bb_filt, hw_bb_filt)
 
     @typechecked
     @staticmethod
     def config(
             *,
+            running: bool,
             center_freq: float = 93e6,
             if_gain: int = 24,
             bb_gain: int = 32,
             samp_rate: float = 2e6,
             hw_bb_filt: float = 2.75e6,
         ) -> dict:
-        """If there is not an instance of this Paragradio process running, launch a new one, and set the settings.  
-        If one is already running, update the settings of the existing one.
-        Returns the timestamp of the update.
-        """
+        """To view the docs for this method, run `from paragradio.v2025_03 import SpecAn; help(SpecAn)`"""
+        if running == False:
+            SpecAn._ci._pgr.terminate()
+            return {"terminated": "terminated"}
         decidemakenew(SpecAn)
         SpecAn.__set_all(center_freq, if_gain, bb_gain, samp_rate, hw_bb_filt)
         return {
@@ -316,7 +333,7 @@ class SpecAn():
         }
 
 
-SpecAn.config.__doc__ += _EXPLANATIONS.center_freq + _EXPLANATIONS.if_gain +_EXPLANATIONS.bb_gain + _EXPLANATIONS.samp_rate + _EXPLANATIONS.hw_bb_filt
+SpecAn.config.__doc__ += _EXPLANATIONS._introductory + _EXPLANATIONS.center_freq + _EXPLANATIONS.if_gain +_EXPLANATIONS.bb_gain + _EXPLANATIONS.samp_rate + _EXPLANATIONS.hw_bb_filt
 
 class SpecAnSim():
 
@@ -328,32 +345,29 @@ class SpecAnSim():
         """
         from .specansim import specansim_fg
         self._pgr = ParallelGR(specansim_fg)
-        
-    def set_center_freq(self, freq: float) -> None:
-        """Set the center frequency of simulated spectrum view."""
-        super().set_center_freq(freq)
 
     @classmethod
     def __set_all(cls, center_freq):
-        cls._ci._pgr.put_cmd(_set_center_freq_child, center_freq)
+        cls._ci._pgr.put_cmd(_set_center_freq, center_freq)
        
     @typechecked
     @staticmethod
     def config(
             *,
+            running: bool,
             center_freq: float = 93e6,
         ) -> dict:
-        """If there is not an instance of this Paragradio process running, launch a new one, and set the settings.  
-        If one is already running, update the settings of the existing one.
-        Returns the timestamp of the update.
-        """
+        """To view the docs for this method, run `from paragradio.v2025_03 import SpecAnSim; help(SpecAnSim)`"""
+        if running == False:
+            SpecAnSim._ci._pgr.terminate()
+            return {"terminated": "terminated"}
         decidemakenew(SpecAnSim)
         SpecAnSim.__set_all(center_freq)
         return {
             "timestamp": datetime.datetime.now(),
         }
     
-SpecAnSim.config.__doc__ += _EXPLANATIONS.center_freq
+SpecAnSim.config.__doc__ +=_EXPLANATIONS._introductory + """Set the center frequency of simulated spectrum view."""
 
 class WBFM_Rx():
     _ci: "Optional[WBFM_Rx]" = None
@@ -366,17 +380,18 @@ class WBFM_Rx():
     
     @classmethod
     def __set_all(cls, center_freq, if_gain, bb_gain, hw_bb_filt, freq_offset, channel_width):
-        cls._ci._pgr.put_cmd(_set_center_freq_child, center_freq)
-        cls._ci._pgr.put_cmd(_set_if_gain_child, if_gain)
-        cls._ci._pgr.put_cmd(_set_bb_gain_child, bb_gain)
-        cls._ci._pgr.put_cmd(_set_hw_bb_filt_child, hw_bb_filt)
-        cls._ci._pgr.put_cmd(_set_freq_offset_child, freq_offset)
-        cls._ci._pgr.put_cmd(_set_channel_width_child,channel_width)
+        cls._ci._pgr.put_cmd(_set_center_freq, center_freq)
+        cls._ci._pgr.put_cmd(_set_if_gain, if_gain)
+        cls._ci._pgr.put_cmd(_set_bb_gain, bb_gain)
+        cls._ci._pgr.put_cmd(_set_hw_bb_filt, hw_bb_filt)
+        cls._ci._pgr.put_cmd(_set_freq_offset, freq_offset)
+        cls._ci._pgr.put_cmd(_set_channel_width,channel_width)
 
     @typechecked
     @staticmethod
     def config(
             *,
+            running: bool,
             center_freq: float = 93e6,
             if_gain: int = 24,
             bb_gain: int = 32,
@@ -385,10 +400,10 @@ class WBFM_Rx():
             channel_width: float = 200e3,
             # Note: Can't add set_samp_rate because the rational resampler doesn't update at runtime
         ) -> dict:
-        """If there is not an instance of this Paragradio process running, launch a new one, and set the settings.  
-        If one is already running, update the settings of the existing one.
-        Returns the timestamp of the update.
-        """
+        """To view the docs for this method, run `from paragradio.v2025_03 import WBFM_Rx; help(WBFM_Rx)`"""
+        if running == False:
+            WBFM_Rx._ci._pgr.terminate()
+            return {"terminated": "terminated"}
         decidemakenew(WBFM_Rx)
         WBFM_Rx.__set_all(center_freq, if_gain, bb_gain, hw_bb_filt, freq_offset, channel_width)
         return {
@@ -396,7 +411,7 @@ class WBFM_Rx():
         }
     
 
-WBFM_Rx.config.__doc__ += _EXPLANATIONS.center_freq + _EXPLANATIONS.if_gain + _EXPLANATIONS.bb_gain + _EXPLANATIONS.hw_bb_filt + _EXPLANATIONS.freq_offset + _EXPLANATIONS.channel_width
+WBFM_Rx.config.__doc__ += _EXPLANATIONS._introductory + _EXPLANATIONS.center_freq + _EXPLANATIONS.if_gain + _EXPLANATIONS.bb_gain + _EXPLANATIONS.hw_bb_filt + _EXPLANATIONS.freq_offset + _EXPLANATIONS.channel_width
 
 
 class Noise_Tx():
@@ -409,19 +424,20 @@ class Noise_Tx():
 
     @classmethod
     def __set_all(cls, center_freq, amplitude, if_gain, noise_type, filter_cutoff_freq, filter_transition_width, samp_rate):
-        cls._ci._pgr.put_cmd(_set_center_freq_child, center_freq)
-        cls._ci._pgr.put_cmd(_set_amplitude_child, amplitude)
-        cls._ci._pgr.put_cmd(_set_if_gain_child, if_gain)
-        cls._ci._pgr.put_cmd(_set_noise_type_child, noise_type)
-        cls._ci._pgr.put_cmd(_set_filter_cutoff_freq_child, filter_cutoff_freq)
-        cls._ci._pgr.put_cmd(_set_filter_transition_width_child, filter_transition_width)
-        cls._ci._pgr.put_cmd(_set_samp_rate_child, samp_rate)
+        cls._ci._pgr.put_cmd(_set_center_freq, center_freq)
+        cls._ci._pgr.put_cmd(_set_amplitude, amplitude)
+        cls._ci._pgr.put_cmd(_set_if_gain, if_gain)
+        cls._ci._pgr.put_cmd(_set_noise_type, noise_type)
+        cls._ci._pgr.put_cmd(_set_filter_cutoff_freq, filter_cutoff_freq)
+        cls._ci._pgr.put_cmd(_set_filter_transition_width, filter_transition_width)
+        cls._ci._pgr.put_cmd(_set_samp_rate, samp_rate)
 
 
     @typechecked
     @staticmethod
     def config(
             *,
+            running: bool,
             center_freq: float = 2.4e9,
             amplitude: float = 0,
             if_gain: int = 0,
@@ -430,19 +446,17 @@ class Noise_Tx():
             filter_transition_width: float = 200e3,
             samp_rate: float = 2e6,
         ) -> dict:
-        """If there is not an instance of this Paragradio process running, launch a new one, and set the settings.  
-        If one is already running, update the settings of the existing one.
-        Returns the timestamp of the update.
-
-        For more details, run `from paragradio.v2025_03 import Noise_Tx; help(Noise_Tx)`
-        """
+        """To view the docs for this method, run `from paragradio.v2025_03 import Noise_Tx; help(Noise_Tx)`"""
+        if running == False:
+            Noise_Tx._ci._pgr.terminate()
+            return {"terminated": "terminated"}
         decidemakenew(Noise_Tx)
         Noise_Tx.__set_all(center_freq, amplitude, if_gain, noise_type, filter_cutoff_freq, filter_transition_width, samp_rate)
         return {
             "timestamp": datetime.datetime.now(),
         }
 
-Noise_Tx.config.__doc__ += _EXPLANATIONS.center_freq + _EXPLANATIONS.amplitude + _EXPLANATIONS.if_gain + _EXPLANATIONS.noise_type + _EXPLANATIONS.filter_cutoff_freq + _EXPLANATIONS.filter_transition_width + _EXPLANATIONS.samp_rate
+Noise_Tx.config.__doc__ += _EXPLANATIONS._introductory + _EXPLANATIONS.center_freq + _EXPLANATIONS.amplitude + _EXPLANATIONS.if_gain + _EXPLANATIONS.noise_type + _EXPLANATIONS.filter_cutoff_freq + _EXPLANATIONS.filter_transition_width + _EXPLANATIONS.samp_rate
 
 
 if TYPE_CHECKING:
@@ -462,17 +476,18 @@ class PSK_Tx_loop():
 
     @classmethod
     def __set_all(cls, center_freq, if_gain, amplitude, data, samp_rate, modulation):
-        cls._ci._pgr.put_cmd(_set_center_freq_child, center_freq)
-        cls._ci._pgr.put_cmd(_set_if_gain_child, if_gain)
-        cls._ci._pgr.put_cmd(_set_amplitude_child, amplitude)
-        cls._ci._pgr.put_cmd(_set_data_child, data)
-        cls._ci._pgr.put_cmd(_set_samp_rate_child, samp_rate)
-        cls._ci._pgr.put_cmd(_set_modulation_child, modulation)
+        cls._ci._pgr.put_cmd(_set_center_freq, center_freq)
+        cls._ci._pgr.put_cmd(_set_if_gain, if_gain)
+        cls._ci._pgr.put_cmd(_set_amplitude, amplitude)
+        cls._ci._pgr.put_cmd(_set_data, data)
+        cls._ci._pgr.put_cmd(_set_samp_rate, samp_rate)
+        cls._ci._pgr.put_cmd(_set_modulation, modulation)
 
     @typechecked
     @staticmethod
     def config(
             *,
+            running: bool,
             center_freq: float = 2.4e9,
             if_gain: int = 0,
             amplitude: float = 0,
@@ -480,10 +495,10 @@ class PSK_Tx_loop():
             samp_rate: float = 2e6,
             modulation: Literal["BPSK", "QPSK", "DQPSK", "8PSK", "16QAM"] = "BPSK",
         ) -> dict:
-        """If there is not an instance of this Paragradio process running, launch a new one, and set the settings.  
-        If one is already running, update the settings of the existing one.
-        Returns the timestamp of the update.
-        """
+        """To view the docs for this method, run `from paragradio.v2025_03 import PSK_Tx_loop; help(PSK_Tx_loop)`"""
+        if running == False:
+            PSK_Tx_loop._ci._pgr.terminate()
+            return {"terminated": "terminated"}
         decidemakenew(PSK_Tx_loop)
         PSK_Tx_loop.__set_all(center_freq, if_gain, amplitude, data, samp_rate, modulation)
         return {
@@ -491,4 +506,4 @@ class PSK_Tx_loop():
         }
     
 
-PSK_Tx_loop.config.__doc__ += _EXPLANATIONS.center_freq + _EXPLANATIONS.if_gain + _EXPLANATIONS.amplitude + _EXPLANATIONS.data + _EXPLANATIONS.samp_rate + _EXPLANATIONS.modulation
+PSK_Tx_loop.config.__doc__ += _EXPLANATIONS._introductory + _EXPLANATIONS.center_freq + _EXPLANATIONS.if_gain + _EXPLANATIONS.amplitude + _EXPLANATIONS.data + _EXPLANATIONS.samp_rate + _EXPLANATIONS.modulation
