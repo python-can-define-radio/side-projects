@@ -270,7 +270,7 @@ def decidemakenew(cls: hasCI) -> None:
         
 
 class _EXPLANATIONS:
-    _introductory = """If there is not an instance of this Paragradio app running, launch a new one, and set the settings. If one is already running, update the settings of the existing one. Returns a dictionary containing the timestamp of the update."""
+    _introductory = """\n\nIf there is not an instance of this Paragradio app running, launch a new one, and set the settings. If one is already running, update the settings of the existing one. Returns a dictionary containing the timestamp of the update.\n"""
     amplitude = "\n**amplitude**: Update the amplitude of the generated signal. Units are difficult to explain; try setting it to `1` and then adjust higher or lower based on what fits your situation.\n"
     bb_gain = "\n**bb_gain**: Update the Baseband gain of the SDR peripheral. Units are dB.\n"
     center_freq = "\n**center_freq**: Update the center frequency of the SDR peripheral and any associated GUI elements. Units are Hz.\n"
@@ -320,7 +320,7 @@ class SpecAn():
             samp_rate: float = 2e6,
             hw_bb_filt: float = 2.75e6,
         ) -> dict:
-        """To view the docs for this method, run `from paragradio.v2025_03 import SpecAn; help(SpecAn)`"""
+        """To view the docs for this method, run `from paragradio.v2025_03 import SpecAn; help(SpecAn)` in your Python editor. If you are using a marimo notebook, you can view the docstring with rich formatting by running this in a cell: `mo.md(SpecAn.config.__doc__)`"""
         if running == False:
             SpecAn._ci._pgr.terminate()
             return {"terminated": "terminated"}
@@ -355,7 +355,7 @@ class SpecAnSim():
             running: bool,
             center_freq: float = 93e6,
         ) -> dict:
-        """To view the docs for this method, run `from paragradio.v2025_03 import SpecAnSim; help(SpecAnSim)`"""
+        """To view the docs for this method, run `from paragradio.v2025_03 import SpecAnSim; help(SpecAnSim)` in your Python editor. If you are using a marimo notebook, you can view the docstring with rich formatting by running this in a cell: `mo.md(SpecAnSim.config.__doc__)`"""
         if running == False:
             SpecAnSim._ci._pgr.terminate()
             return {"terminated": "terminated"}
@@ -398,7 +398,7 @@ class WBFM_Rx():
             channel_width: float = 200e3,
             # Note: Can't add set_samp_rate because the rational resampler doesn't update at runtime
         ) -> dict:
-        """To view the docs for this method, run `from paragradio.v2025_03 import WBFM_Rx; help(WBFM_Rx)`"""
+        """To view the docs for this method, run `from paragradio.v2025_03 import WBFM_Rx; help(WBFM_Rx)` in your Python editor. If you are using a marimo notebook, you can view the docstring with rich formatting by running this in a cell: `mo.md(WBFM_Rx.config.__doc__)`"""
         if running == False:
             WBFM_Rx._ci._pgr.terminate()
             return {"terminated": "terminated"}
@@ -444,7 +444,7 @@ class Noise_Tx():
             filter_transition_width: float = 200e3,
             samp_rate: float = 2e6,
         ) -> dict:
-        """To view the docs for this method, run `from paragradio.v2025_03 import Noise_Tx; help(Noise_Tx)`"""
+        """To view the docs for this method, run `from paragradio.v2025_03 import Noise_Tx; help(Noise_Tx)` in your Python editor. If you are using a marimo notebook, you can view the docstring with rich formatting by running this in a cell: `mo.md(Noise_Tx.config.__doc__)`"""
         if running == False:
             Noise_Tx._ci._pgr.terminate()
             return {"terminated": "terminated"}
@@ -491,7 +491,7 @@ class PSK_Tx_loop():
             samp_rate: float = 2e6,
             modulation: Literal["BPSK", "QPSK", "DQPSK", "8PSK", "16QAM"] = "BPSK",
         ) -> dict:
-        """To view the docs for this method, run `from paragradio.v2025_03 import PSK_Tx_loop; help(PSK_Tx_loop)`"""
+        """To view the docs for this method, run `from paragradio.v2025_03 import PSK_Tx_loop; help(PSK_Tx_loop)` in your Python editor. If you are using a marimo notebook, you can view the docstring with rich formatting by running this in a cell: `mo.md(PSK_Tx_loop.config.__doc__)`"""
         if running == False:
             PSK_Tx_loop._ci._pgr.terminate()
             return {"terminated": "terminated"}
