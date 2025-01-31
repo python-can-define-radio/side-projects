@@ -186,7 +186,7 @@ class hasPGR(Protocol):
     _pgr: ParallelGR
 
 class hasCI(Protocol):
-    _ci: hasPGR
+    _ci: "hasPGR | None"
 
 
 if TYPE_CHECKING:
@@ -264,10 +264,32 @@ def startnewinstance(cls: hasCI) -> None:
         raise UnableToLaunch("Possible fixes: plug in Hack RF; ensure there are no other programs using the Hack RF; press reset button on Hack RF")
 
 
-def decidemakenew(cls: hasCI) -> None:
-    if (cls._ci is None) or (not cls._ci._pgr.is_alive()):
-        startnewinstance(cls)
-        
+# def decidemakenew(cls: hasCI) -> None:
+#     if (cls._ci is None) or (not cls._ci._pgr.is_alive()):
+#         startnewinstance(cls)
+def alive_ish(cls: hasCI) -> bool:
+    if cls._ci is None:
+        return False
+    return cls._ci._pgr.is_alive()
+
+
+def decidelaunchkill(cls: hasCI, running: bool, setallfunc: Callable) -> None:
+    if alive_ish(cls):
+        if running:
+            setallfunc()
+            return { "status": "running", "timestamp": datetime.datetime.now() }
+        else:
+            assert cls._ci is not None
+            cls._ci._pgr.terminate()
+            return { "status": "terminated" }
+    else:
+        if running:
+            startnewinstance(cls)
+            setallfunc()
+            return { "status": "launched", "timestamp": datetime.datetime.now() }
+        else:
+            return { "status": "not_running" }
+
 
 class _EXPLANATIONS:
     _introductory = """\n\nIf there is not an instance of this Paragradio app running, launch a new one, and set the settings. If one is already running, update the settings of the existing one. Returns a dictionary containing the timestamp of the update.\n"""
@@ -309,6 +331,12 @@ class SpecAn():
         cls._ci._pgr.put_cmd(_set_samp_rate, samp_rate)
         cls._ci._pgr.put_cmd(_set_hw_bb_filt, hw_bb_filt)
 
+    @classmethod
+    def __config(cls, running, center_freq, THEN, FILL, THESE):
+        def setallfunc():
+            cls.__set_all(center_freq, FIX, THIS, FIRST)
+        return decidelaunchkill(cls, running, setallfunc)
+
     @typechecked
     @staticmethod
     def config(
@@ -321,14 +349,8 @@ class SpecAn():
             hw_bb_filt: float = 2.75e6,
         ) -> dict:
         """To view the docs for this method, run `from paragradio.v2025_03 import SpecAn; help(SpecAn)` in your Python editor. If you are using a marimo notebook, you can view the docstring with rich formatting by running this in a cell: `mo.md(SpecAn.config.__doc__)`"""
-        if running == False:
-            SpecAn._ci._pgr.terminate()
-            return {"terminated": "terminated"}
-        decidemakenew(SpecAn)
-        SpecAn.__set_all(center_freq, if_gain, bb_gain, samp_rate, hw_bb_filt)
-        return {
-            "timestamp": datetime.datetime.now(),
-        }
+        return SpecAn.__config(running, center_freq)
+
 
 
 SpecAn.config.__doc__ += _EXPLANATIONS._introductory + _EXPLANATIONS.center_freq + _EXPLANATIONS.if_gain +_EXPLANATIONS.bb_gain + _EXPLANATIONS.samp_rate + _EXPLANATIONS.hw_bb_filt
@@ -347,7 +369,13 @@ class SpecAnSim():
     @classmethod
     def __set_all(cls, center_freq):
         cls._ci._pgr.put_cmd(_set_center_freq, center_freq)
-       
+    
+    @classmethod
+    def __config(cls, running, center_freq):
+        def setallfunc():
+            cls.__set_all(center_freq)
+        return decidelaunchkill(cls, running, setallfunc)
+
     @typechecked
     @staticmethod
     def config(
@@ -356,14 +384,8 @@ class SpecAnSim():
             center_freq: float = 93e6,
         ) -> dict:
         """To view the docs for this method, run `from paragradio.v2025_03 import SpecAnSim; help(SpecAnSim)` in your Python editor. If you are using a marimo notebook, you can view the docstring with rich formatting by running this in a cell: `mo.md(SpecAnSim.config.__doc__)`"""
-        if running == False:
-            SpecAnSim._ci._pgr.terminate()
-            return {"terminated": "terminated"}
-        decidemakenew(SpecAnSim)
-        SpecAnSim.__set_all(center_freq)
-        return {
-            "timestamp": datetime.datetime.now(),
-        }
+        return SpecAnSim.__config(running, center_freq)
+
     
 SpecAnSim.config.__doc__ +=_EXPLANATIONS._introductory + """Set the center frequency of simulated spectrum view."""
 
