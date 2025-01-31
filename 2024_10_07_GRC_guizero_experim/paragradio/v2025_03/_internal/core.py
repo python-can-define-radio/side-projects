@@ -332,9 +332,9 @@ class SpecAn():
         cls._ci._pgr.put_cmd(_set_hw_bb_filt, hw_bb_filt)
 
     @classmethod
-    def __config(cls, running, center_freq, THEN, FILL, THESE):
+    def __config(cls, running, center_freq, if_gain, bb_gain, samp_rate, hw_bb_filt):
         def setallfunc():
-            cls.__set_all(center_freq, FIX, THIS, FIRST)
+            cls.__set_all(center_freq, if_gain, bb_gain, samp_rate, hw_bb_filt)
         return decidelaunchkill(cls, running, setallfunc)
 
     @typechecked
@@ -349,7 +349,7 @@ class SpecAn():
             hw_bb_filt: float = 2.75e6,
         ) -> dict:
         """To view the docs for this method, run `from paragradio.v2025_03 import SpecAn; help(SpecAn)` in your Python editor. If you are using a marimo notebook, you can view the docstring with rich formatting by running this in a cell: `mo.md(SpecAn.config.__doc__)`"""
-        return SpecAn.__config(running, center_freq)
+        return SpecAn.__config(running, center_freq, if_gain, bb_gain, samp_rate, hw_bb_filt)
 
 
 
