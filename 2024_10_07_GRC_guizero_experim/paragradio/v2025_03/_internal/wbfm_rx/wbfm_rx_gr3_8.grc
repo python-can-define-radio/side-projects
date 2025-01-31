@@ -631,7 +631,7 @@ blocks:
     tr_tag: '""'
     type: complex
     units: dB
-    update_time: '0.10'
+    update_time: '0.03'
     width1: '1'
     width10: '1'
     width2: '1'
