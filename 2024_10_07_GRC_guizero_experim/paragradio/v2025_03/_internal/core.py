@@ -407,6 +407,12 @@ class WBFM_Rx():
         cls._ci._pgr.put_cmd(_set_freq_offset, freq_offset)
         cls._ci._pgr.put_cmd(_set_channel_width,channel_width)
 
+    @classmethod
+    def __config(cls, running, center_freq, if_gain, bb_gain, hw_bb_filt, freq_offset, channel_width):
+        def setallfunc():
+            cls.__set_all(center_freq, if_gain, bb_gain, hw_bb_filt, freq_offset, channel_width)
+        return decidelaunchkill(cls, running, setallfunc)
+
     @typechecked
     @staticmethod
     def config(
@@ -421,15 +427,8 @@ class WBFM_Rx():
             # Note: Can't add set_samp_rate because the rational resampler doesn't update at runtime
         ) -> dict:
         """To view the docs for this method, run `from paragradio.v2025_03 import WBFM_Rx; help(WBFM_Rx)` in your Python editor. If you are using a marimo notebook, you can view the docstring with rich formatting by running this in a cell: `mo.md(WBFM_Rx.config.__doc__)`"""
-        if running == False:
-            WBFM_Rx._ci._pgr.terminate()
-            return {"terminated": "terminated"}
-        decidemakenew(WBFM_Rx)
-        WBFM_Rx.__set_all(center_freq, if_gain, bb_gain, hw_bb_filt, freq_offset, channel_width)
-        return {
-            "timestamp": datetime.datetime.now(),
-        }
-    
+        return WBFM_Rx.__config(running, center_freq, if_gain, bb_gain, hw_bb_filt, freq_offset, channel_width)
+        
 
 WBFM_Rx.config.__doc__ += _EXPLANATIONS._introductory + _EXPLANATIONS.center_freq + _EXPLANATIONS.if_gain + _EXPLANATIONS.bb_gain + _EXPLANATIONS.hw_bb_filt + _EXPLANATIONS.freq_offset + _EXPLANATIONS.channel_width
 
@@ -452,6 +451,11 @@ class Noise_Tx():
         cls._ci._pgr.put_cmd(_set_filter_transition_width, filter_transition_width)
         cls._ci._pgr.put_cmd(_set_samp_rate, samp_rate)
 
+    @classmethod
+    def __config(cls, running, center_freq, amplitude, if_gain, noise_type, filter_cutoff_freq, filter_transition_width, samp_rate):
+        def setallfunc():
+            cls.__set_all(center_freq, amplitude, if_gain, noise_type, filter_cutoff_freq, filter_transition_width, samp_rate)
+        return decidelaunchkill(cls, running, setallfunc)
 
     @typechecked
     @staticmethod
@@ -467,14 +471,8 @@ class Noise_Tx():
             samp_rate: float = 2e6,
         ) -> dict:
         """To view the docs for this method, run `from paragradio.v2025_03 import Noise_Tx; help(Noise_Tx)` in your Python editor. If you are using a marimo notebook, you can view the docstring with rich formatting by running this in a cell: `mo.md(Noise_Tx.config.__doc__)`"""
-        if running == False:
-            Noise_Tx._ci._pgr.terminate()
-            return {"terminated": "terminated"}
-        decidemakenew(Noise_Tx)
-        Noise_Tx.__set_all(center_freq, amplitude, if_gain, noise_type, filter_cutoff_freq, filter_transition_width, samp_rate)
-        return {
-            "timestamp": datetime.datetime.now(),
-        }
+        return Noise_Tx.__config(running, center_freq, amplitude, if_gain, noise_type, filter_cutoff_freq, filter_transition_width, samp_rate)
+        
 
 Noise_Tx.config.__doc__ += _EXPLANATIONS._introductory + _EXPLANATIONS.center_freq + _EXPLANATIONS.amplitude + _EXPLANATIONS.if_gain + _EXPLANATIONS.noise_type + _EXPLANATIONS.filter_cutoff_freq + _EXPLANATIONS.filter_transition_width + _EXPLANATIONS.samp_rate
 
@@ -501,6 +499,12 @@ class PSK_Tx_loop():
         cls._ci._pgr.put_cmd(_set_samp_rate, samp_rate)
         cls._ci._pgr.put_cmd(_set_modulation, modulation)
 
+    @classmethod
+    def __config(cls, running, center_freq, if_gain, amplitude, data, samp_rate, modulation):
+        def setallfunc():
+            cls.__set_all(center_freq, if_gain, amplitude, data, samp_rate, modulation)
+        return decidelaunchkill(cls, running, setallfunc)
+
     @typechecked
     @staticmethod
     def config(
@@ -514,14 +518,7 @@ class PSK_Tx_loop():
             modulation: Literal["BPSK", "QPSK", "DQPSK", "8PSK", "16QAM"] = "BPSK",
         ) -> dict:
         """To view the docs for this method, run `from paragradio.v2025_03 import PSK_Tx_loop; help(PSK_Tx_loop)` in your Python editor. If you are using a marimo notebook, you can view the docstring with rich formatting by running this in a cell: `mo.md(PSK_Tx_loop.config.__doc__)`"""
-        if running == False:
-            PSK_Tx_loop._ci._pgr.terminate()
-            return {"terminated": "terminated"}
-        decidemakenew(PSK_Tx_loop)
-        PSK_Tx_loop.__set_all(center_freq, if_gain, amplitude, data, samp_rate, modulation)
-        return {
-            "timestamp": datetime.datetime.now(),
-        }
+        return PSK_Tx_loop.__config(running, center_freq, if_gain, amplitude, data, samp_rate, modulation)
     
 
 PSK_Tx_loop.config.__doc__ += _EXPLANATIONS._introductory + _EXPLANATIONS.center_freq + _EXPLANATIONS.if_gain + _EXPLANATIONS.amplitude + _EXPLANATIONS.data + _EXPLANATIONS.samp_rate + _EXPLANATIONS.modulation
