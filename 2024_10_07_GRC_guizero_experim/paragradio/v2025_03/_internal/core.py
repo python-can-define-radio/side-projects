@@ -296,16 +296,13 @@ class _EXPLANATIONS:
     amplitude = "\n**amplitude**: Update the amplitude of the generated signal. Units are difficult to explain; try setting it to `1` and then adjust higher or lower based on what fits your situation.\n"
     bb_gain = "\n**bb_gain**: Update the Baseband gain of the SDR peripheral. Units are dB.\n"
     center_freq = "\n**center_freq**: Update the center frequency of the SDR peripheral and any associated GUI elements. Units are Hz.\n"
-    channel_width = """\n**channel_width**: Update the width of the software bandpass filter. Units are Hz.
-        This reduces the interference from nearby stations by filtering to a single radio station. In the United States, Broadcast FM radio stations are 200 kHz wide, so a channel width of 200 kHz is a good option. A slightly narrower width sometimes helps improve the Signal to Noise Ratio.\n"""
+    center_freq_sim = "\n**center_freq**: Update the center frequency of the simulated spectrum view. Units are Hz.\n"
+    channel_width = """\n**channel_width**: Update the width of the software bandpass filter. This reduces the interference from nearby stations by filtering to a single radio station. In the United States, Broadcast FM radio stations are 200 kHz wide, so a channel width of 200 kHz is a good option. A slightly narrower width sometimes helps improve the Signal to Noise Ratio. Units are Hz.\n"""
     data = "\n**data**: Update what binary data is being repeatedly transmitted. Example: [1, 0, 1, 1] \n"
     filter_cutoff_freq = "\n**filter_cutoff_freq**: Update the cutoff frequency of the filter that shapes the generated noise before transmitting it. Units are Hz.\n"
     filter_transition_width = "\n**filter_transition_width**: Update the transition width of the filter that shapes the generated noise before transmitting it. Units are Hz.\n"
-    freq_offset = """\n**freq_offset**: Update the frequency offset. Units are Hz.
-        When tuning the FM Radio, you'll often get a clearer sound if
-        you tune offset to avoid the DC Spike.\n"""
-    hw_bb_filt = """\n**hw_bb_filt**: Update the Hardware Baseband Filter. Units are Hz. 
-    Details: The HackRF One and many other SDR peripherals have a built-in filter that precedes the Analog to Digital conversion. It is able to reduce or prevent aliasing, which software filters cannot do. Typically, you should set the baseband filter as low as possible for the signals that you wish to receive -- a tighter filter will more effectively reduce aliasing. For more info, see the Hack RF One documentation about Sampling Rate and Baseband Filters <https://hackrf.readthedocs.io/en/latest/sampling_rate.html>.\n"""
+    freq_offset = """\n**freq_offset**: Update the frequency offset. When tuning the FM Radio, you'll often get a clearer sound if you tune offset to avoid the DC Spike. Units are Hz.\n"""
+    hw_bb_filt = """\n**hw_bb_filt**: Update the Hardware Baseband Filter. Details: The HackRF One and many other SDR peripherals have a built-in filter that precedes the Analog to Digital conversion. It is able to reduce or prevent aliasing, which software filters cannot do. Typically, you should set the baseband filter as low as possible for the signals that you wish to receive -- a tighter filter will more effectively reduce aliasing. For more info, see the Hack RF One documentation about Sampling Rate and Baseband Filters <https://hackrf.readthedocs.io/en/latest/sampling_rate.html>. Units are Hz. \n"""
     if_gain = "\n**if_gain**: Update the Intermediate Frequency gain of the SDR peripheral. Units are dB.\n"
     modulation = "\n**modulation**: Update the modulation. Options: 'BPSK', 'QPSK', 'DQPSK', '8PSK', '16QAM'.\n"
     noise_type = """\n**noise_type**: Update the noise type to 'uniform' or 'gaussian'.
@@ -353,7 +350,7 @@ class SpecAn():
 
 
 
-SpecAn.config.__doc__ += _EXPLANATIONS._introductory + _EXPLANATIONS.center_freq + _EXPLANATIONS.if_gain +_EXPLANATIONS.bb_gain + _EXPLANATIONS.samp_rate + _EXPLANATIONS.hw_bb_filt
+SpecAn.config.__doc__ += _EXPLANATIONS._introductory + _EXPLANATIONS.running + _EXPLANATIONS.center_freq + _EXPLANATIONS.if_gain +_EXPLANATIONS.bb_gain + _EXPLANATIONS.samp_rate + _EXPLANATIONS.hw_bb_filt
 
 class SpecAnSim():
 
@@ -387,7 +384,7 @@ class SpecAnSim():
         return SpecAnSim.__config(running, center_freq)
 
     
-SpecAnSim.config.__doc__ +=_EXPLANATIONS._introductory + """Set the center frequency of simulated spectrum view."""
+SpecAnSim.config.__doc__ +=_EXPLANATIONS._introductory + _EXPLANATIONS.running + _EXPLANATIONS.center_freq_sim
 
 class WBFM_Rx():
     _ci: "Optional[WBFM_Rx]" = None
@@ -430,7 +427,7 @@ class WBFM_Rx():
         return WBFM_Rx.__config(running, center_freq, if_gain, bb_gain, hw_bb_filt, freq_offset, channel_width)
         
 
-WBFM_Rx.config.__doc__ += _EXPLANATIONS._introductory + _EXPLANATIONS.center_freq + _EXPLANATIONS.if_gain + _EXPLANATIONS.bb_gain + _EXPLANATIONS.hw_bb_filt + _EXPLANATIONS.freq_offset + _EXPLANATIONS.channel_width
+WBFM_Rx.config.__doc__ += _EXPLANATIONS._introductory + _EXPLANATIONS.running + _EXPLANATIONS.center_freq + _EXPLANATIONS.if_gain + _EXPLANATIONS.bb_gain + _EXPLANATIONS.hw_bb_filt + _EXPLANATIONS.freq_offset + _EXPLANATIONS.channel_width
 
 
 class Noise_Tx():
@@ -474,7 +471,7 @@ class Noise_Tx():
         return Noise_Tx.__config(running, center_freq, amplitude, if_gain, noise_type, filter_cutoff_freq, filter_transition_width, samp_rate)
         
 
-Noise_Tx.config.__doc__ += _EXPLANATIONS._introductory + _EXPLANATIONS.center_freq + _EXPLANATIONS.amplitude + _EXPLANATIONS.if_gain + _EXPLANATIONS.noise_type + _EXPLANATIONS.filter_cutoff_freq + _EXPLANATIONS.filter_transition_width + _EXPLANATIONS.samp_rate
+Noise_Tx.config.__doc__ += _EXPLANATIONS._introductory + _EXPLANATIONS.running + _EXPLANATIONS.center_freq + _EXPLANATIONS.amplitude + _EXPLANATIONS.if_gain + _EXPLANATIONS.noise_type + _EXPLANATIONS.filter_cutoff_freq + _EXPLANATIONS.filter_transition_width + _EXPLANATIONS.samp_rate
 
 
 if TYPE_CHECKING:
@@ -521,4 +518,4 @@ class PSK_Tx_loop():
         return PSK_Tx_loop.__config(running, center_freq, if_gain, amplitude, data, samp_rate, modulation)
     
 
-PSK_Tx_loop.config.__doc__ += _EXPLANATIONS._introductory + _EXPLANATIONS.center_freq + _EXPLANATIONS.if_gain + _EXPLANATIONS.amplitude + _EXPLANATIONS.data + _EXPLANATIONS.samp_rate + _EXPLANATIONS.modulation
+PSK_Tx_loop.config.__doc__ += _EXPLANATIONS._introductory + _EXPLANATIONS.running + _EXPLANATIONS.center_freq + _EXPLANATIONS.if_gain + _EXPLANATIONS.amplitude + _EXPLANATIONS.data + _EXPLANATIONS.samp_rate + _EXPLANATIONS.modulation
