@@ -1,8 +1,8 @@
+from __future__ import annotations
 import doctest
 import socket
 import time
 from threading import Thread
-from __future__ import annotations
 
 
 class UserError(Exception):
@@ -19,7 +19,12 @@ def parse_sub_msg(msg: str) -> tuple[str, str]:
     ...  # Name: Bob
     ...  and the rest''')
     >>> r
-    ('Bob', '# Name: Bob...and the rest')
+    ('Bob', '# Name: Bob\\n and the rest')
+    >>> parse_sub_msg('sub words')
+    Rejected because the beginning was 'sub words'
+    Traceback and such (fix this)
+      ...
+    UserError('Must put name')
     """
     assert msg.startswith("sub")
     msg_no_sub = msg[3:]
@@ -29,7 +34,7 @@ def parse_sub_msg(msg: str) -> tuple[str, str]:
         name = firstline[8:]
         return name, cstrp
     else:
-        print(f"Rejected because the beginning was {msg[:30]}")
+        print(f"Rejected because the beginning was {repr(msg[:30])}")
         raise UserError("Must put name")
 
 
