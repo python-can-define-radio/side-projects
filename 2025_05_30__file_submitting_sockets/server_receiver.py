@@ -2,7 +2,7 @@ import doctest
 import socket
 import time
 from threading import Thread
-
+from __future__ import annotations
 
 
 class UserError(Exception):
