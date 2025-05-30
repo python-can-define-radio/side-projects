@@ -1,5 +1,6 @@
 from __future__ import annotations
 import doctest
+from pathlib import Path
 import socket
 import time
 from threading import Thread
@@ -7,6 +8,17 @@ from threading import Thread
 
 class UserError(Exception):
     ...
+
+
+def writefile(fn: str, content: str, dry_run: bool):
+    path = Path(fn)
+    if dry_run:
+        print("Writing to '{fn}' this content:")
+        print(content)
+    else:
+        outfile = open(path, "x", encoding="utf8")
+        outfile.write(stucode)
+        outfile.close()
 
 
 def handle_asn():
@@ -39,11 +51,18 @@ def parse_sub_msg(msg: str) -> tuple[str, str]:
         raise UserError("Must put name")
 
 
-def handle_sub(msg: str) -> str:
+def handle_sub(msg: str, dry_run: bool) -> str:
+    """
+    >>> handle_sub('''sub
+    ...  # name: joe
+    ...  more things
+    ...  ''',
+    ...  dry_run=True)
+    fix this doctest
+    """
+    assert msg.startswith("sub")
     name, stucode = parse_sub_msg(msg)        
-    outfile = open("student_data/" + name + ".py", "x")
-    outfile.write(stucode)
-    outfile.close()
+    writefile("student_data/" + name + ".py", stucode, dry_run)
     return f"Received {msg}"
 
 
@@ -51,11 +70,11 @@ def handle_grd(msg):
     return "TODO"
 
 
-def handle_message_maythrow(msg: str) -> str:
+def handle_message_maythrow(msg: str, dry_run: bool) -> str:
     if msg.startswith("asn"):
         return handle_asn()
     elif msg.startswith("sub"):
-        return handle_sub(msg)
+        return handle_sub(msg, dry_run)
     elif msg.startswith("grd"):
         return handle_grd(msg)
     else:
@@ -68,7 +87,7 @@ def handle_message_maythrow(msg: str) -> str:
         )
 
 
-def handle_message(msg: str) -> bytes:
+def handle_message(msg: str, dry_run: bool = False) -> bytes:
     try:
         return handle_message_maythrow(msg).encode("utf8")
     except UserError as e:
