@@ -20,11 +20,12 @@ def parse_sub_msg(msg: str) -> tuple[str, str]:
     ...  and the rest''')
     >>> r
     ('Bob', '# Name: Bob\\n and the rest')
-    >>> parse_sub_msg('sub words')
+    >>> try:
+    ...     parse_sub_msg('sub words')
+    ... except Exception as e:
+    ...     print("Exception:", e)
     Rejected because the beginning was 'sub words'
-    Traceback and such (fix this)
-      ...
-    UserError('Must put name')
+    Exception: Must put name
     """
     assert msg.startswith("sub")
     msg_no_sub = msg[3:]
@@ -77,13 +78,14 @@ def handle_message(msg: str) -> bytes:
         return b"Internal server error."
 
 
-def handle_client(conn, addr):
+def handle_client(conn: socket.socket, addr):
     print('Connected by', addr, 'and ready to receive')
     msg = conn.recv(4096).decode("utf8")
     resp = handle_message(msg)
     conn.send(resp)
     time.sleep(0.1)  # Trying to let the client close the connection first, but eventually we have to close
     conn.close()
+    print("Connection done with", addr)
 
 
 def accept_connections(s: socket.socket):
@@ -95,7 +97,7 @@ def accept_connections(s: socket.socket):
 
 def main():
     HOST = ''
-    PORT = 50007              # Arbitrary non-privileged port
+    PORT = 7233              # Arbitrary non-privileged port
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind((HOST, PORT))
         s.listen(1)
