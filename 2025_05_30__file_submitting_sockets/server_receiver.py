@@ -21,8 +21,8 @@ def writefile(fn: str, content: str, dry_run: bool):
         outfile.close()
 
 
-def handle_asn():
-    return "TODO"
+def handle_asn() -> str:
+    return Path("./pe.txt").read_text()
 
   
 def parse_sub_msg(msg: str) -> tuple[str, str]:
@@ -48,7 +48,7 @@ def parse_sub_msg(msg: str) -> tuple[str, str]:
         return name, cstrp
     else:
         print(f"Rejected because the beginning was {repr(msg[:30])}")
-        raise UserError("Must put name")
+        raise UserError("Must put name on the first line of your submission using this format: # Name: Smith")
 
 
 def handle_sub(msg: str, dry_run: bool) -> str:
@@ -71,6 +71,7 @@ def handle_grd(msg):
 
 
 def handle_message_maythrow(msg: str, dry_run: bool) -> str:
+    """Choose action based on `msg`."""
     if msg.startswith("asn"):
         return handle_asn()
     elif msg.startswith("sub"):
@@ -88,6 +89,7 @@ def handle_message_maythrow(msg: str, dry_run: bool) -> str:
 
 
 def handle_message(msg: str, dry_run: bool = False) -> bytes:
+    """Runs `handle_message_maythrow` with a try/except wrapper."""
     try:
         return handle_message_maythrow(msg).encode("utf8")
     except UserError as e:
@@ -97,9 +99,22 @@ def handle_message(msg: str, dry_run: bool = False) -> bytes:
         return b"Internal server error."
 
 
+def recv_till_done(conn: socket.socket) -> bytes:
+    """run `conn.recv` repeatedly."""
+    result = b""
+    while True:
+        partialresult = conn.recv(1024)
+        if partialresult:
+            result += partialresult
+        else:
+            break
+    return result
+
+
 def handle_client(conn: socket.socket, addr):
+    """Receive data from the client. Take appropriate action. Send response to client. Close connection."""
     print('Connected by', addr, 'and ready to receive')
-    msg = conn.recv(4096).decode("utf8")
+    msg = recv_till_done(conn).decode("utf8")
     resp = handle_message(msg)
     conn.send(resp)
     time.sleep(0.1)  # Trying to let the client close the connection first, but eventually we have to close
@@ -108,6 +123,7 @@ def handle_client(conn: socket.socket, addr):
 
 
 def accept_connections(s: socket.socket):
+    """Launch a thread to handle each client that connects."""
     while True:
         conn, addr = s.accept()
         t = Thread(target=lambda: handle_client(conn, addr))
@@ -115,6 +131,7 @@ def accept_connections(s: socket.socket):
         
 
 def main():
+    """Launch the server."""
     HOST = ''
     PORT = 7233              # Arbitrary non-privileged port
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
