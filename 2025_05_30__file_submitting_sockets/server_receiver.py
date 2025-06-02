@@ -13,11 +13,11 @@ class UserError(Exception):
 def writefile(fn: str, content: str, dry_run: bool):
     path = Path(fn)
     if dry_run:
-        print("Writing to '{fn}' this content:")
+        print(f"Dry run. Would write to '{fn}' this content:")
         print(content)
     else:
         outfile = open(path, "x", encoding="utf8")
-        outfile.write(stucode)
+        outfile.write(content)
         outfile.close()
 
 
@@ -37,7 +37,7 @@ def parse_sub_msg(msg: str) -> tuple[str, str]:
     ... except Exception as e:
     ...     print("Exception:", e)
     Rejected because the beginning was 'sub words'
-    Exception: Must put name
+    Exception: Must put name...
     """
     assert msg.startswith("sub")
     msg_no_sub = msg[3:]
@@ -53,14 +53,32 @@ def parse_sub_msg(msg: str) -> tuple[str, str]:
 
 def handle_sub(msg: str, dry_run: bool) -> str:
     """
-    >>> handle_sub('''sub
-    ...  # name: joe
-    ...  more things
+    Either gives the submission directions or saves the student's submission to a file.
+
+    >>> r = handle_sub('''sub
+    ... # name: joe
+    ... more things
     ...  ''',
-    ...  dry_run=True)
-    fix this doctest
+    ... dry_run=True)
+    Dry run. Would write to 'student_data/joe.py' this content:
+    # name: joe
+    more things
+    >>> r
+    'Received sub...'
+    >>> 
     """
     assert msg.startswith("sub")
+    if msg == "sub":
+        return (
+            "Submission example:\n"
+            "sub\n"
+            "# Name: Smith\n"
+            "# Code:\n"
+            "your\n"
+            "code\n"
+            "goes\n"
+            "here\n"
+        )
     name, stucode = parse_sub_msg(msg)        
     writefile("student_data/" + name + ".py", stucode, dry_run)
     return f"Received {msg}"
@@ -142,5 +160,5 @@ def main():
 
 
 if __name__ == "__main__":
-    doctest.testmod() 
+    doctest.testmod(optionflags=doctest.ELLIPSIS) 
     main()
