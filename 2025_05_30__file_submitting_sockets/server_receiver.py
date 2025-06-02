@@ -98,6 +98,7 @@ def handle_message_maythrow(msg: str, dry_run: bool) -> str:
         return handle_grd(msg)
     else:
         return (
+            f"You sent '{msg}'.\n"
             "Commands you can send:\n"
             "?            : Displays this help message.\n"
             "asn          : Shows the currently available assignment.\n"
@@ -109,7 +110,7 @@ def handle_message_maythrow(msg: str, dry_run: bool) -> str:
 def handle_message(msg: str, dry_run: bool = False) -> bytes:
     """Runs `handle_message_maythrow` with a try/except wrapper."""
     try:
-        return handle_message_maythrow(msg).encode("utf8")
+        return handle_message_maythrow(msg, dry_run).encode("utf8")
     except UserError as e:
         return str(e).encode("utf8")
     except Exception as e:
@@ -120,12 +121,14 @@ def handle_message(msg: str, dry_run: bool = False) -> bytes:
 def recv_till_done(conn: socket.socket) -> bytes:
     """run `conn.recv` repeatedly."""
     result = b""
-    while True:
-        partialresult = conn.recv(1024)
-        if partialresult:
-            result += partialresult
-        else:
-            break
+    # while True:
+    result = conn.recv(4096)
+    #     if partialresult:
+    #         print(partialresult)
+    #         result += partialresult
+    #     else:
+    #         print(partialresult)
+    #         break
     return result
 
 
