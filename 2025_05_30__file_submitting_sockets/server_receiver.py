@@ -14,7 +14,14 @@ import os
 class UserError(Exception):
     ...
 
+def make_dirs(name_dir: str, dry_run: bool):
+    """Checks to see if there is a folder named "student_data" and if there is not the os.makedirs will make one."""
+    if dry_run:
+        print(f"Dry run.  Would make directory {name_dir}")
+    else:
+         os.makedirs(name_dir, exist_ok=True)
 
+        
 def eq(a, b):
     if type(a) != type(b):
         raise TypeError("Tried to check whether {a} and {b} are equal, but they are not of the same type.")
@@ -108,7 +115,7 @@ def handle_sub(msgarg: str, dry_run: bool) -> str:
     'Received submission ...'
     """
     name, stucode = parse_sub_msg(msgarg)
-    os.makedirs("student_data", exist_ok=True)
+    make_dirs("student_data", dry_run)
     writefile("student_data/" + name + ".py", stucode, dry_run)
     return f"Received submission {msgarg}"
 
@@ -223,4 +230,4 @@ def main():
 
 if __name__ == "__main__":
     doctest.testmod(optionflags=doctest.ELLIPSIS) 
-    # main()
+    main()
