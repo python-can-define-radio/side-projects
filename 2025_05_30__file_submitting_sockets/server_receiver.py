@@ -8,6 +8,7 @@ from pathlib import Path
 import socket
 import time
 from threading import Thread
+import os
 
 
 class UserError(Exception):
@@ -106,7 +107,8 @@ def handle_sub(msgarg: str, dry_run: bool) -> str:
     >>> r
     'Received submission ...'
     """
-    name, stucode = parse_sub_msg(msgarg)        
+    name, stucode = parse_sub_msg(msgarg)
+    os.makedirs("student_data", exist_ok=True)
     writefile("student_data/" + name + ".py", stucode, dry_run)
     return f"Received submission {msgarg}"
 
