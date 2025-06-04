@@ -1,0 +1,17 @@
+Problem: delivery is restricted to 5840 bytes.
+Possible solution steps:
+ - Try re-implementing sendall using repeated send() with a small time sleep in between.
+   to ensure that that's not the problem. If that doesn't solve it
+ - change function so that cross-tunnel communication is distinct from local communication.
+ - For cross-tunnel, instead of using sendall:
+   for piece in chunked(alldata, 1000):
+     open socket
+     send("content:" + piece)
+     close socket
+   open socket
+   send("end of message")
+   close socket
+   Then shut the connection
+ - Receiving:
+   This will be hard, so I don't know whether it's worth it yet
+ 
