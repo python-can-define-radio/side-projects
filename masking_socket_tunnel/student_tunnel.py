@@ -79,9 +79,10 @@ def handle_client(conn: socket.socket, addr, message_handler, timeout_seconds, n
 
 def accept_connections(s: socket.socket, message_handler, timeout_seconds, next_step_addr, next_step_port):
     """Launch a thread to handle each client that connects."""
-    conn, addr = s.accept()
-    t = Thread(target=lambda: handle_client(conn, addr, message_handler, timeout_seconds, next_step_addr, next_step_port))
-    t.start()
+    while True:
+        conn, addr = s.accept()
+        t = Thread(target=lambda: handle_client(conn, addr, message_handler, timeout_seconds, next_step_addr, next_step_port))
+        t.start()
             
 
 def launch_server(port: int, message_handler, timeout_seconds, next_step_addr, next_step_port):
