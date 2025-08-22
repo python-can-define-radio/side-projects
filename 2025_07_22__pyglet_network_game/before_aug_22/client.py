@@ -1,9 +1,3 @@
-## Ideas:
-## - test whether this works with multiple players currently
-## - Use pyglet instead of turtle
-## - Keybindings
-
-
 from dataclasses import dataclass
 import zmq
 import threading
@@ -23,7 +17,7 @@ ents: "list[Entity]" = []
 context = zmq.Context()
 
 #  Socket to talk to server
-print("Connecting to hello world serverâ€¦")
+print("Connecting to server")
 to_srv_sock = context.socket(zmq.PUB)
 to_srv_sock.connect("tcp://localhost:5555")
 from_srv_sock = context.socket(zmq.SUB)

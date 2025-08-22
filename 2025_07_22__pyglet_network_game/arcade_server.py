@@ -1,10 +1,5 @@
-"""
-Modified version of this "Camera Example": https://api.arcade.academy/en/2.6.17/examples/camera_platform.html
-
-Artwork from: https://kenney.nl
-"""
-
 import arcade
+import zmq
 
 TILE_SCALING = 0.5
 PLAYER_SCALING = 0.5
@@ -25,6 +20,15 @@ GRAVITY = 1.1
 LAYER_NAME_PLATFORMS = "Platforms"
 LAYER_NAME_COINS = "Coins"
 LAYER_NAME_BOMBS = "Bombs"
+
+
+context = zmq.Context()
+from_players_sock = context.socket(zmq.SUB)
+from_players_sock.bind("tcp://*:5555")
+from_players_sock.setsockopt_string(zmq.SUBSCRIBE, "")
+to_players_sock = context.socket(zmq.PUB)
+to_players_sock.bind("tcp://*:5556")
+
 
 
 class MyGame(arcade.Window):
@@ -84,37 +88,35 @@ class MyGame(arcade.Window):
         self.camera.use()
         self.scene.draw()
 
-    def on_key_press(self, key, modifiers):
-        if key == arcade.key.UP:
-            if self.physics_engine.can_jump():
-                self.player_sprite.change_y = JUMP_SPEED
-        elif key == arcade.key.LEFT:
-            self.player_sprite.change_x = -MOVEMENT_SPEED
-        elif key == arcade.key.RIGHT:
-            self.player_sprite.change_x = MOVEMENT_SPEED
+    def handle_message(self, message):
+        """Update state based on what the client said.
+        Not an arcade func."""
 
-    def on_key_release(self, key, modifiers):
-        if key == arcade.key.LEFT or key == arcade.key.RIGHT:
-            self.player_sprite.change_x = 0
-
-    def pan_camera_to_user(self, panning_fraction: float = 1.0):
-        """
-        Manage Scrolling
-
-        :param panning_fraction: Number from 0 to 1. Higher the number, faster we
-                                 pan the camera to the user.
-        """
-
-        # This spot would center on the user
-        screen_center_x = self.player_sprite.center_x - (self.camera.viewport_width / 2)
-        screen_center_y = self.player_sprite.center_y - (
-            self.camera.viewport_height / 2
-        )
-        user_centered = screen_center_x, screen_center_y
-        self.camera.move_to(user_centered, panning_fraction)
+        if "keypress" in message:
+            key = message["keypress"]
+            if key == arcade.key.UP:
+                if self.physics_engine.can_jump():
+                    self.player_sprite.change_y = JUMP_SPEED
+            elif key == arcade.key.LEFT:
+                self.player_sprite.change_x = -MOVEMENT_SPEED
+            elif key == arcade.key.RIGHT:
+                self.player_sprite.change_x = MOVEMENT_SPEED
+        elif "keyrelease" in message:
+            key = message["keyrelease"]
+            if key == arcade.key.LEFT or key == arcade.key.RIGHT:
+                self.player_sprite.change_x = 0
+        else:
+            print("Invalid message keys", message.keys())
 
     def on_update(self, delta_time):
         """Movement and game logic"""
+        try:
+            message: dict = from_players_sock.recv_json(flags=zmq.NOBLOCK)
+            print("Received message:", message)
+            self.handle_message(message)
+            # to_players_sock.send_json(message)
+        except zmq.Again:
+            pass
 
         # Call update on all sprites
         self.physics_engine.update()
@@ -124,8 +126,6 @@ class MyGame(arcade.Window):
         )
         for coin in coins_hit:
             coin.remove_from_sprite_lists()
-
-        self.pan_camera_to_user(panning_fraction=0.12)
 
 
 def main():
