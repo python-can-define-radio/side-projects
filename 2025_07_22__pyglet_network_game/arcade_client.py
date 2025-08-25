@@ -7,14 +7,9 @@ PLAYER_SCALING = 0.5
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 600
 
-SCREEN_TITLE = "Camera Example"
+SCREEN_TITLE = "Game Client"
 SPRITE_PIXEL_SIZE = 128
 GRID_PIXEL_SIZE = SPRITE_PIXEL_SIZE * TILE_SCALING
-
-# Physics
-MOVEMENT_SPEED = 5
-JUMP_SPEED = 23
-GRAVITY = 1.1
 
 # Map Layers
 LAYER_NAME_PLATFORMS = "Platforms"
@@ -73,13 +68,6 @@ class MyGame(arcade.Window):
         # Set the background color
         self.background_color = (200, 200, 255)
 
-        # Keep player from running through the wall_list layer
-        self.physics_engine = arcade.PhysicsEnginePlatformer(
-            self.player_sprite,
-            self.scene.get_sprite_list(LAYER_NAME_PLATFORMS),
-            gravity_constant=GRAVITY,
-        )
-
     def on_resize(self, width, height):
         """Resize window"""
         self.camera.resize(width, height)
@@ -92,19 +80,10 @@ class MyGame(arcade.Window):
 
     def on_key_press(self, key, modifiers):
         to_srv_sock.send_json({"keypress": key})
-        if key == arcade.key.UP:
-            if self.physics_engine.can_jump():
-                self.player_sprite.change_y = JUMP_SPEED
-        elif key == arcade.key.LEFT:
-            self.player_sprite.change_x = -MOVEMENT_SPEED
-        elif key == arcade.key.RIGHT:
-            self.player_sprite.change_x = MOVEMENT_SPEED
 
     def on_key_release(self, key, modifiers):
         to_srv_sock.send_json({"keyrelease": key})
-        if key == arcade.key.LEFT or key == arcade.key.RIGHT:
-            self.player_sprite.change_x = 0
-
+        
     def pan_camera_to_user(self, panning_fraction: float = 1.0):
         """
         Manage Scrolling
@@ -123,16 +102,13 @@ class MyGame(arcade.Window):
 
     def on_update(self, delta_time):
         """Movement and game logic"""
-
-        # Call update on all sprites
-        self.physics_engine.update()
-
-        coins_hit = arcade.check_for_collision_with_list(
-            self.player_sprite, self.scene.get_sprite_list("Coins")
-        )
-        for coin in coins_hit:
-            coin.remove_from_sprite_lists()
-
+        try:
+            message: dict = from_srv_sock.recv_json(flags=zmq.NOBLOCK)
+            self.player_sprite.center_x = message["playerx"]
+            self.player_sprite.center_y = message["playery"]
+        except zmq.Again:
+            pass
+        # update_player_position_based_on_the_server_info()
         self.pan_camera_to_user(panning_fraction=0.12)
 
 

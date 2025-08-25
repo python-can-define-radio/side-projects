@@ -1,5 +1,6 @@
 import arcade
-import zmq
+
+from server_networking import to_players_sock, recv_player_msg
 
 TILE_SCALING = 0.5
 PLAYER_SCALING = 0.5
@@ -13,21 +14,14 @@ GRID_PIXEL_SIZE = SPRITE_PIXEL_SIZE * TILE_SCALING
 
 # Physics
 MOVEMENT_SPEED = 5
-JUMP_SPEED = 23
-GRAVITY = 1.1
+JUMP_SPEED = 10
+GRAVITY = 0.2
 
 # Map Layers
 LAYER_NAME_PLATFORMS = "Platforms"
 LAYER_NAME_COINS = "Coins"
 LAYER_NAME_BOMBS = "Bombs"
 
-
-context = zmq.Context()
-from_players_sock = context.socket(zmq.SUB)
-from_players_sock.bind("tcp://*:5555")
-from_players_sock.setsockopt_string(zmq.SUBSCRIBE, "")
-to_players_sock = context.socket(zmq.PUB)
-to_players_sock.bind("tcp://*:5556")
 
 
 
@@ -91,6 +85,10 @@ class MyGame(arcade.Window):
     def handle_message(self, message):
         """Update state based on what the client said.
         Not an arcade func."""
+        if message == None:
+            return
+        
+        assert isinstance(message, dict)
 
         if "keypress" in message:
             key = message["keypress"]
@@ -110,14 +108,9 @@ class MyGame(arcade.Window):
 
     def on_update(self, delta_time):
         """Movement and game logic"""
-        try:
-            message: dict = from_players_sock.recv_json(flags=zmq.NOBLOCK)
-            print("Received message:", message)
-            self.handle_message(message)
-            # to_players_sock.send_json(message)
-        except zmq.Again:
-            pass
+        self.handle_message(recv_player_msg())
 
+        to_players_sock.send_json({"playerx": self.player_sprite.center_x, "playery": self.player_sprite.center_y})
         # Call update on all sprites
         self.physics_engine.update()
 
