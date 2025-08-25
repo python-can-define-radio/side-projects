@@ -1,20 +1,6 @@
 import arcade
 import zmq
-
-TILE_SCALING = 0.5
-PLAYER_SCALING = 0.5
-
-SCREEN_WIDTH = 800
-SCREEN_HEIGHT = 600
-
-SCREEN_TITLE = "Game Client"
-SPRITE_PIXEL_SIZE = 128
-GRID_PIXEL_SIZE = SPRITE_PIXEL_SIZE * TILE_SCALING
-
-# Map Layers
-LAYER_NAME_PLATFORMS = "Platforms"
-LAYER_NAME_COINS = "Coins"
-LAYER_NAME_BOMBS = "Bombs"
+from shared_constants import SCREEN_WIDTH, SCREEN_HEIGHT, TILE_SCALING, PLAYER_SCALING
 
 
 context = zmq.Context()
@@ -35,7 +21,7 @@ class MyGame(arcade.Window):
         """
         Initializer
         """
-        super().__init__(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE, resizable=True)
+        super().__init__(SCREEN_WIDTH, SCREEN_HEIGHT, "Game client", resizable=True)
         self.setup()
 
     def setup(self):

@@ -1,16 +1,9 @@
 import arcade
 
 from server_networking import to_players_sock, recv_player_msg
+from shared_constants import TILE_SCALING, PLAYER_SCALING, SCREEN_HEIGHT, SCREEN_WIDTH
 
-TILE_SCALING = 0.5
-PLAYER_SCALING = 0.5
 
-SCREEN_WIDTH = 800
-SCREEN_HEIGHT = 600
-
-SCREEN_TITLE = "Camera Example"
-SPRITE_PIXEL_SIZE = 128
-GRID_PIXEL_SIZE = SPRITE_PIXEL_SIZE * TILE_SCALING
 
 # Physics
 MOVEMENT_SPEED = 5
@@ -32,7 +25,7 @@ class MyGame(arcade.Window):
         """
         Initializer
         """
-        super().__init__(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE, resizable=True)
+        super().__init__(SCREEN_WIDTH, SCREEN_HEIGHT,  "Server view", resizable=True)
         self.setup()
 
     def setup(self):
