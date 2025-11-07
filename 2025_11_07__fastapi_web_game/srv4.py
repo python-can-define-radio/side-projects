@@ -64,7 +64,7 @@ connmgr = ConnMgr()
 
 @app.get("/")
 async def get():
-    with open("cli4.html") as f:
+    with open("cli5.html") as f:
         return HTMLResponse(f.read())
     
 

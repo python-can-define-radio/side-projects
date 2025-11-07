@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Avatar Selector</title>
+  <style>
+    #game-container {
+      display: none; /* hidden until Start is pressed */
+    }
+  </style>
+</head>
+<body>
+  <!-- ===== MENU ===== -->
+  <div id="menu">
+    <h2>Select Your Avatar</h2>
+    <label>
+      Username:
+      <input type="text" id="username" placeholder="Enter your name" />
+    </label>
+    <br><br>
+    <label>
+      Shape:
+      <select id="shape">
+        <option value="square">Square</option>
+        <option value="circle">Circle</option>
+        <option value="triangle">Triangle</option>
+      </select>
+    </label>
+    <br><br>
+    <label>
+      Color:
+      <input type="color" id="color" value="#00ff00" />
+    </label>
+    <br><br>
+    <button id="startBtn">Start Game</button>
+  </div>
+
+  <!-- ===== GAME CANVAS ===== -->
+  <div id="game-container">
+    <canvas id="canvas" width="400" height="400" style="border: 1px solid black"></canvas>
+  </div>
+
+  <script>
+    const startBtn = document.getElementById('startBtn');
+    const menu = document.getElementById('menu');
+    const gameContainer = document.getElementById('game-container');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    let userConfig = {};
+
+    startBtn.addEventListener('click', () => {
+      // Collect user selections
+      userConfig = {
+        username: document.getElementById('username').value.trim() || "Anonymous",
+        shape: document.getElementById('shape').value,
+        color: document.getElementById('color').value
+      };
+
+      // Hide menu, show game
+      menu.style.display = 'none';
+      gameContainer.style.display = 'block';
+
+      startGame();
+    });
+
+    function startGame() {
+      const socket = new WebSocket("ws://localhost:8000/ws");
+
+      socket.onmessage = function (event) {
+        try {
+          const parsed = JSON.parse(event.data);
+          console.log(parsed);
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+          for (const cid of Object.keys(parsed)) {
+            const {x, y, username, shape, color} = parsed[cid];
+
+            ctx.fillStyle = color;
+
+            // Draw chosen shape
+            if (shape === "circle") {
+              ctx.beginPath();
+              ctx.arc(x + 5, y + 5, 5, 0, 2 * Math.PI);
+              ctx.fill();
+            } else if (shape === "triangle") {
+              ctx.beginPath();
+              ctx.moveTo(x + 5, y);
+              ctx.lineTo(x + 10, y + 10);
+              ctx.lineTo(x, y + 10);
+              ctx.closePath();
+              ctx.fill();
+            } else {
+              ctx.fillRect(x, y, 10, 10);
+            }
+
+            // Draw text label
+            ctx.font = '12px Arial';
+            ctx.fillStyle = 'black';
+            ctx.textAlign = 'center';
+            ctx.fillText(username, x + 5, y + 20);
+          }
+        } catch (e) {
+          console.error("onmessage error:", e);
+        }
+      };
+
+      canvas.addEventListener("click", function (event) {
+        const rect = canvas.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+        socket.send(JSON.stringify({
+          x, y,
+          username: userConfig.username,
+          shape: userConfig.shape,
+          color: userConfig.color
+        }));
+      });
+    }
+  </script>
+</body>
+</html>

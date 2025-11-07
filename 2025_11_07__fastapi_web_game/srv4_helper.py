@@ -1,15 +1,19 @@
 from dataclasses import dataclass, field
-from typing import NamedTuple
 import json
 from typing import Literal
 
 
-class CliPayload(NamedTuple):
+@dataclass
+class CliPayload:
     x: int
     y: int
+    username: str
+    shape: str
+    color: str
 
 
-class CliEvent(NamedTuple):
+@dataclass
+class CliEvent:
     """A message from a client"""
     cid: str
     """Client ID"""
@@ -20,23 +24,30 @@ class CliEvent(NamedTuple):
 
     def get_payload(self):
         try:
-            return CliPayload(**json.loads(self.payload_raw))
+            parsed = json.loads(self.payload_raw)
+            return CliPayload(**parsed)
         except json.JSONDecodeError:
             raise ValueError(f"Client {self.cid} sent invalid JSON: '{self.payload_raw}'")
 
 
 @dataclass
 class GameState:
-    __playerLocs: "dict[str, tuple[int, int]]" = field(default_factory=dict)
+    __playerInfo: "dict[str, tuple[int, int]]" = field(default_factory=dict)
 
     def process_cli_msg(self, ce: CliEvent) -> str:
         if ce.eventkind == "dc":
-            if ce.cid in self.__playerLocs:
+            if ce.cid in self.__playerInfo:
                 print("I: Removing", ce.cid, "from dict")
-                del self.__playerLocs[ce.cid]
+                del self.__playerInfo[ce.cid]
             else:
                 print("W: Attempted to remove", ce.cid, "but it was already absent.")
         else:
             p = ce.get_payload()
-            self.__playerLocs[ce.cid] = (p.x, p.y)
-        return json.dumps(self.__playerLocs)
+            self.__playerInfo[ce.cid] = {
+                "x": p.x,
+                "y": p.y,
+                "username": p.username,
+                "shape": p.shape,
+                "color": p.color,
+            }
+        return json.dumps(self.__playerInfo)
