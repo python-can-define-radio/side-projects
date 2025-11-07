@@ -65,6 +65,16 @@
     function startGame() {
       const socket = new WebSocket("ws://localhost:8000/ws");
 
+      
+      socket.onopen = function(event) {
+        socket.send(JSON.stringify({
+          eventkind: "init",
+          username: userConfig.username,
+          shape: userConfig.shape,
+          color: userConfig.color
+        }));
+      };
+        
       socket.onmessage = function (event) {
         try {
           const parsed = JSON.parse(event.data);
@@ -109,10 +119,16 @@
         const y = event.clientY - rect.top;
         socket.send(JSON.stringify({
           x, y,
-          username: userConfig.username,
-          shape: userConfig.shape,
-          color: userConfig.color
+          eventkind: "click",
         }));
+      });
+      
+      addEventListener("keydown", function (event) {
+        socket.send(JSON.stringify({
+          key: event.key,
+          eventkind: "keydown",
+        }));
+        console.log(event);
       });
     }
   </script>

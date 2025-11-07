@@ -8,7 +8,7 @@ from fastapi.responses import HTMLResponse
 from rx.subject import Subject
 from rx import operators as ops
 
-from srv4_helper import GameState, CliEvent
+from srv4_helper import GameState, CliEvent, Disconnect
 
 
 app = FastAPI()
@@ -54,9 +54,13 @@ class ConnMgr:
             asyncio.create_task(websocket.send_text(x))
         cid = "".join(random.sample(string.ascii_lowercase, k=4))
         disposable = self.__proc.subscribe(on_next=send)
-        def put(eventkind, payload):
-            ev = CliEvent(cid, eventkind, payload)
+        def put(payload):
+            if payload is None:
+                ev = Disconnect(cid)
+            else:
+                ev = CliEvent(cid, payload)
             self.__incoming.on_next(ev)
+
         return put, disposable.dispose
 
 connmgr = ConnMgr()
@@ -75,10 +79,10 @@ async def websocket_endpoint(websocket: WebSocket):
     try:
         while True:
             payload = await websocket.receive_text()
-            put("msg", payload)
+            put(payload)
     except WebSocketDisconnect:
         dispose()
-        put("dc", None)
+        put(None)
     
 
 if __name__ == "__main__":
