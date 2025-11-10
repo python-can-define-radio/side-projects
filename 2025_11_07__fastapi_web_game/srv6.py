@@ -1,14 +1,14 @@
-"""to run:   fastapi dev srv4.py"""
+"""to run:   fastapi dev srv5.py"""
 import asyncio
 import random
 import string
-
+import json
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 from rx.subject import Subject
 from rx import operators as ops
 
-from srv4_helper import GameState, CliEvent, Disconnect
+from srv6_helper import GameState, CliEvent, Disconnect
 
 
 app = FastAPI()
@@ -63,12 +63,29 @@ class ConnMgr:
 
         return put, disposable.dispose
 
+
+async def game_loop():
+    while True:
+        await asyncio.sleep(0.03)  # ~33 FPS
+        connmgr._ConnMgr__gsm._GSMgr__gs.tick()
+        # broadcast the new state
+        msg = connmgr._ConnMgr__gsm._GSMgr__gs.process_cli_msg(
+            CliEvent("server", json.dumps({"eventkind": "noop"}))
+        )
+        # send to all subscribers
+        connmgr._ConnMgr__incoming.on_next(CliEvent("server", json.dumps({"eventkind": "broadcast", "msg": msg})))
+
+
+@app.on_event("startup")
+async def on_startup():
+    asyncio.create_task(game_loop())
+
 connmgr = ConnMgr()
 
 
 @app.get("/")
 async def get():
-    with open("cli5.html") as f:
+    with open("cli6.html") as f:
         return HTMLResponse(f.read())
     
 

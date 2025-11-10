@@ -19,7 +19,7 @@
     <h2>Select Your Avatar</h2>
     <label>
       name:
-      <input type="text" id="name" placeholder="Enter your name"  autocomplete="name" />
+      <input type="text" id="name" placeholder="Enter your name" autocomplete="name" />
     </label>
     <br><br>
     <label>
@@ -170,6 +170,13 @@
         socket.send(JSON.stringify({
           key: event.key,
           eventkind: "keydown",
+        }));
+      });
+
+      addEventListener("keyup", function (event) {
+        socket.send(JSON.stringify({
+          key: event.key,
+          eventkind: "keyup",
         }));
       });
     }
