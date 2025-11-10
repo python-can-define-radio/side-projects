@@ -13,20 +13,18 @@ from srv6_helper import GameState, CliEvent, Disconnect
 
 app = FastAPI()
 
-    
-class GSMgr:
-    """Game state manager"""
-    def __init__(self):
-        self.__gs = GameState()
-        
-    def relay_cli_msg(self, cm: CliEvent) -> str:
-        return self.__gs.process_cli_msg(cm)
 
 class ConnMgr:
     def __init__(self):
-        self.__incoming = Subject()
-        self.__gsm = GSMgr()
-        self.__proc = self.__incoming.pipe(ops.map(self.__gsm.relay_cli_msg))
+        self.__gs = GameState()
+        """Used to receive events from clients"""
+        self.__tick = Subject()
+        """Used to pass data to clients on each frame"""
+        self.__tickdone = self.__tick.pipe(ops.map(lambda x: self.__gs.tick()))
+        """Post-tick state... there's definitely a better way to do this."""
+
+    def trigger_tick(self):
+        self.__tick.on_next(None)
 
     def ws_rx(self, websocket):
         """Create connections between websockets and rxpy.  
@@ -53,27 +51,24 @@ class ConnMgr:
         def send(x):
             asyncio.create_task(websocket.send_text(x))
         cid = "".join(random.sample(string.ascii_lowercase, k=4))
-        disposable = self.__proc.subscribe(on_next=send)
+        disposable_tick = self.__tickdone.subscribe(on_next=send)
         def put(payload):
             if payload is None:
                 ev = Disconnect(cid)
             else:
                 ev = CliEvent(cid, payload)
-            self.__incoming.on_next(ev)
+            self.__gs.process_cli_msg(ev)
 
-        return put, disposable.dispose
+        def dispo():
+            disposable_tick.dispose()
+        return put, dispo
 
 
 async def game_loop():
+    fps = 30
     while True:
-        await asyncio.sleep(0.03)  # ~33 FPS
-        connmgr._ConnMgr__gsm._GSMgr__gs.tick()
-        # broadcast the new state
-        msg = connmgr._ConnMgr__gsm._GSMgr__gs.process_cli_msg(
-            CliEvent("server", json.dumps({"eventkind": "noop"}))
-        )
-        # send to all subscribers
-        connmgr._ConnMgr__incoming.on_next(CliEvent("server", json.dumps({"eventkind": "broadcast", "msg": msg})))
+        await asyncio.sleep(1 / fps)
+        connmgr.trigger_tick()
 
 
 @app.on_event("startup")

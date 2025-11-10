@@ -8,7 +8,7 @@ from fastapi.responses import HTMLResponse
 from rx.subject import Subject
 from rx import operators as ops
 
-from srv5_helper import GameState, CliEvent, Disconnect
+from archived.srv5_helper import GameState, CliEvent, Disconnect
 
 
 app = FastAPI()

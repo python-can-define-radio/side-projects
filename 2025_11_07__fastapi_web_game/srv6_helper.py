@@ -31,12 +31,6 @@ class ClickEv:
 
 
 @dataclass
-class BroadcastEv:
-    msg: str
-    eventkind: Literal['broadcast']
-
-
-@dataclass
 class Player:
     x: int
     y: int
@@ -59,7 +53,7 @@ class Entity:
 
 @dataclass
 class CliEvent:
-    """A message from a client"""
+    """Client Event"""
     cid: str
     """Client ID"""
     payload_raw: 'str | None'
@@ -76,12 +70,6 @@ class CliEvent:
                 return KeyupEv(**parsed)
             elif parsed["eventkind"] == "click":
                 return ClickEv(**parsed)
-            elif parsed["eventkind"] == "broadcast":
-            # Internal message the server uses to distribute updated world state
-                return BroadcastEv(**parsed)
-            elif parsed["eventkind"] == "noop":
-            # no operation event used for ticks or broadcast triggers
-                return None
             else:
                 raise NotImplementedError()
         except json.JSONDecodeError:
@@ -119,14 +107,7 @@ class GameState:
             self.handleCE(ce)
         else:
             raise NotImplementedError()
-        self.handle_collisions()
-        self.__entities = {"cactus1": Entity(40, 100, "cac", "green", "circle")}  # this is definitely not where this code will stay eventually
-        entitiesdict = {k: asdict(v) for k, v in self.__entities.items()}
-        playersdict = {k: asdict(v) for k, v in self.__players.items()}
-        return json.dumps({
-            "entities": entitiesdict,
-            "players": playersdict,
-        })
+        
 
     def handleDC(self, ce: Disconnect):
         if ce.cid in self.__players:
@@ -137,13 +118,11 @@ class GameState:
 
     def handleCE(self, ce: CliEvent):
         p = ce.get_payload()
-        if p is None:
-            return
         if type(p) == InitEv:
             self.__players[ce.cid] = Player(200, 300, p.name, p.shape, p.color)
         elif type(p) == ClickEv:
-            self.__players[ce.cid].x = gridify(p.x, 20)
-            self.__players[ce.cid].y = gridify(p.y, 20)
+            self.__players[ce.cid].x = gridify(p.x, 5)
+            self.__players[ce.cid].y = gridify(p.y, 5)
         elif type(p) == KeydownEv:
             if p.key == "w":
                 self.__players[ce.cid].change_y = -5
@@ -166,11 +145,20 @@ class GameState:
                     p.engaged_with = e
                 else:
                     p.engaged_with = None
+
     def tick(self):
-            """Move players based on their velocities."""
-            for p in self.__players.values():
-                p.x += p.change_x
-                p.y += p.change_y
+        """Move players based on their velocities."""
+        for p in self.__players.values():
+            p.x += p.change_x
+            p.y += p.change_y
+        self.handle_collisions()
+        self.__entities = {"cactus1": Entity(40, 100, "cac", "green", "circle")}  # this is definitely not where this code will stay eventually
+        entitiesdict = {k: asdict(v) for k, v in self.__entities.items()}
+        playersdict = {k: asdict(v) for k, v in self.__players.items()}
+        return json.dumps({
+            "entities": entitiesdict,
+            "players": playersdict,
+        })
 """
 
 Making a game...
