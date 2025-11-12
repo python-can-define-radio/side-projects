@@ -5,6 +5,7 @@ import string
 import json
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from rx.subject import Subject
 from rx import operators as ops
 
@@ -13,6 +14,7 @@ from srv6_helper import GameState, CliEvent, Disconnect
 
 app = FastAPI()
 
+app.mount("/assets", StaticFiles(directory="assets"), name="assets")
 
 class ConnMgr:
     def __init__(self):
@@ -95,7 +97,9 @@ async def websocket_endpoint(websocket: WebSocket):
     except WebSocketDisconnect:
         dispose()
         put(None)
-    
+
+
+
 
 if __name__ == "__main__":
     import doctest; doctest.testmod(optionflags=doctest.ELLIPSIS)

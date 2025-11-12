@@ -67,25 +67,30 @@
 
     function draw(items, centerx, centery) {
       for (const cid of Object.keys(items)) {
-        const { x, y, name, shape, color } = items[cid];
+        const { x, y, name, img_loc, img_scale } = items[cid];
         const offsetx = x - centerx + canvas.width / 2;
         const offsety = y - centery + canvas.height / 2;
-        ctx.fillStyle = color;
+        const img = new Image();
+        img.src = "/assets/coinGold.png";
+        img.onload = () => {
+          ctx.drawImage(img, 100, 200, 40, 40);
+        };
+        // ctx.fillStyle = color;
 
-        if (shape === "circle") {
-          ctx.beginPath();
-          ctx.arc(offsetx + 5, offsety + 5, 5, 0, 2 * Math.PI);
-          ctx.fill();
-        } else if (shape === "triangle") {
-          ctx.beginPath();
-          ctx.moveTo(offsetx + 5, offsety);
-          ctx.lineTo(offsetx + 10, offsety + 10);
-          ctx.lineTo(offsetx, offsety + 10);
-          ctx.closePath();
-          ctx.fill();
-        } else {
-          ctx.fillRect(offsetx, offsety, 10, 10);
-        }
+        // if (shape === "circle") {
+        //   ctx.beginPath();
+        //   ctx.arc(offsetx + 5, offsety + 5, 5, 0, 2 * Math.PI);
+        //   ctx.fill();
+        // } else if (shape === "triangle") {
+        //   ctx.beginPath();
+        //   ctx.moveTo(offsetx + 5, offsety);
+        //   ctx.lineTo(offsetx + 10, offsety + 10);
+        //   ctx.lineTo(offsetx, offsety + 10);
+        //   ctx.closePath();
+        //   ctx.fill();
+        // } else if (shape === "square") {
+        //   ctx.fillRect(offsetx, offsety, 10, 10);
+        // }
 
         ctx.font = '12px Arial';
         ctx.fillStyle = 'black';

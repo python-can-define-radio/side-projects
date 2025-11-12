@@ -48,8 +48,8 @@ class Entity:
     x: int
     y: int
     name: str
-    color: str
-    shape: str
+    img_loc: str
+    img_scale: float
 
 
 @dataclass
@@ -57,7 +57,7 @@ class CliEvent:
     """Client Event"""
     cid: str
     """Client ID"""
-    payload_raw: 'str | None'
+    payload_raw: str
     """A string which we can parse using get_payload"""
 
     def get_payload(self):
@@ -93,7 +93,9 @@ class GameState:
     __entities: "dict[str, Entity]"
     def __init__(self):
         self.__players = {}
-        self.__entities = {x:Entity(random.randrange(10, 4990), random.randrange(10, 4990), "", "gold", "circle") for x in range(200)}
+        coins = {f"{x}": Entity(random.randrange(10, 4990), random.randrange(10, 4990), "", "assets/coinGold.png", .2) for x in range(200)}
+        # walls = {x:Entity(x, y, "", "", "")}
+        self.__entities = coins
 
 
     def process_cli_msg(self, ce: 'CliEvent | Disconnect'):
