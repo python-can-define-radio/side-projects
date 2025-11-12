@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, asdict
 import json
 import random
 from typing import Literal
@@ -59,6 +59,11 @@ class CliEvent:
     """A string which we can parse using get_payload"""
 
     def get_payload(self):
+        """
+        >>> ce = CliEvent('fakeid', '{"eventkind": "init", "name": "abc", "shape": "circle", "color": "green"}')
+        >>> ce.get_payload()
+        InitEv(name='abc', shape='circle', color='green', eventkind='init')
+        """
         try:
             parsed = json.loads(self.payload_raw)
             if parsed["eventkind"] == "init":
@@ -210,3 +215,5 @@ stop now
 
 """
 
+if __name__ == "__main__":
+    import doctest; doctest.testmod(optionflags=doctest.ELLIPSIS)
