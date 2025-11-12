@@ -1,8 +1,8 @@
 """to run:   fastapi dev srv5.py"""
 import asyncio
+from contextlib import asynccontextmanager
 import random
 import string
-import json
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -10,6 +10,17 @@ from rx.subject import Subject
 from rx import operators as ops
 
 from srv6_helper import GameState, CliEvent, Disconnect
+
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    asyncio.create_task(game_loop())
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
+
 
 
 app = FastAPI()
@@ -28,42 +39,52 @@ class ConnMgr:
     def trigger_tick(self):
         self.__tick.on_next(None)
 
-    def ws_rx(self, websocket):
+    def ws_rx(self, websocket, verbose=False):
         """Create connections between websockets and rxpy.  
-        Returns `(put, disposable)`.
+        Returns `(put, discon)`.
          - `put`: should call this on incoming messages
-         - `dispose`: should call this when the connection is complete
+         - `discon`: should call this when the connection is complete
         
-        # Demo:
-        # Setup note: this will use a fake websocket that will print instead of sending.
-        # >>> class FakeWS:
-        # ...     async def send_text(x):
-        # ...         print(x)
-        # >>> cm = ConnMgr()
-        # >>> put, dispose = cm.ws_rx(FakeWS)
+        Demo:
+        Setup note: this will use a fake websocket that will print instead of sending.
+        >>> class FakeWS:
+        ...     async def send_text(x):
+        ...         print(x)
+        >>> cm = ConnMgr()
+        >>> put, discon = cm.ws_rx(FakeWS, verbose=True)
         
-        # When we `put` received data, rxpy handles it:
-        # >>> put('{"x": 3, "y": 5}')
-        # procmsg: id='...'; payload='pretend message'
+        When we `put` received data, something happens:
+        >>> put('{"eventkind": "init", "name": "abc", "shape": "circle", "color": "green"}')
+        put: CliEvent(cid='aeid', payload_raw='...')
+
+        >>> cm.trigger_tick()
+        todo
         
-        # Ensuring that dispose works:
-        # >>> dispose()
-        # >>> put("nothing should happen now")
+        >>> discon()
+        disconnecting.
         """
         def send(x):
             asyncio.create_task(websocket.send_text(x))
-        cid = "".join(random.sample(string.ascii_lowercase, k=4))
-        disposable_tick = self.__tickdone.subscribe(on_next=send)
+        
         def put(payload):
+            """put either the payload or `None` for disconnect"""
             if payload is None:
                 ev = Disconnect(cid)
             else:
                 ev = CliEvent(cid, payload)
+            if verbose:
+                print("put:", ev)
             self.__gs.process_cli_msg(ev)
 
-        def dispo():
+        def discon():
+            if verbose:
+                print("disconnecting.")
+            put(None)
             disposable_tick.dispose()
-        return put, dispo
+
+        cid = "".join(random.sample(string.ascii_lowercase, k=4))
+        disposable_tick = self.__tickdone.subscribe(on_next=send)
+        return put, discon
 
 
 async def game_loop():
@@ -72,10 +93,6 @@ async def game_loop():
         await asyncio.sleep(1 / fps)
         connmgr.trigger_tick()
 
-
-@app.on_event("startup")
-async def on_startup():
-    asyncio.create_task(game_loop())
 
 connmgr = ConnMgr()
 
@@ -89,14 +106,13 @@ async def get():
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
-    put, dispose = connmgr.ws_rx(websocket)
+    put, discon = connmgr.ws_rx(websocket)
     try:
         while True:
             payload = await websocket.receive_text()
             put(payload)
     except WebSocketDisconnect:
-        dispose()
-        put(None)
+        discon()
 
 
 
