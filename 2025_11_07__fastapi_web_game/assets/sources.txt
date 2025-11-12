@@ -1,0 +1,2 @@
+brick.png: Custom-made
+coinGold.png: Arcade Resources (they are CC0 licensed, so we can use them)
