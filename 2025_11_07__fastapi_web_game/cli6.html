@@ -39,7 +39,7 @@
   </div>
 
   <div id="game-container">
-    <canvas id="canvas" width="400" height="400" style="border: 1px solid black"></canvas>
+    <canvas id="canvas" width="800" height="800" style="border: 1px solid black"></canvas>
   </div>
 
   <script>
@@ -78,13 +78,13 @@
           ctx.fill();
         } else if (shape === "triangle") {
           ctx.beginPath();
-          ctx.moveTo(x + 5, y);
-          ctx.lineTo(x + 10, y + 10);
-          ctx.lineTo(x, y + 10);
+          ctx.moveTo(offsetx + 5, offsety);
+          ctx.lineTo(offsetx + 10, offsety + 10);
+          ctx.lineTo(offsetx, offsety + 10);
           ctx.closePath();
           ctx.fill();
         } else {
-          ctx.fillRect(x, y, 10, 10);
+          ctx.fillRect(offsetx, offsety, 10, 10);
         }
 
         ctx.font = '12px Arial';

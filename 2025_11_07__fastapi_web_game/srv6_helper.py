@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field, asdict
 import json
+import random
 from typing import Literal
 
 
@@ -88,10 +89,14 @@ def gridify(val, gridsize):
         
 @dataclass
 class GameState:
-    __players: "dict[str, Player]" = field(default_factory=dict)
-    __entities: "dict[str, Entity]" = field(default_factory=dict)
+    __players: "dict[str, Player]" 
+    __entities: "dict[str, Entity]"
+    def __init__(self):
+        self.__players = {}
+        self.__entities = {x:Entity(random.randrange(10, 4990), random.randrange(10, 4990), "", "gold", "circle") for x in range(200)}
 
-    def process_cli_msg(self, ce: 'CliEvent | Disconnect') -> str:
+
+    def process_cli_msg(self, ce: 'CliEvent | Disconnect'):
         """The return value is sent to the clients.
         Return value looks like this:
         
@@ -152,7 +157,6 @@ class GameState:
             p.x += p.change_x
             p.y += p.change_y
         self.handle_collisions()
-        self.__entities = {"cactus1": Entity(40, 100, "cac", "green", "circle")}  # this is definitely not where this code will stay eventually
         entitiesdict = {k: asdict(v) for k, v in self.__entities.items()}
         playersdict = {k: asdict(v) for k, v in self.__players.items()}
         return json.dumps({
