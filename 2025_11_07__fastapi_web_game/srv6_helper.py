@@ -115,11 +115,12 @@ class GameState:
         
 
     def handleDC(self, ce: Disconnect):
-        if ce.cid in self.__players:
-            print("I: Removing", ce.cid, "from dict")
-            del self.__players[ce.cid]
-        else:
-            print("W: Attempted to remove", ce.cid, "but it was already absent.")
+        if ce.cid not in self.__players:
+            # Sometimes handleDC fires multiple times for the same id. Not sure why.
+            return
+        print("I: Removing", ce.cid, "from dict")
+        del self.__players[ce.cid]
+        
 
     def handleCE(self, ce: CliEvent):
         p = ce.get_payload()
