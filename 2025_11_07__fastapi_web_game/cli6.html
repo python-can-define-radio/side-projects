@@ -50,6 +50,14 @@
     const ctx = canvas.getContext('2d');
     let userConfig = {};
 
+    // Load images ONCE
+    const img = {}; 
+    img["/assets/coinGold.png"] = new Image();
+    img["/assets/brick.png"] = new Image();
+    img["/assets/coinGold.png"].src = "/assets/coinGold.png";
+    img["/assets/brick.png"].src = "/assets/brick.png";
+
+
     startBtn.addEventListener('click', () => {
       userConfig = {
         name: document.getElementById('name').value.trim() || "Anonymous",
@@ -70,27 +78,15 @@
         const { x, y, name, img_loc, img_scale } = items[cid];
         const offsetx = x - centerx + canvas.width / 2;
         const offsety = y - centery + canvas.height / 2;
-        const img = new Image();
-        img.src = "/assets/coinGold.png";
-        img.onload = () => {
-          ctx.drawImage(img, 100, 200, 40, 40);
-        };
-        // ctx.fillStyle = color;
 
-        // if (shape === "circle") {
-        //   ctx.beginPath();
-        //   ctx.arc(offsetx + 5, offsety + 5, 5, 0, 2 * Math.PI);
-        //   ctx.fill();
-        // } else if (shape === "triangle") {
-        //   ctx.beginPath();
-        //   ctx.moveTo(offsetx + 5, offsety);
-        //   ctx.lineTo(offsetx + 10, offsety + 10);
-        //   ctx.lineTo(offsetx, offsety + 10);
-        //   ctx.closePath();
-        //   ctx.fill();
-        // } else if (shape === "square") {
-        //   ctx.fillRect(offsetx, offsety, 10, 10);
-        // }
+        if (img_loc && img_loc in img) { 
+          const size = 40 * img_scale;
+          ctx.drawImage(img[img_loc], offsetx, offsety, size, size);
+        } else {
+          ctx.fillStyle = 'blue';
+          ctx.fillRect(offsetx, offsety, 10, 10);
+          ctx.fillText("Unknown image", offsetx, offsety+30);
+        }
 
         ctx.font = '12px Arial';
         ctx.fillStyle = 'black';
@@ -98,6 +94,25 @@
         ctx.fillText(name, offsetx + 5, offsety + 20);
       }
     }
+
+    // ctx.fillStyle = color;
+
+    // if (shape === "circle") {
+    //   ctx.beginPath();
+    //   ctx.arc(offsetx + 5, offsety + 5, 5, 0, 2 * Math.PI);
+    //   ctx.fill();
+    // } else if (shape === "triangle") {
+    //   ctx.beginPath();
+    //   ctx.moveTo(offsetx + 5, offsety);
+    //   ctx.lineTo(offsetx + 10, offsety + 10);
+    //   ctx.lineTo(offsetx, offsety + 10);
+    //   ctx.closePath();
+    //   ctx.fill();
+    // } else if (shape === "square") {
+    //   ctx.fillRect(offsetx, offsety, 10, 10);
+    // }
+
+  
 
     function startGame() {
       const socket = new WebSocket("ws://localhost:8000/ws");

@@ -36,8 +36,6 @@ class Player:
     x: int
     y: int
     name: str
-    shape: str
-    color: str
     change_x: int = 0
     change_y: int = 0
     engaged_with: "Entity | None" = None
@@ -93,8 +91,8 @@ class GameState:
     __entities: "dict[str, Entity]"
     def __init__(self):
         self.__players = {}
-        coins = {f"{x}": Entity(random.randrange(10, 4990), random.randrange(10, 4990), "", "assets/coinGold.png", .2) for x in range(200)}
-        # walls = {x:Entity(x, y, "", "", "")}
+        coins = {f"{x}": Entity(random.randrange(10, 1000), random.randrange(10, 1000), "", "/assets/coinGold.png", 1) for x in range(200)}
+        # walls = {x:Entity(x, y, "", "/assets/brick.png", 1)}
         self.__entities = coins
 
 
@@ -126,7 +124,7 @@ class GameState:
     def handleCE(self, ce: CliEvent):
         p = ce.get_payload()
         if type(p) == InitEv:
-            self.__players[ce.cid] = Player(200, 300, p.name, p.shape, p.color)
+            self.__players[ce.cid] = Player(200, 300, p.name)
         elif type(p) == ClickEv:
             self.__players[ce.cid].x = gridify(p.x, 5)
             self.__players[ce.cid].y = gridify(p.y, 5)
