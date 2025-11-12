@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Shared Ball Control</title>
+</head>
+<body>
+  <canvas id="gameCanvas" width="400" height="200" style="border:1px solid #000;"></canvas>
+
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    const socket = new WebSocket("ws://localhost:8000/ws");
+
+    let ball = { x: 200, y: 100 };
+
+    function drawBall() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.beginPath();
+      ctx.arc(ball.x, ball.y, 10, 0, Math.PI * 2);
+      ctx.fillStyle = "green";
+      ctx.fill();
+    }
+
+    canvas.addEventListener("click", (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      socket.send(JSON.stringify({ x, y }));
+    });
+
+    socket.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      ball = data;
+      drawBall();
+    };
+
+    drawBall();
+  </script>
+</body>
+</html>

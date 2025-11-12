@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Multiplayer Ball Game</title>
+  <style>
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+    canvas {
+      border: 1px solid #000;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas" width="800" height="400"></canvas>
+
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    const socket = new WebSocket("ws://localhost:8000/ws");
+
+    let playerId = null;
+    const players = {};
+
+    function drawBalls() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      for (const id in players) {
+        const { x, y } = players[id].position;
+        const color = players[id].color;
+        ctx.beginPath();
+        ctx.arc(x, y, 10, 0, Math.PI * 2);
+        ctx.fillStyle = color;
+        ctx.fill();
+      }
+    }
+
+    canvas.addEventListener("click", (e) => {
+      if (!playerId) return;
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      players[playerId].position = { x, y };
+      socket.send(JSON.stringify({
+        type: "move",
+        position: { x, y }
+      }));
+      drawBalls();
+    });
+
+    socket.onmessage = (event) => {
+      const msg = JSON.parse(event.data);
+      if (msg.type === "init") {
+        playerId = msg.player_id;
+        players[playerId] = {
+          color: msg.color,
+          position: msg.position
+        };
+        drawBalls();
+      } else if (msg.type === "new_player") {
+        players[msg.player_id] = {
+          color: msg.color,
+          position: msg.position
+        };
+        drawBalls();
+      } else if (msg.type === "update") {
+        if (players[msg.player_id]) {
+          players[msg.player_id].position = msg.position;
+          drawBalls();
+        }
+      } else if (msg.type === "remove") {
+        delete players[msg.player_id];
+        drawBalls();
+      }
+    };
+  </script>
+</body>
+</html>
