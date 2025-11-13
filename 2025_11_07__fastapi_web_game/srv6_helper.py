@@ -47,7 +47,7 @@ class Entity:
     y: int
     name: str
     img_loc: str
-    img_scale: float
+    img_size: float
 
 
 @dataclass
@@ -96,9 +96,30 @@ class GameState:
     __entities: "dict[str, Entity]"
     def __init__(self):
         self.__players = {}
-        coins = {f"{x}": Entity(random.randrange(10, 1000), random.randrange(10, 1000), "", "/assets/coinGold.png", 1) for x in range(200)}
-        # walls = {x:Entity(x, y, "", "/assets/brick.png", 1)}
-        self.__entities = coins
+        coins = {f"{x}": Entity(random.randrange(10, 990), random.randrange(10, 990), "", "/assets/coinGold.png", 40) for x in range(200)}
+        coins2 = {f"{x+200}": Entity(random.randrange(4010, 4990), random.randrange(10, 990), "", "/assets/coinGold.png", 40) for x in range(200)}
+        coins3 = {f"{x+400}": Entity(random.randrange(10, 990), random.randrange(4010, 4990), "", "/assets/coinGold.png", 40) for x in range(200)}
+        coins4 = {f"{x+600}": Entity(random.randrange(4010, 4990), random.randrange(4010, 4990), "", "/assets/coinGold.png", 40) for x in range(200)}
+        walls = {}
+        startx = -500
+        stopx = 5500
+        starty = -500
+        stopy = 5500
+        for x in range(12):
+            walls[f"top{startx, starty}"] = Entity(startx, starty, "", "/assets/brick2.png", 500)
+            walls[f"bottom{startx, starty}"] = Entity(startx, starty + stopy, "", "/assets/brick2.png", 500)
+            startx += 500
+           
+            
+            
+            # walls["2"] = Entity(0, -500, "", "/assets/brick2.png", 500)
+            # walls["3"] = Entity(500, -500, "", "/assets/brick2.png", 500)
+            # walls["5"] = Entity(1000, -500, "", "/assets/brick2.png", 500)
+            # walls["5"] = Entity(-500, 0, "", "/assets/brick2.png", 500)ddda
+            # walls["6"] = Entity(-500, 500, "", "/assets/brick2.png", 500)
+            # walls["7"] = Entity(-500, 1000, "", "/assets/brick2.png", 500)
+                # x += 400
+        self.__entities = {**coins, **walls, **coins2, **coins3, **coins4}
 
 
     def process_cli_msg(self, ce: 'CliEvent | Disconnect'):
@@ -130,19 +151,19 @@ class GameState:
     def handleCE(self, ce: CliEvent):
         p = ce.get_payload()
         if type(p) == InitEv:
-            self.__players[ce.cid] = Player(200, 300, p.name)
+            self.__players[ce.cid] = Player(500, 500, p.name)
         elif type(p) == ClickEv:
             self.__players[ce.cid].x = gridify(p.x, 5)
             self.__players[ce.cid].y = gridify(p.y, 5)
         elif type(p) == KeydownEv:
             if p.key == "w":
-                self.__players[ce.cid].change_y = -5
+                self.__players[ce.cid].change_y = -50
             elif p.key == "s":
-                self.__players[ce.cid].change_y = 5
+                self.__players[ce.cid].change_y = 50
             elif p.key == "a":
-                self.__players[ce.cid].change_x = -5
+                self.__players[ce.cid].change_x = -50
             elif p.key == "d":
-                self.__players[ce.cid].change_x = 5
+                self.__players[ce.cid].change_x = 50
         elif type(p) == KeyupEv:
             if p.key in ["w", "s"]:
                 self.__players[ce.cid].change_y = 0

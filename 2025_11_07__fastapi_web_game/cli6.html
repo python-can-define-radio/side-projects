@@ -39,7 +39,7 @@
   </div>
 
   <div id="game-container">
-    <canvas id="canvas" width="800" height="800" style="border: 1px solid black"></canvas>
+    <canvas id="canvas" width="1000" height="1000" style="border: 1px solid black"></canvas>
   </div>
 
   <script>
@@ -53,9 +53,9 @@
     // Load images ONCE
     const img = {}; 
     img["/assets/coinGold.png"] = new Image();
-    img["/assets/brick.png"] = new Image();
+    img["/assets/brick2.png"] = new Image();
     img["/assets/coinGold.png"].src = "/assets/coinGold.png";
-    img["/assets/brick.png"].src = "/assets/brick.png";
+    img["/assets/brick2.png"].src = "/assets/brick2.png";
 
 
     startBtn.addEventListener('click', () => {
@@ -75,13 +75,12 @@
 
     function draw(items, centerx, centery) {
       for (const cid of Object.keys(items)) {
-        const { x, y, name, img_loc, img_scale } = items[cid];
+        const { x, y, name, img_loc, img_size } = items[cid];
         const offsetx = x - centerx + canvas.width / 2;
         const offsety = y - centery + canvas.height / 2;
 
         if (img_loc && img_loc in img) { 
-          const size = 40 * img_scale;
-          ctx.drawImage(img[img_loc], offsetx, offsety, size, size);
+          ctx.drawImage(img[img_loc], offsetx, offsety, img_size, img_size);
         } else {
           ctx.fillStyle = 'blue';
           ctx.fillRect(offsetx, offsety, 10, 10);
