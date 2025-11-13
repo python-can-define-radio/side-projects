@@ -9,7 +9,10 @@ A client joins:
 >>> ce = CliEvent('fakeid', '{"eventkind": "init", "name": "abc", "shape": "circle", "color": "green"}')
 >>> gs.process_cli_msg(ce)
 >>> gs.jsondumps()
-'{"entities": {...}, "players": {"fakeid": {"x": 200, "y": 300, "name": "abc", "change_x": 0, "change_y": 0, "engaged_with": null}}}'
+'{"entities": {...}, "players": {"fakeid": {"x": 500, "y": 500, "name": "abc", "change_x": 0, "change_y": 0, "engaged_with": null}}}'
+>>> gs.handleCE(CliEvent('fakeid', '{"eventkind": "keydown", "key": "w"}'))
+>>> gs.jsondumps()
+'{"entities": {...}, "players": {"fakeid": {"x": 500, "y": 500, "name": "abc", "change_x": 0, "change_y": -50, "engaged_with": null}}}'
 """
 from dataclasses import dataclass, asdict
 import json
