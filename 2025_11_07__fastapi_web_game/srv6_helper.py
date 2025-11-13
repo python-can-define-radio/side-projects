@@ -96,19 +96,23 @@ class GameState:
     __entities: "dict[str, Entity]"
     def __init__(self):
         self.__players = {}
-        coins = {f"{x}": Entity(random.randrange(10, 990), random.randrange(10, 990), "", "/assets/coinGold.png", 40) for x in range(200)}
-        coins2 = {f"{x+200}": Entity(random.randrange(4010, 4990), random.randrange(10, 990), "", "/assets/coinGold.png", 40) for x in range(200)}
-        coins3 = {f"{x+400}": Entity(random.randrange(10, 990), random.randrange(4010, 4990), "", "/assets/coinGold.png", 40) for x in range(200)}
-        coins4 = {f"{x+600}": Entity(random.randrange(4010, 4990), random.randrange(4010, 4990), "", "/assets/coinGold.png", 40) for x in range(200)}
+        coins = {f"{x}": Entity(random.randrange(20, 980), random.randrange(20, 980), "", "/assets/coinGold.png", 40) for x in range(200)}
+        coins2 = {f"{x+200}": Entity(random.randrange(4020, 4980), random.randrange(20, 980), "", "/assets/coinGold.png", 40) for x in range(200)}
+        coins3 = {f"{x+400}": Entity(random.randrange(20, 980), random.randrange(4020, 4980), "", "/assets/coinGold.png", 40) for x in range(200)}
+        coins4 = {f"{x+600}": Entity(random.randrange(4020, 4980), random.randrange(4020, 4980), "", "/assets/coinGold.png", 40) for x in range(200)}
         walls = {}
         startx = -500
         stopx = 5500
         starty = -500
         stopy = 5500
         for x in range(12):
-            walls[f"top{startx, starty}"] = Entity(startx, starty, "", "/assets/brick2.png", 500)
-            walls[f"bottom{startx, starty}"] = Entity(startx, starty + stopy, "", "/assets/brick2.png", 500)
+            walls[f"top:{x}"] = Entity(startx, starty, "", "/assets/brick2.png", 500)
+            walls[f"bottom:{x}"] = Entity(startx, starty + stopy, "", "/assets/brick2.png", 500)
             startx += 500
+        for y in range(10):
+            walls[f"left:{y}"] = Entity(startx - 6000, starty + 500, "", "/assets/brick2.png", 500)
+            walls[f"right:{y}"] = Entity(startx - 500, starty + 500, "", "/assets/brick2.png", 500)
+            starty += 500
            
             
             
