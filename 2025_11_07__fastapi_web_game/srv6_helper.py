@@ -1,20 +1,23 @@
 """
->>> gs = GameState()
+>>> gs = GameState(create_entities=False)
 
-Initially no players, and some coins:
->>> gs.jsondumps()
-'{"entities": {...coin...}, "players": {}}'
+Initially no players:
+>>> gs.current()
+{'entities': {}, 'players': {}}
 
 A client joins:
 >>> ce = CliEvent('fakeid', '{"eventkind": "init", "name": "abc", "shape": "circle", "color": "green"}')
 >>> gs.process_cli_msg(ce)
->>> gs.jsondumps()
-'{"entities": {...}, "players": {"fakeid": {"x": 500, "y": 500, "name": "abc", "change_x": 0, "change_y": 0, "engaged_with": null}}}'
+>>> gs.current()
+{'entities': {}, 'players': {'fakeid': Player(x=500, y=500, name='abc', change_x=0, change_y=0, location='world')}}
+
 >>> gs.handleCE(CliEvent('fakeid', '{"eventkind": "keydown", "key": "w"}'))
->>> gs.jsondumps()
-'{"entities": {...}, "players": {"fakeid": {"x": 500, "y": 500, "name": "abc", "change_x": 0, "change_y": -50, "engaged_with": null}}}'
+>>> gs.current()
+{'entities': {}, 'players': {'fakeid': Player(x=500, y=500, name='abc', change_x=0, change_y=-50, location='world')}}
 """
-from dataclasses import dataclass, asdict
+import copy
+from dataclasses import dataclass
+import dataclasses
 import json
 import random
 from typing import Literal, Callable
@@ -56,6 +59,9 @@ class Player:
     change_y: int = 0
     location: str = "world"
 
+    def todict(self):
+        return dataclasses.asdict(self)
+
 
 @dataclass
 class Entity:
@@ -64,8 +70,22 @@ class Entity:
     name: str
     img_loc: str
     img_size: float
-    # on_touch: Callable[[Player], None] = lambda p: None
-
+    passable: bool
+    on_touch_: Callable[[Player], None] = lambda p: None
+    def todict(self) -> dict:
+        """
+        Omits attrs that end with _
+        >>> Entity(3, 5, "abc", "/assets/cool.png", 3.2, True).todict()
+        {'x': 3, 'y': 5, 'name': 'abc', 'img_loc': '/assets/cool.png', 'img_size': 3.2, 'passable': True}
+        """
+        def impl():
+            fds = dataclasses.fields(self.__class__)
+            for fd in fds:
+                if not fd.name.endswith("_"):
+                    yield fd.name, getattr(self, fd.name)
+        return dict(impl())
+           
+        
 
 @dataclass
 class CliEvent:
@@ -127,15 +147,15 @@ def makewalls():
     for yidx, line in zip(yindexes, lines):
         for xidx, char in zip(xindexes, line):
             if char == "w":
-                walls[f"wall{xidx},{yidx}"] = Entity(500*xidx + 250, 500*yidx + 250, "", "/assets/brick2.png", 500)
+                walls[f"wall{xidx},{yidx}"] = Entity(50*xidx, 50*yidx, "", "/assets/brick2.png", 50, False)
     return walls
 
 
 def makecoins():
-    coins1 = {f"{x}": Entity(random.randrange(20, 980), random.randrange(20, 980), "", "/assets/coinGold.png", 40) for x in range(200)}
-    coins2 = {f"{x+200}": Entity(random.randrange(4020, 4980), random.randrange(20, 980), "", "/assets/coinGold.png", 40) for x in range(200)}
-    coins3 = {f"{x+400}": Entity(random.randrange(20, 980), random.randrange(4020, 4980), "", "/assets/coinGold.png", 40) for x in range(200)}
-    coins4 = {f"{x+600}": Entity(random.randrange(4020, 4980), random.randrange(4020, 4980), "", "/assets/coinGold.png", 40) for x in range(200)}
+    coins1 = {f"{x}": Entity(random.randrange(50, 950, 50), random.randrange(50, 950, 50), "", "/assets/coinGold.png", 50, True) for x in range(200)}
+    coins2 = {f"{x+200}": Entity(random.randrange(4050, 4950, 50), random.randrange(50, 950, 50), "", "/assets/coinGold.png", 50, True) for x in range(200)}
+    coins3 = {f"{x+400}": Entity(random.randrange(50, 950, 50), random.randrange(4050, 4950, 50), "", "/assets/coinGold.png", 50, True) for x in range(200)}
+    coins4 = {f"{x+600}": Entity(random.randrange(4050, 4950, 50), random.randrange(4050, 4950, 50), "", "/assets/coinGold.png", 50, True) for x in range(200)}
     return {**coins1, **coins2, **coins3, **coins4}
 
 
@@ -144,9 +164,13 @@ class GameState:
     """Examples in docstring/doctests for module"""
     __players: "dict[str, Player]" 
     __entities: "dict[str, Entity]"
-    def __init__(self):
+    def __init__(self, create_entities = True):
+        """Can specify create_entities = False if you want no entities, which can be useful for doctests."""
         self.__players = {}
-        self.__entities = {**makecoins(), **makewalls()}
+        if create_entities:
+            self.__entities = {**makecoins(), **makewalls()}
+        else:
+            self.__entities = {}
 
     def process_cli_msg(self, ce: 'CliEvent | Disconnect'):
         """Update state based an event or a disconnect"""
@@ -173,15 +197,15 @@ class GameState:
         elif type(paylo) == ClickEv:
             xcmp = self.__players[ce.cid].x - paylo.x
             ycmp = self.__players[ce.cid].y - paylo.y
-            if xcmp < -20:
+            if xcmp < -100:
                 self.__players[ce.cid].change_x = 50
-            elif xcmp > 20:
+            elif xcmp > 100:
                 self.__players[ce.cid].change_x = -50
             else:
                 self.__players[ce.cid].change_x = 0
-            if ycmp < -20:
+            if ycmp < -100:
                 self.__players[ce.cid].change_y = 50
-            elif ycmp > 20:
+            elif ycmp > 100:
                 self.__players[ce.cid].change_y = -50
             else:
                 self.__players[ce.cid].change_y = 0
@@ -204,14 +228,18 @@ class GameState:
         for p in self.__players.values():
             for e in self.__entities.values():
                 if p.x == e.x and p.y == e.y:
-                    # e.on_touch(p)
-                    ...
-                
+                    if not e.passable:
+                        p.x -= p.change_x
+                        p.y -= p.change_y
+
+    def current(self):
+        """Copy of current state. Examples in module docstring/doctests."""
+        return {"entities": copy.deepcopy(self.__entities), "players": copy.deepcopy(self.__players)}
 
     def jsondumps(self):
         """Current state in json. Examples in module docstring/doctests"""
-        entitiesdict = {k: asdict(v) for k, v in self.__entities.items()}
-        playersdict = {k: asdict(v) for k, v in self.__players.items()}
+        entitiesdict = {k: v.todict() for k, v in self.__entities.items()}
+        playersdict = {k: v.todict() for k, v in self.__players.items()}
         return json.dumps({
             "entities": entitiesdict,
             "players": playersdict,
@@ -262,13 +290,10 @@ Thinking about the idea of using third-party simulation websites:
     - A set of settings?
 
 
-stop now
-
-1:00 pm to 1:30 pm 
-
-
-4:45 pm to 5:30 pm
-
+- Diagonal movement should not work in this case:
+  p w w  player, wall, open space
+  w o w  
+  w w o
 """
 
 if __name__ == "__main__":
