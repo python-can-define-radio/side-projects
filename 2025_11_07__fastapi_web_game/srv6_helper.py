@@ -87,7 +87,15 @@ class Disconnect:
 
 
 def gridify(val, gridsize):
-    return (val // gridsize) * gridsize
+    """
+    Round numbers to the nearest point on a grid.
+    Examples: Given a gridsize of 5, 21 is closer to 20, and 24 is closer to 25.
+    >>> gridify(21, 5)
+    20
+    >>> gridify(24, 5)
+    25
+    """
+    return round(val/gridsize) * gridsize
 
         
 @dataclass
