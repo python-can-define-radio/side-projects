@@ -18,14 +18,6 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(lifespan=lifespan)
-
-
-
-app = FastAPI()
-
-app.mount("/assets", StaticFiles(directory="assets"), name="assets")
-
 class ConnMgr:
     def __init__(self):
         self.__gs = GameState()
@@ -75,6 +67,7 @@ class ConnMgr:
             self.__gs.process_cli_msg(ev)
 
         def discon():
+            """Tell the GameState that this client disconnected, and dispose the tick subscribe resources."""
             put(None)
             disposable_tick.dispose()
 
@@ -91,6 +84,8 @@ async def game_loop():
 
 
 connmgr = ConnMgr()
+app = FastAPI(lifespan=lifespan)
+app.mount("/assets", StaticFiles(directory="assets"), name="assets")
 
 
 @app.get("/")
