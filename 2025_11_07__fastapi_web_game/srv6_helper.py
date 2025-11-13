@@ -1,3 +1,16 @@
+"""
+>>> gs = GameState()
+
+Initially no players, and some coins:
+>>> gs.jsondumps()
+'{"entities": {...coin...}, "players": {}}'
+
+A client joins:
+>>> ce = CliEvent('fakeid', '{"eventkind": "init", "name": "abc", "shape": "circle", "color": "green"}')
+>>> gs.process_cli_msg(ce)
+>>> gs.jsondumps()
+'{"entities": {...}, "players": {"fakeid": {"x": 200, "y": 300, "name": "abc", "change_x": 0, "change_y": 0, "engaged_with": null}}}'
+"""
 from dataclasses import dataclass, asdict
 import json
 import random
@@ -100,6 +113,7 @@ def gridify(val, gridsize):
         
 @dataclass
 class GameState:
+    """Examples in docstring/doctests for module"""
     __players: "dict[str, Player]" 
     __entities: "dict[str, Entity]"
     def __init__(self):
@@ -135,51 +149,55 @@ class GameState:
 
 
     def process_cli_msg(self, ce: 'CliEvent | Disconnect'):
-        """The return value is sent to the clients.
-        Return value looks like this:
-        
-        {
-            "entities": {"cactus1": Entity(...), ...}
-            "players": {"abcd": Player(20, 30, ...), "efgh": Player(7, 200, ...)},
-        }
-        """
-        
+        """Update state based an event or a disconnect"""
         if type(ce) == Disconnect:
             self.handleDC(ce)
         elif type(ce) == CliEvent:
             self.handleCE(ce)
         else:
             raise NotImplementedError()
-        
 
     def handleDC(self, ce: Disconnect):
+        """Remove this player's ID from self.__players"""
         if ce.cid not in self.__players:
             # Sometimes handleDC fires multiple times for the same id. Not sure why.
             return
         print("I: Removing", ce.cid, "from dict")
         del self.__players[ce.cid]
         
-
     def handleCE(self, ce: CliEvent):
-        p = ce.get_payload()
-        if type(p) == InitEv:
-            self.__players[ce.cid] = Player(500, 500, p.name)
-        elif type(p) == ClickEv:
-            self.__players[ce.cid].x = gridify(p.x, 5)
-            self.__players[ce.cid].y = gridify(p.y, 5)
-        elif type(p) == KeydownEv:
-            if p.key == "w":
-                self.__players[ce.cid].change_y = -50
-            elif p.key == "s":
-                self.__players[ce.cid].change_y = 50
-            elif p.key == "a":
-                self.__players[ce.cid].change_x = -50
-            elif p.key == "d":
+        """Update state when clients send events, such as mouse or keyboard input."""
+        paylo = ce.get_payload()
+        if type(paylo) == InitEv:
+            self.__players[ce.cid] = Player(500, 500, paylo.name)
+        elif type(paylo) == ClickEv:
+            xcmp = self.__players[ce.cid].x - paylo.x
+            ycmp = self.__players[ce.cid].y - paylo.y
+            if xcmp < -20:
                 self.__players[ce.cid].change_x = 50
-        elif type(p) == KeyupEv:
-            if p.key in ["w", "s"]:
+            elif xcmp > 20:
+                self.__players[ce.cid].change_x = -50
+            else:
+                self.__players[ce.cid].change_x = 0
+            if ycmp < -20:
+                self.__players[ce.cid].change_y = 50
+            elif ycmp > 20:
+                self.__players[ce.cid].change_y = -50
+            else:
                 self.__players[ce.cid].change_y = 0
-            if p.key in ["a", "d"]:
+        elif type(paylo) == KeydownEv:
+            if paylo.key == "w":
+                self.__players[ce.cid].change_y = -50
+            elif paylo.key == "s":
+                self.__players[ce.cid].change_y = 50
+            elif paylo.key == "a":
+                self.__players[ce.cid].change_x = -50
+            elif paylo.key == "d":
+                self.__players[ce.cid].change_x = 50
+        elif type(paylo) == KeyupEv:
+            if paylo.key in ["w", "s"]:
+                self.__players[ce.cid].change_y = 0
+            if paylo.key in ["a", "d"]:
                 self.__players[ce.cid].change_x = 0
 
     def handle_collisions(self):
@@ -190,18 +208,23 @@ class GameState:
                 else:
                     p.engaged_with = None
 
-    def tick(self):
-        """Move players based on their velocities."""
-        for p in self.__players.values():
-            p.x += p.change_x
-            p.y += p.change_y
-        self.handle_collisions()
+    def jsondumps(self):
+        """Current state in json. Examples in module docstring/doctests"""
         entitiesdict = {k: asdict(v) for k, v in self.__entities.items()}
         playersdict = {k: asdict(v) for k, v in self.__players.items()}
         return json.dumps({
             "entities": entitiesdict,
             "players": playersdict,
         })
+
+    def tick(self):
+        """Move players based on their velocities, then return self.jsondump()"""
+        for p in self.__players.values():
+            p.x += p.change_x
+            p.y += p.change_y
+        self.handle_collisions()
+        return self.jsondumps()
+        
 """
 
 Making a game...
