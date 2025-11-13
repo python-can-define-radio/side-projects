@@ -17,7 +17,7 @@ A client joins:
 from dataclasses import dataclass, asdict
 import json
 import random
-from typing import Literal
+from typing import Literal, Callable
 
 
 @dataclass
@@ -54,7 +54,7 @@ class Player:
     name: str
     change_x: int = 0
     change_y: int = 0
-    engaged_with: "Entity | None" = None
+    location: str = "world"
 
 
 @dataclass
@@ -64,6 +64,7 @@ class Entity:
     name: str
     img_loc: str
     img_size: float
+    # on_touch: Callable[[Player], None] = lambda p: None
 
 
 @dataclass
@@ -113,7 +114,31 @@ def gridify(val, gridsize):
     """
     return round(val/gridsize) * gridsize
 
-        
+
+def makewalls():
+    f = open("map.txt")
+    lines = f.read().splitlines()
+    f.close()
+    if len(set(map(lambda x: len(x), lines))) != 1:
+        raise ValueError("Map must be rectangular, that is, each line must have the same lengths")
+    walls = {}
+    xindexes = range(-1, len(lines[0]))
+    yindexes = range(-1, len(lines))
+    for yidx, line in zip(yindexes, lines):
+        for xidx, char in zip(xindexes, line):
+            if char == "w":
+                walls[f"wall{xidx},{yidx}"] = Entity(500*xidx, 500*yidx, "", "/assets/brick2.png", 500)
+    return walls
+
+
+def makecoins():
+    coins1 = {f"{x}": Entity(random.randrange(20, 980), random.randrange(20, 980), "", "/assets/coinGold.png", 40) for x in range(200)}
+    coins2 = {f"{x+200}": Entity(random.randrange(4020, 4980), random.randrange(20, 980), "", "/assets/coinGold.png", 40) for x in range(200)}
+    coins3 = {f"{x+400}": Entity(random.randrange(20, 980), random.randrange(4020, 4980), "", "/assets/coinGold.png", 40) for x in range(200)}
+    coins4 = {f"{x+600}": Entity(random.randrange(4020, 4980), random.randrange(4020, 4980), "", "/assets/coinGold.png", 40) for x in range(200)}
+    return {**coins1, **coins2, **coins3, **coins4}
+
+
 @dataclass
 class GameState:
     """Examples in docstring/doctests for module"""
@@ -121,35 +146,7 @@ class GameState:
     __entities: "dict[str, Entity]"
     def __init__(self):
         self.__players = {}
-        coins = {f"{x}": Entity(random.randrange(20, 980), random.randrange(20, 980), "", "/assets/coinGold.png", 40) for x in range(200)}
-        coins2 = {f"{x+200}": Entity(random.randrange(4020, 4980), random.randrange(20, 980), "", "/assets/coinGold.png", 40) for x in range(200)}
-        coins3 = {f"{x+400}": Entity(random.randrange(20, 980), random.randrange(4020, 4980), "", "/assets/coinGold.png", 40) for x in range(200)}
-        coins4 = {f"{x+600}": Entity(random.randrange(4020, 4980), random.randrange(4020, 4980), "", "/assets/coinGold.png", 40) for x in range(200)}
-        walls = {}
-        startx = -500
-        stopx = 5500
-        starty = -500
-        stopy = 5500
-        for x in range(12):
-            walls[f"top:{x}"] = Entity(startx, starty, "", "/assets/brick2.png", 500)
-            walls[f"bottom:{x}"] = Entity(startx, starty + stopy, "", "/assets/brick2.png", 500)
-            startx += 500
-        for y in range(10):
-            walls[f"left:{y}"] = Entity(startx - 6000, starty + 500, "", "/assets/brick2.png", 500)
-            walls[f"right:{y}"] = Entity(startx - 500, starty + 500, "", "/assets/brick2.png", 500)
-            starty += 500
-           
-            
-            
-            # walls["2"] = Entity(0, -500, "", "/assets/brick2.png", 500)
-            # walls["3"] = Entity(500, -500, "", "/assets/brick2.png", 500)
-            # walls["5"] = Entity(1000, -500, "", "/assets/brick2.png", 500)
-            # walls["5"] = Entity(-500, 0, "", "/assets/brick2.png", 500)ddda
-            # walls["6"] = Entity(-500, 500, "", "/assets/brick2.png", 500)
-            # walls["7"] = Entity(-500, 1000, "", "/assets/brick2.png", 500)
-                # x += 400
-        self.__entities = {**coins, **walls, **coins2, **coins3, **coins4}
-
+        self.__entities = {**makecoins(), **makewalls()}
 
     def process_cli_msg(self, ce: 'CliEvent | Disconnect'):
         """Update state based an event or a disconnect"""
@@ -207,9 +204,9 @@ class GameState:
         for p in self.__players.values():
             for e in self.__entities.values():
                 if p.x == e.x and p.y == e.y:
-                    p.engaged_with = e
-                else:
-                    p.engaged_with = None
+                    # e.on_touch(p)
+                    ...
+                
 
     def jsondumps(self):
         """Current state in json. Examples in module docstring/doctests"""
