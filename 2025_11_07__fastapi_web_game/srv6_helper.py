@@ -127,7 +127,7 @@ def makewalls():
     for yidx, line in zip(yindexes, lines):
         for xidx, char in zip(xindexes, line):
             if char == "w":
-                walls[f"wall{xidx},{yidx}"] = Entity(500*xidx, 500*yidx, "", "/assets/brick2.png", 500)
+                walls[f"wall{xidx},{yidx}"] = Entity(500*xidx + 250, 500*yidx + 250, "", "/assets/brick2.png", 500)
     return walls
 
 

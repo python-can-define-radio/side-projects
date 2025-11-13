@@ -7,8 +7,27 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     #game-container {
-      display: none;
-      /* hidden until Start is pressed */
+      display: none; /* hidden until Start is pressed */
+  
+      align-items: flex-start;
+      gap: 20px;
+    }
+
+    #game-text {
+      border: 1px solid #ccc;
+      padding: 10px;
+      width: 180px;
+      background-color: #f8f8f8;
+      border-radius: 6px;
+      font-family: Arial, sans-serif;
+    }
+
+    #game-text p {
+      margin: 6px 0;
+    }
+
+    canvas {
+      border: 1px solid black;
     }
   </style>
 </head>
@@ -39,7 +58,16 @@
   </div>
 
   <div id="game-container">
-    <canvas id="canvas" width="1000" height="1000" style="border: 1px solid black"></canvas>
+    <canvas id="canvas" width="1000" height="1000"></canvas>
+
+    <!-- ✅ Added Player Info Box -->
+    <div id="game-text">
+      <h3>Player Info</h3>
+      <p><strong>Name:</strong> <span id="info-name">---</span></p>
+      <p><strong>X:</strong> <span id="info-x">0</span></p>
+      <p><strong>Y:</strong> <span id="info-y">0</span></p>
+      <p><strong>Score:</strong> <span id="info-score">0</span></p>
+    </div>
   </div>
 
   <script>
@@ -48,15 +76,22 @@
     const gameContainer = document.getElementById('game-container');
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
+
+    // ✅ Player Info Elements
+    const infoName = document.getElementById('info-name');
+    const infoX = document.getElementById('info-x');
+    const infoY = document.getElementById('info-y');
+    const infoScore = document.getElementById('info-score');
+
     let userConfig = {};
+    let score = 0; // placeholder
 
     // Load images ONCE
-    const img = {}; 
+    const img = {};
     img["/assets/coinGold.png"] = new Image();
     img["/assets/brick2.png"] = new Image();
     img["/assets/coinGold.png"].src = "/assets/coinGold.png";
     img["/assets/brick2.png"].src = "/assets/brick2.png";
-
 
     startBtn.addEventListener('click', () => {
       userConfig = {
@@ -67,8 +102,14 @@
         y: 0,
       };
 
+      // ✅ Update info panel
+      infoName.textContent = userConfig.name;
+      infoX.textContent = userConfig.x;
+      infoY.textContent = userConfig.y;
+      infoScore.textContent = score;
+
       menu.style.display = 'none';
-      gameContainer.style.display = 'block';
+      gameContainer.style.display = 'flex'; // show game + info panel
 
       startGame();
     });
@@ -78,46 +119,25 @@
         const { x, y, name, img_loc, img_size } = items[cid];
         const offsetx = x - centerx + canvas.width / 2;
         const offsety = y - centery + canvas.height / 2;
-
-        if (img_loc && img_loc in img) { 
-          ctx.drawImage(img[img_loc], offsetx, offsety, img_size, img_size);
+        const hsz = img_size / 2;
+        if (img_loc && img_loc in img) {
+          ctx.drawImage(img[img_loc], offsetx - hsz, offsety - hsz, img_size, img_size);
         } else {
           ctx.fillStyle = 'blue';
-          ctx.fillRect(offsetx, offsety, 10, 10);
-          ctx.fillText("Unknown image", offsetx, offsety+30);
+          ctx.fillRect(offsetx - 10, offsety - 10, 20, 20);
         }
 
         ctx.font = '12px Arial';
         ctx.fillStyle = 'black';
         ctx.textAlign = 'center';
-        ctx.fillText(name, offsetx + 5, offsety + 20);
+        ctx.fillText(name, offsetx, offsety + 20);
       }
     }
-
-    // ctx.fillStyle = color;
-
-    // if (shape === "circle") {
-    //   ctx.beginPath();
-    //   ctx.arc(offsetx + 5, offsety + 5, 5, 0, 2 * Math.PI);
-    //   ctx.fill();
-    // } else if (shape === "triangle") {
-    //   ctx.beginPath();
-    //   ctx.moveTo(offsetx + 5, offsety);
-    //   ctx.lineTo(offsetx + 10, offsety + 10);
-    //   ctx.lineTo(offsetx, offsety + 10);
-    //   ctx.closePath();
-    //   ctx.fill();
-    // } else if (shape === "square") {
-    //   ctx.fillRect(offsetx, offsety, 10, 10);
-    // }
-
-  
 
     function startGame() {
       const socket = new WebSocket("ws://localhost:8000/ws");
 
-
-      socket.onopen = function (event) {
+      socket.onopen = function () {
         socket.send(JSON.stringify({
           eventkind: "init",
           name: userConfig.name,
@@ -132,16 +152,21 @@
           ctx.clearRect(0, 0, canvas.width, canvas.height);
           const playervals = Object.values(players);
           const me = playervals.find((p) => p.name == userConfig.name);
+
           userConfig.x = me.x;
           userConfig.y = me.y;
+
+          // ✅ Update info panel live
+          infoX.textContent = me.x.toFixed(0);
+          infoY.textContent = me.y.toFixed(0);
+          infoScore.textContent = score; // static for now
+
           draw(players, me.x, me.y);
           draw(entities, me.x, me.y);
-          console.log(players);
         } catch (e) {
           console.error("onmessage error:", e);
         }
       };
-
 
       canvas.addEventListener("click", function (event) {
         const rect = canvas.getBoundingClientRect();
@@ -151,6 +176,7 @@
         const canvasy = event.clientY - rect.top;
         const worldadjusty = canvas.height / 2 - userConfig.y;
         const y = canvasy - worldadjusty;
+
         socket.send(JSON.stringify({
           x, y,
           eventkind: "click",
@@ -173,5 +199,4 @@
     }
   </script>
 </body>
-
 </html>
