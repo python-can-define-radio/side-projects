@@ -142,21 +142,21 @@ def makewalls():
     if len(set(map(lambda x: len(x), lines))) != 1:
         raise ValueError("Map must be rectangular, that is, each line must have the same lengths")
     walls = {}
-    xindexes = range(-1, len(lines[0]))
-    yindexes = range(-1, len(lines))
+    xindexes = range(-10, len(lines[0]))
+    yindexes = range(-10, len(lines))
     for yidx, line in zip(yindexes, lines):
         for xidx, char in zip(xindexes, line):
             if char == "w":
                 walls[f"wall{xidx},{yidx}"] = Entity(50*xidx, 50*yidx, "", "/assets/brick2.png", 50, False)
+            elif char == "t":
+                walls[f"tree{xidx},{yidx}"] = Entity(50*xidx, 50*yidx, "", "/assets/tree.png", 50, False)
     return walls
 
 
 def makecoins():
-    coins1 = {f"{x}": Entity(random.randrange(50, 950, 50), random.randrange(50, 950, 50), "", "/assets/coinGold.png", 50, True) for x in range(200)}
-    coins2 = {f"{x+200}": Entity(random.randrange(4050, 4950, 50), random.randrange(50, 950, 50), "", "/assets/coinGold.png", 50, True) for x in range(200)}
-    coins3 = {f"{x+400}": Entity(random.randrange(50, 950, 50), random.randrange(4050, 4950, 50), "", "/assets/coinGold.png", 50, True) for x in range(200)}
-    coins4 = {f"{x+600}": Entity(random.randrange(4050, 4950, 50), random.randrange(4050, 4950, 50), "", "/assets/coinGold.png", 50, True) for x in range(200)}
-    return {**coins1, **coins2, **coins3, **coins4}
+    coins1 = {f"{x}": Entity(random.randrange(50, 4950, 50), random.randrange(50, 4950, 50), "", "/assets/coinGold.png", 50, True) for x in range(400)}
+    
+    return {**coins1}
 
 
 @dataclass
