@@ -235,8 +235,9 @@ class GameState:
                 self.__players[ce.cid].change_x = 0
 
     def handle_collisions(self):
+        all_ents = list(self.__static.values()) + list(self.__dynamic.values())
         for p in self.__players.values():
-            for e in self.__static.values():
+            for e in all_ents:
                 if p.x == e.x and p.y == e.y:
                     if not e.passable:
                         p.x -= p.change_x
