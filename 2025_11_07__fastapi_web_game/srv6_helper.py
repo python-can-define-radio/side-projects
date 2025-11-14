@@ -71,8 +71,11 @@ class Entity:
     img_loc: str
     img_size: float
     passable: bool
-    on_touch_: Callable[[Player], None] = lambda p: None
-    def todict(self) -> dict:
+    on_touch_: "Callable[[Entity, Player]] | None" = None
+    def on_touch(self, p: Player):
+        if self.on_touch_:
+            self.on_touch_(self, p)
+    def todict(self):
         """
         Omits attrs that end with _
         >>> Entity(3, 5, "abc", "/assets/cool.png", 3.2, True).todict()
@@ -154,9 +157,9 @@ def makewalls():
 
 
 def makecoins():
-    coins1 = {f"{x}": Entity(random.randrange(50, 4950, 50), random.randrange(50, 4950, 50), "", "/assets/coinGold.png", 50, True) for x in range(400)}
-    
-    return {**coins1}
+    def cointouch(e: Entity, p: Player):
+        ... # p.x = p.x - 50
+    return {f"{x}": Entity(random.randrange(50, 4950, 50), random.randrange(50, 4950, 50), "", "/assets/coinGold.png", 50, True, cointouch) for x in range(400)}
 
 
 @dataclass
@@ -231,6 +234,7 @@ class GameState:
                     if not e.passable:
                         p.x -= p.change_x
                         p.y -= p.change_y
+                    e.on_touch(p)
 
     def current(self):
         """Copy of current state. Examples in module docstring/doctests."""
