@@ -43,9 +43,6 @@ class ConnMgr:
         >>> put('{"eventkind": "init", "name": "abc", "shape": "circle", "color": "green"}')
         put: CliEvent(cid='...', payload_raw='...')
 
-        >>> cm.trigger_tick()
-        send: {"entities": ..., "players": ...}
-        
         >>> discon()
         put: Disconnect(cid='...')
         I: Removing ... from dict
