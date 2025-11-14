@@ -55,9 +55,9 @@ class Player:
     x: int
     y: int
     name: str
+    img_loc: str = "/assets/femaleAdventurer_idle.png"
     change_x: int = 0
     change_y: int = 0
-    location: str = "world"
 
     def todict(self):
         return dataclasses.asdict(self)
@@ -69,7 +69,6 @@ class Entity:
     y: int
     name: str
     img_loc: str
-    img_size: float
     passable: bool
     on_touch_: "Callable[[Entity, Player]] | None" = None
     def on_touch(self, p: Player):
@@ -79,7 +78,7 @@ class Entity:
         """
         Omits attrs that end with _
         >>> Entity(3, 5, "abc", "/assets/cool.png", 3.2, True).todict()
-        {'x': 3, 'y': 5, 'name': 'abc', 'img_loc': '/assets/cool.png', 'img_size': 3.2, 'passable': True}
+        {'x': 3, 'y': 5, 'name': 'abc', 'img_loc': '/assets/cool.png', 'passable': True}
         """
         def impl():
             fds = dataclasses.fields(self.__class__)
@@ -150,16 +149,16 @@ def makewalls():
     for yidx, line in zip(yindexes, lines):
         for xidx, char in zip(xindexes, line):
             if char == "w":
-                walls[f"wall{xidx},{yidx}"] = Entity(50*xidx, 50*yidx, "", "/assets/brick2.png", 50, False)
+                walls[f"wall{xidx},{yidx}"] = Entity(50*xidx, 50*yidx, "", "/assets/brick2.png", False)
             elif char == "t":
-                walls[f"tree{xidx},{yidx}"] = Entity(50*xidx, 50*yidx, "", "/assets/tree.png", 50, False)
+                walls[f"tree{xidx},{yidx}"] = Entity(50*xidx, 50*yidx, "", "/assets/tree.png", False)
     return walls
 
 
 def makecoins():
     def cointouch(e: Entity, p: Player):
         ... # p.x = p.x - 50
-    return {f"{x}": Entity(random.randrange(50, 4950, 50), random.randrange(50, 4950, 50), "", "/assets/coinGold.png", 50, True, cointouch) for x in range(400)}
+    return {f"{x}": Entity(random.randrange(50, 4950, 50), random.randrange(50, 4950, 50), "", "/assets/coinGold.png", True, cointouch) for x in range(400)}
 
 
 @dataclass

@@ -90,12 +90,6 @@
 
     // Load images ONCE
     const img = {};
-    img["/assets/coinGold.png"] = new Image();
-    img["/assets/brick2.png"] = new Image();
-    img["/assets/tree.png"] = new Image();
-    img["/assets/coinGold.png"].src = "/assets/coinGold.png";
-    img["/assets/brick2.png"].src = "/assets/brick2.png";
-    img["/assets/tree.png"].src = "/assets/tree.png";
 
     startBtn.addEventListener('click', () => {
       userConfig = {
@@ -117,21 +111,19 @@
 
     function draw(items, centerx, centery) {
       for (const cid of Object.keys(items)) {
-        const { x, y, name, img_loc, img_size } = items[cid];
+        const { x, y, name, img_loc } = items[cid];
         const offsetx = x - centerx + canvas.width / 2;
         const offsety = y - centery + canvas.height / 2;
-        const hsz = img_size / 2;
-        if (img_loc && img_loc in img) {
-          ctx.drawImage(img[img_loc], offsetx - hsz, offsety - hsz, img_size, img_size);
-        } else {
-          ctx.fillStyle = 'blue';
-          ctx.fillRect(offsetx - 10, offsety - 10, 20, 20);
+        if (!(img_loc in img)) {
+          img[img_loc] = new Image();
+          img[img_loc].src = img_loc;
         }
+        ctx.drawImage(img[img_loc], offsetx - 25, offsety - 25, 50, 50);
 
         ctx.font = '12px Arial';
         ctx.fillStyle = 'black';
         ctx.textAlign = 'center';
-        ctx.fillText(name, offsetx, offsety + 20);
+        ctx.fillText(name, offsetx, offsety + 40);
       }
     }
 
