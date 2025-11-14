@@ -26,8 +26,8 @@ from typing import Literal, Callable
 @dataclass
 class InitEv:
     name: str
-    shape: str
-    color: str
+    avatar: str
+    """a path to the image location. Example: /assets/tree.png"""
     eventkind: Literal['init']
 
 
@@ -55,7 +55,7 @@ class Player:
     x: int
     y: int
     name: str
-    img_loc: str = "/assets/femaleAdventurer_idle.png"
+    avatar: str = "/assets/femaleAdventurer_idle.png"
     change_x: int = 0
     change_y: int = 0
 
@@ -68,7 +68,7 @@ class Entity:
     x: int
     y: int
     name: str
-    img_loc: str
+    avatar: str
     passable: bool
     on_touch_: "Callable[[Entity, Player]] | None" = None
     def on_touch(self, p: Player):
@@ -78,7 +78,7 @@ class Entity:
         """
         Omits attrs that end with _
         >>> Entity(3, 5, "abc", "/assets/cool.png", 3.2, True).todict()
-        {'x': 3, 'y': 5, 'name': 'abc', 'img_loc': '/assets/cool.png', 'passable': True}
+        {'x': 3, 'y': 5, 'name': 'abc', 'avatar': '/assets/cool.png', 'passable': True}
         """
         def impl():
             fds = dataclasses.fields(self.__class__)
@@ -203,7 +203,7 @@ class GameState:
         """Update state when clients send events, such as mouse or keyboard input."""
         paylo = ce.get_payload()
         if type(paylo) == InitEv:
-            self.__players[ce.cid] = Player(500, 500, paylo.name)
+            self.__players[ce.cid] = Player(500, 500, paylo.name, paylo.avatar)
         elif type(paylo) == ClickEv:
             xcmp = self.__players[ce.cid].x - paylo.x
             ycmp = self.__players[ce.cid].y - paylo.y

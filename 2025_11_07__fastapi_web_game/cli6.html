@@ -2,207 +2,284 @@
 <html lang="en">
 
 <head>
-  <title>Avatar Selector</title>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <style>
-    #game-container {
-      display: none;
-      /* hidden until Start is pressed */
+    <title>Avatar Selector</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        #game-container {
+            display: none;
+            /* hidden until Start is pressed */
 
-      align-items: flex-start;
-      gap: 20px;
-    }
+            align-items: flex-start;
+            gap: 20px;
+        }
 
-    #game-text {
-      border: 1px solid #ccc;
-      padding: 10px;
-      width: 180px;
-      background-color: #f8f8f8;
-      border-radius: 6px;
-      font-family: Arial, sans-serif;
-    }
+        #game-text {
+            border: 1px solid #ccc;
+            padding: 10px;
+            width: 180px;
+            background-color: #f8f8f8;
+            border-radius: 6px;
+            font-family: Arial, sans-serif;
+        }
 
-    #game-text p {
-      margin: 6px 0;
-    }
+        #game-text p {
+            margin: 6px 0;
+        }
 
-    canvas {
-      border: 1px solid black;
-    }
-  </style>
+        canvas {
+            border: 1px solid black;
+        }
+
+        /* Make all avatar groups horizontal */
+        .avatar-group {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        /* Make each label a column (radio above image or side by side) */
+        .avatar-group label {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        /* Hide the radio visually but keep it clickable */
+        .avatar-group input[type="radio"] {
+            margin-bottom: 4px;
+        }
+    </style>
 </head>
 
 <body>
-  <div id="menu">
-    <h2>Select Your Avatar</h2>
-    <label>
-      name:
-      <input type="text" id="name" placeholder="Enter your name" autocomplete="name" />
-    </label>
-    <br><br>
-    <label>
-      Avatar:
-      <select id="avatar">
-        <option value="male">Male</option>
-        <option value="female">Female</option>
-      </select>
-    </label>
-    <br><br>
-    <label>
-      Color:
-      <input type="color" id="color" value="#00ff00" />
-    </label>
-    <br><br>
-    <button id="startBtn">Start Game</button>
-  </div>
+    <div id="menu">
+        <h2>Select Your Avatar</h2>
+        <label>
+            name:
+            <input type="text" id="name" placeholder="Enter your name" autocomplete="name" />
+        </label>
+        <br><br>
+        <label>
+            Gender:
+            <select id="gender">
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+            </select>
+        </label>
+        <br><br>
 
-  <div id="game-container">
-    <canvas id="canvas" width="1000" height="1000"></canvas>
+        <div id="avatar_cont">
 
-    <!-- ✅ Added Player Info Box -->
-    <div id="game-text">
-      <h3>Player Info</h3>
-      <p><strong>Name:</strong> <span id="info-name">---</span></p>
-      <p><strong>X:</strong> <span id="info-x">0</span></p>
-      <p><strong>Y:</strong> <span id="info-y">0</span></p>
-      <p><strong>Score:</strong> <span id="info-score">0</span></p>
+            <!-- Male avatars -->
+            <div class="avatar-group" data-gender="male">
+                <label>
+                    <input type="radio" name="avatar" value="/assets/maleAdventurer_idle.png">
+                    <img src="/assets/maleAdventurer_idle.png" width="70">
+                </label>
+
+                <label>
+                    <input type="radio" name="avatar" value="/assets/malePerson_idle.png">
+                    <img src="/assets/malePerson_idle.png" width="70">
+                </label>
+
+                <label>
+                    <input type="radio" name="avatar" value="/assets/zombie_idle.png">
+                    <img src="/assets/zombie_idle.png" width="70">
+                </label>
+            </div>
+
+            <!-- Female avatars -->
+            <div class="avatar-group" data-gender="female" style="display:none;">
+                <label>
+                    <input type="radio" name="avatar" value="/assets/femaleAdventurer_idle.png">
+                    <img src="/assets/femaleAdventurer_idle.png" width="70">
+                </label>
+
+                <label>
+                    <input type="radio" name="avatar" value="/assets/femalePerson_idle.png">
+                    <img src="/assets/femalePerson_idle.png" width="70">
+                </label>
+
+                <label>
+                    <input type="radio" name="avatar" value="/assets/robot_idle.png">
+                    <img src="/assets/robot_idle.png" width="70">
+                </label>
+            </div>
+
+        </div>
+        <br><br>
+        <button id="startBtn">Start Game</button>
     </div>
-  </div>
 
-  <script>
-    const startBtn = document.getElementById('startBtn');
-    const menu = document.getElementById('menu');
-    const gameContainer = document.getElementById('game-container');
-    const canvas = document.getElementById('canvas');
-    const ctx = canvas.getContext('2d');
+    <div id="game-container">
+        <canvas id="canvas" width="1000" height="1000"></canvas>
 
-    // ✅ Player Info Elements
-    const infoName = document.getElementById('info-name');
-    const infoX = document.getElementById('info-x');
-    const infoY = document.getElementById('info-y');
-    const infoScore = document.getElementById('info-score');
+        <div id="game-text">
+            <h3>Player Info</h3>
+            <p><strong>Name:</strong> <span id="info-name">---</span></p>
+            <p><strong>X:</strong> <span id="info-x">0</span></p>
+            <p><strong>Y:</strong> <span id="info-y">0</span></p>
+            <p><strong>Score:</strong> <span id="info-score">0</span></p>
+        </div>
+    </div>
 
-    let userConfig = {};
-    let score = 0; // placeholder
-    let gstatic = {};
+    <script>
+        const startBtn = document.getElementById('startBtn');
+        const menu = document.getElementById('menu');
+        const gameContainer = document.getElementById('game-container');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const infoName = document.getElementById('info-name');
+        const infoX = document.getElementById('info-x');
+        const infoY = document.getElementById('info-y');
+        const infoScore = document.getElementById('info-score');
 
-    // Load images ONCE
-    const img = {};
+        let userConfig = {};
+        let score = 0; // placeholder
+        let gstatic = {};
 
-    startBtn.addEventListener('click', () => {
-      userConfig = {
-        name: document.getElementById('name').value.trim() || "Anonymous",
-        shape: document.getElementById('shape').value,
-        color: document.getElementById('color').value,
-        x: 0,
-        y: 0,
-      };
+        const img = {};
 
-      // ✅ adds static name to info panel
-      infoName.textContent = userConfig.name;
 
-      menu.style.display = 'none';
-      gameContainer.style.display = 'flex'; // show game + info panel
+        startBtn.addEventListener('click', () => {
+            userConfig = {
+                name: document.getElementById('name').value.trim() || "Anonymous",
+                avatar: document.querySelector('input[name="avatar"]:checked').value,
+                x: 0,
+                y: 0,
+            };
 
-      startGame();
-    });
+            infoName.textContent = userConfig.name;
 
-    function draw(items, centerx, centery) {
-      for (const cid of Object.keys(items)) {
-        const { x, y, name, img_loc } = items[cid];
-        const offsetx = x - centerx + canvas.width / 2;
-        const offsety = y - centery + canvas.height / 2;
-        if (!(img_loc in img)) {
-          img[img_loc] = new Image();
-          img[img_loc].src = img_loc;
-        }
-        ctx.drawImage(img[img_loc], offsetx - 25, offsety - 25, 50, 50);
+            menu.style.display = 'none';
+            gameContainer.style.display = 'flex';
 
-        ctx.font = '12px Arial';
-        ctx.fillStyle = 'black';
-        ctx.textAlign = 'center';
-        ctx.fillText(name, offsetx, offsety + 40);
-      }
-    }
+            startGame();
+        });
 
-    function startGame() {
-      const socket = new WebSocket("ws://localhost:8000/ws");
+        function draw(items, centerx, centery) {
+            for (const cid of Object.keys(items)) {
+                const { x, y, name, avatar } = items[cid];
+                const offsetx = x - centerx + canvas.width / 2;
+                const offsety = y - centery + canvas.height / 2;
+                if (!(avatar in img)) {
+                    img[avatar] = new Image();
+                    img[avatar].src = avatar;
+                }
+                ctx.drawImage(img[avatar], offsetx - 25, offsety - 25, 50, 50);
 
-      socket.onopen = function () {
-        socket.send(JSON.stringify({
-          eventkind: "init",
-          name: userConfig.name,
-          shape: userConfig.shape,
-          color: userConfig.color
-        }));
-      };
-
-      socket.onmessage = function (event) {
-        try {
-          const { dynamic, players } = JSON.parse(event.data);
-          if (dynamic !== undefined) {
-
-            // ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = "#bfb";
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            const playervals = Object.values(players);
-            const me = playervals.find((p) => p.name == userConfig.name);
-
-            userConfig.x = me.x;
-            userConfig.y = me.y;
-
-            // ✅ Update info panel live
-            infoX.textContent = me.x.toFixed(0);
-            infoY.textContent = me.y.toFixed(0);
-            infoScore.textContent = score; // static for now
-
-            draw(players, me.x, me.y);
-            draw(dynamic, me.x, me.y);
-            draw(gstatic, me.x, me.y)
-          } else {
-            const { static } = JSON.parse(event.data);
-            if ( static !== undefined) {
-              gstatic = static;
-            } else {
-              alert("Err: Didn't receive static Entity info, but was expecting to.")
+                ctx.font = '12px Arial';
+                ctx.fillStyle = 'black';
+                ctx.textAlign = 'center';
+                ctx.fillText(name, offsetx, offsety + 40);
             }
-          }
-        } catch (e) {
-          console.error("onmessage error:", e);
         }
-      };
 
-      canvas.addEventListener("click", function (event) {
-        const rect = canvas.getBoundingClientRect();
-        const canvasx = event.clientX - rect.left;
-        const worldadjustx = canvas.width / 2 - userConfig.x;
-        const x = canvasx - worldadjustx;
-        const canvasy = event.clientY - rect.top;
-        const worldadjusty = canvas.height / 2 - userConfig.y;
-        const y = canvasy - worldadjusty;
+        function startGame() {
+            const socket = new WebSocket("ws://localhost:8000/ws");
 
-        socket.send(JSON.stringify({
-          x, y,
-          eventkind: "click",
-        }));
-      });
+            socket.onopen = function () {
+                socket.send(JSON.stringify({
+                    eventkind: "init",
+                    name: userConfig.name,
+                    avatar: userConfig.avatar,
+                }));
+            };
 
-      addEventListener("keydown", function (event) {
-        socket.send(JSON.stringify({
-          key: event.key,
-          eventkind: "keydown",
-        }));
-      });
+            socket.onmessage = function (event) {
+                try {
+                    ctx.fillStyle = "#bfb";
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    const { dynamic, players } = JSON.parse(event.data);
+                    if (dynamic !== undefined) {
+                        const playervals = Object.values(players);
+                        const me = playervals.find((p) => p.name == userConfig.name);
+                        if (me === undefined) {
+                            "Usually this is not an issue -- the server just hasn't realized that this client exists. If there's a bug, this is a great place to put an `alert()`."
+                        } else {
+                            userConfig.x = me.x;
+                            userConfig.y = me.y;
 
-      addEventListener("keyup", function (event) {
-        socket.send(JSON.stringify({
-          key: event.key,
-          eventkind: "keyup",
-        }));
-      });
-    }
-  </script>
+                            infoX.textContent = me.x.toFixed(0);
+                            infoY.textContent = me.y.toFixed(0);
+                            infoScore.textContent = score; // static for now
+
+                            draw(players, me.x, me.y);
+                            draw(dynamic, me.x, me.y);
+                            draw(gstatic, me.x, me.y);
+                        }
+                    } else {
+                        const { static } = JSON.parse(event.data);
+                        if (static !== undefined) {
+                            gstatic = static;
+                        } else {
+                            alert("Err: Didn't receive static Entity info, but was expecting to.")
+                        }
+                    }
+                } catch (e) {
+                    alert("onmessage error:", e);
+                }
+            };
+
+            canvas.addEventListener("click", function (event) {
+                const rect = canvas.getBoundingClientRect();
+                const canvasx = event.clientX - rect.left;
+                const worldadjustx = canvas.width / 2 - userConfig.x;
+                const x = canvasx - worldadjustx;
+                const canvasy = event.clientY - rect.top;
+                const worldadjusty = canvas.height / 2 - userConfig.y;
+                const y = canvasy - worldadjusty;
+
+                socket.send(JSON.stringify({
+                    x, y,
+                    eventkind: "click",
+                }));
+            });
+
+            addEventListener("keydown", function (event) {
+                socket.send(JSON.stringify({
+                    key: event.key,
+                    eventkind: "keydown",
+                }));
+            });
+
+            addEventListener("keyup", function (event) {
+                socket.send(JSON.stringify({
+                    key: event.key,
+                    eventkind: "keyup",
+                }));
+            });
+        }
+
+
+        const genderSelect = document.getElementById("gender");
+        const avatarGroups = document.querySelectorAll(".avatar-group");
+
+        function updateAvatarGroup() {
+            const selectedGender = document.getElementById("gender").value;
+            const groups = document.querySelectorAll("#avatar_cont .avatar-group");
+
+            groups.forEach(group => {
+                if (group.dataset.gender === selectedGender) {
+                    group.style.display = "flex";
+                } else {
+                    group.style.display = "none";
+                }
+            });
+        }
+
+        // Call on page load to set the correct default
+        document.addEventListener("DOMContentLoaded", () => {
+            updateAvatarGroup();
+            // Add event listener for dropdown changes
+            document.getElementById("gender").addEventListener("change", updateAvatarGroup);
+        });
+
+
+
+    </script>
 </body>
 
 </html>
