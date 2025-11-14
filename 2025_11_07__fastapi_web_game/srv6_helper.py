@@ -1,5 +1,5 @@
 """
->>> gs = GameState(create_dynamic=False)
+>>> gs = GameState(debug=True)
 
 Initially no players:
 >>> gs.current()
@@ -167,13 +167,14 @@ class GameState:
     __players: "dict[str, Player]" 
     __dynamic: "dict[str, Entity]"
     __static: "dict[str, Entity]"
-    def __init__(self, create_dynamic = True):
-        """Can specify create_dynamic = False if you want no dynamic, which can be useful for doctests."""
+    def __init__(self, debug = True):
+        """Can specify debug = True if you want no static/dynamic, which can be useful for doctests."""
         self.__players = {}
-        self.__static = makewalls()
-        if create_dynamic:
+        if not debug:
+            self.__static = makewalls()
             self.__dynamic = makecoins()
         else:
+            self.__static = {}
             self.__dynamic = {}
 
     def get_static(self):
