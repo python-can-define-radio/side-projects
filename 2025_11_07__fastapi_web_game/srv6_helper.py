@@ -1,19 +1,19 @@
 """
->>> gs = GameState(create_entities=False)
+>>> gs = GameState(create_dynamic=False)
 
 Initially no players:
 >>> gs.current()
-{'entities': {}, 'players': {}}
+{'dynamic': {}, 'players': {}}
 
 A client joins:
 >>> ce = CliEvent('fakeid', '{"eventkind": "init", "name": "abc", "shape": "circle", "color": "green"}')
 >>> gs.process_cli_msg(ce)
 >>> gs.current()
-{'entities': {}, 'players': {'fakeid': Player(x=500, y=500, name='abc', change_x=0, change_y=0, location='world')}}
+{'dynamic': {}, 'players': {'fakeid': Player(x=500, y=500, name='abc', change_x=0, change_y=0, location='world')}}
 
 >>> gs.handleCE(CliEvent('fakeid', '{"eventkind": "keydown", "key": "w"}'))
 >>> gs.current()
-{'entities': {}, 'players': {'fakeid': Player(x=500, y=500, name='abc', change_x=0, change_y=-50, location='world')}}
+{'dynamic': {}, 'players': {'fakeid': Player(x=500, y=500, name='abc', change_x=0, change_y=-50, location='world')}}
 """
 import copy
 from dataclasses import dataclass
@@ -166,15 +166,23 @@ def makecoins():
 class GameState:
     """Examples in docstring/doctests for module"""
     __players: "dict[str, Player]" 
-    __entities: "dict[str, Entity]"
-    def __init__(self, create_entities = True):
-        """Can specify create_entities = False if you want no entities, which can be useful for doctests."""
+    __dynamic: "dict[str, Entity]"
+    __static: "dict[str, Entity]"
+    def __init__(self, create_dynamic = True):
+        """Can specify create_dynamic = False if you want no dynamic, which can be useful for doctests."""
         self.__players = {}
-        if create_entities:
-            self.__entities = {**makecoins(), **makewalls()}
+        self.__static = makewalls()
+        if create_dynamic:
+            self.__dynamic = makecoins()
         else:
-            self.__entities = {}
+            self.__dynamic = {}
 
+    def get_static(self):
+        staticdict = {k: v.todict() for k, v in self.__static.items()}
+        return json.dumps({
+            "static": staticdict
+        })
+    
     def process_cli_msg(self, ce: 'CliEvent | Disconnect'):
         """Update state based an event or a disconnect"""
         if type(ce) == Disconnect:
@@ -229,7 +237,7 @@ class GameState:
 
     def handle_collisions(self):
         for p in self.__players.values():
-            for e in self.__entities.values():
+            for e in self.__static.values():
                 if p.x == e.x and p.y == e.y:
                     if not e.passable:
                         p.x -= p.change_x
@@ -238,14 +246,14 @@ class GameState:
 
     def current(self):
         """Copy of current state. Examples in module docstring/doctests."""
-        return {"entities": copy.deepcopy(self.__entities), "players": copy.deepcopy(self.__players)}
+        return {"dynamic": copy.deepcopy(self.__dynamic), "players": copy.deepcopy(self.__players)}
 
     def jsondumps(self):
         """Current state in json. Examples in module docstring/doctests"""
-        entitiesdict = {k: v.todict() for k, v in self.__entities.items()}
+        dynamicdict = {k: v.todict() for k, v in self.__dynamic.items()}
         playersdict = {k: v.todict() for k, v in self.__players.items()}
         return json.dumps({
-            "entities": entitiesdict,
+            "dynamic": dynamicdict,
             "players": playersdict,
         })
 
@@ -263,7 +271,7 @@ Making a game...
 trying to teach EM concepts
 
 1. Add some inanimate stuff so we can tell that we're moving :-)
-  - Create some entities (once)
+  - Create some dynamic entities(once)
   - Send that data to the clients
   - Draw on client side
 1b. Larger world

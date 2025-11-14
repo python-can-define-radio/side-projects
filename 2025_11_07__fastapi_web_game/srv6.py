@@ -68,6 +68,7 @@ class ConnMgr:
             put(None)
             disposable_tick.dispose()
 
+        send(self.__gs.get_static())
         cid = "".join(random.sample(string.ascii_lowercase, k=4))
         disposable_tick = self.__tickresult.subscribe(on_next=send)
         return put, discon

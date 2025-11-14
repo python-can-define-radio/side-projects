@@ -7,8 +7,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     #game-container {
-      display: none; /* hidden until Start is pressed */
-  
+      display: none;
+      /* hidden until Start is pressed */
+
       align-items: flex-start;
       gap: 20px;
     }
@@ -85,6 +86,7 @@
 
     let userConfig = {};
     let score = 0; // placeholder
+    let gstatic = {};
 
     // Load images ONCE
     const img = {};
@@ -106,7 +108,7 @@
 
       // ✅ adds static name to info panel
       infoName.textContent = userConfig.name;
-     
+
       menu.style.display = 'none';
       gameContainer.style.display = 'flex'; // show game + info panel
 
@@ -147,21 +149,34 @@
 
       socket.onmessage = function (event) {
         try {
-          const { entities, players } = JSON.parse(event.data);
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-          const playervals = Object.values(players);
-          const me = playervals.find((p) => p.name == userConfig.name);
+          const { dynamic, players } = JSON.parse(event.data);
+          if (dynamic !== undefined) {
 
-          userConfig.x = me.x;
-          userConfig.y = me.y;
+            // ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "#cfc";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            const playervals = Object.values(players);
+            const me = playervals.find((p) => p.name == userConfig.name);
 
-          // ✅ Update info panel live
-          infoX.textContent = me.x.toFixed(0);
-          infoY.textContent = me.y.toFixed(0);
-          infoScore.textContent = score; // static for now
+            userConfig.x = me.x;
+            userConfig.y = me.y;
 
-          draw(players, me.x, me.y);
-          draw(entities, me.x, me.y);
+            // ✅ Update info panel live
+            infoX.textContent = me.x.toFixed(0);
+            infoY.textContent = me.y.toFixed(0);
+            infoScore.textContent = score; // static for now
+
+            draw(players, me.x, me.y);
+            draw(dynamic, me.x, me.y);
+            draw(gstatic, me.x, me.y)
+          } else {
+            const { static } = JSON.parse(event.data);
+            if ( static !== undefined) {
+              gstatic = static;
+            } else {
+              alert("Err: Didn't receive static Entity info, but was expecting to.")
+            }
+          }
         } catch (e) {
           console.error("onmessage error:", e);
         }
@@ -198,4 +213,5 @@
     }
   </script>
 </body>
+
 </html>
