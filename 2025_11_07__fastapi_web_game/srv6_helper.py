@@ -61,10 +61,20 @@ class Player:
     avatar: str = "/assets/femaleAdventurer_idle.png"
     change_x: int = 0
     change_y: int = 0
+    facing_direction: Literal["w", "a", "s", "d"] = "d"
+    """wasd -> up, left, down, right"""
     trying_action: bool = False
+    talking_to: "Entity | None" = None
+    dialog: "str | None" = None
 
     def todict(self):
         return dataclasses.asdict(self)
+
+
+def adjacent(a, b):
+    abovebelow = abs(a.x - b.x) == 50 and a.y == b.y
+    leftright = abs(a.y - b.y) == 50 and a.x == b.x
+    return abovebelow or leftright
 
 
 @dataclass
@@ -74,10 +84,20 @@ class Entity:
     name: str
     avatar: str
     passable: bool
-    on_touch_: "Callable[[Entity, Player]] | None" = None
-    def on_touch(self, p: Player):
-        if self.on_touch_:
-            self.on_touch_(self, p)
+    action: "dict | None" = None
+    def on_action(self, p: Player):
+        """If the player is trying to act and is adjacent to an interactable Entity,
+        call the entity's on_action_ function."""
+        if not p.trying_action:
+            return
+        if not adjacent(self, p):
+            return
+        if not self.action:
+            return
+        if "dialog" not in self.action:
+            raise NotImplementedError("Only dialog is implemented right now")
+        p.talking_to = self
+        p.dialog = self.action["dialog"]
     def todict(self):
         """
         Omits attrs that end with _
@@ -124,24 +144,19 @@ class Disconnect:
     """Client ID"""
 
 
+
+def handle_collisions(p: Player, e: Entity):
+    if p.x == e.x and p.y == e.y:
+        if not e.passable:
+            p.x -= p.change_x
+            p.y -= p.change_y
+
+
 def handle_ce_impl(paylo: Payload, player: Player):
     """Mutate `player` based on `paylo` to set the player's speed and `trying_action` attribute."""
     if type(paylo) == ClickEv:
-        xcmp = player.x - paylo.x
-        ycmp = player.y - paylo.y
-        if xcmp < -100:
-            player.change_x = 50
-        elif xcmp > 100:
-            player.change_x = -50
-        else:
-            player.change_x = 0
-        if ycmp < -100:
-            player.change_y = 50
-        elif ycmp > 100:
-            player.change_y = -50
-        else:
-            player.change_y = 0
-    elif type(paylo) == KeydownEv:
+        pass  # Might use this eventually
+    if type(paylo) == KeydownEv:
         if paylo.key == "w":
             player.change_y = -50
         elif paylo.key == "s":
@@ -150,8 +165,9 @@ def handle_ce_impl(paylo: Payload, player: Player):
             player.change_x = -50
         elif paylo.key == "d":
             player.change_x = 50
-        print(f"keypress: {paylo.key}")
-        player.trying_action = (paylo.key == "spacebar")
+        player.facing_direction = paylo.key if paylo.key in list("wasd") else player.facing_direction  # type: ignore
+        print(player.facing_direction)
+        player.trying_action = (paylo.key == " ")
     elif type(paylo) == KeyupEv:
         if paylo.key in ["w", "s"]:
             player.change_y = 0
@@ -173,7 +189,7 @@ def gridify(val, gridsize):
 
 
 def loadmap(currentmap):
-    f = open(currentmap)
+    f = open(currentmap, encoding="utf-8")
     lines = f.read().splitlines()
     f.close()
     static = {}
@@ -185,11 +201,11 @@ def loadmap(currentmap):
             if char == "w":
                 static[f"wall{xidx},{yidx}"] = Entity(50*xidx, 50*yidx, "", "/assets/brick2.png", False)
             elif char == "t":
-                static[f"tree{xidx},{yidx}"] = Entity(50*xidx, 50*yidx, "", "/assets/tree.png", False)
+                static[f"tree{xidx},{yidx}"] = Entity(50*xidx, 50*yidx, "", "/assets/tree.png", False, {"dialog": "woooosshhhhhh.... rustle rustle"})
             elif char == "c":
                 dynamic[f"coin{xidx},{yidx}"] = Entity(50*xidx, 50*yidx, "", "/assets/coin.png", True)
             elif char == "👮":
-                dynamic[f"npc{xidx},{yidx}"] = Entity(50*xidx, 50*yidx, "", "/assets/alienBlue_front.png", False)
+                dynamic[f"npc{xidx},{yidx}"] = Entity(50*xidx, 50*yidx, "", "/assets/alienBlue_front.png", False, {"dialog": "Private asdf, weclome."})
     return static, dynamic
 
 
@@ -242,16 +258,6 @@ class GameState:
         else:
             handle_ce_impl(paylo, self.__players[ce.cid])
 
-    def handle_collisions(self):
-        all_ents = list(self.__static.values()) + list(self.__dynamic.values())
-        for p in self.__players.values():
-            for e in all_ents:
-                if p.x == e.x and p.y == e.y:
-                    if not e.passable:
-                        p.x -= p.change_x
-                        p.y -= p.change_y
-                    e.on_touch(p)
-
     def current(self):
         """Copy of current state. Examples in module docstring/doctests."""
         return {"dynamic": copy.deepcopy(self.__dynamic), "players": copy.deepcopy(self.__players)}
@@ -267,10 +273,14 @@ class GameState:
 
     def tick(self):
         """Move players based on their velocities, then return self.jsondump()"""
+        all_ents = list(self.__static.values()) + list(self.__dynamic.values())
         for p in self.__players.values():
             p.x += p.change_x
             p.y += p.change_y
-        self.handle_collisions()
+            for e in all_ents:
+                handle_collisions(p, e)
+                e.on_action(p)
+            p.trying_action = False
         return self.jsondumps()
         
 """

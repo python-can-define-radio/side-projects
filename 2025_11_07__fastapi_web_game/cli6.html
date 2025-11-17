@@ -122,6 +122,7 @@
             <p><strong>X:</strong> <span id="info-x">0</span></p>
             <p><strong>Y:</strong> <span id="info-y">0</span></p>
             <p><strong>Score:</strong> <span id="info-score">0</span></p>
+            <p><strong>Dialog:</strong> <span id="info-dialog"></span></p>
         </div>
     </div>
 
@@ -135,6 +136,7 @@
         const infoX = document.getElementById('info-x');
         const infoY = document.getElementById('info-y');
         const infoScore = document.getElementById('info-score');
+        const infoDialog = document.getElementById('info-dialog');
 
         let userConfig = {};
         let score = 0; // placeholder
@@ -205,6 +207,7 @@
                             infoX.textContent = me.x.toFixed(0);
                             infoY.textContent = me.y.toFixed(0);
                             infoScore.textContent = score; // static for now
+                            infoDialog.textContent = me.dialog;
 
                             draw(players, me.x, me.y);
                             draw(dynamic, me.x, me.y);
