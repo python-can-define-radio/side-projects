@@ -1,19 +1,19 @@
 """
->>> gs = GameState(create_dynamic=False)
+>>> gs = GameState(create_entities=False)
 
 Initially no players:
 >>> gs.current()
 {'dynamic': {}, 'players': {}}
 
 A client joins:
->>> ce = CliEvent('fakeid', '{"eventkind": "init", "name": "abc", "shape": "circle", "color": "green"}')
+>>> ce = CliEvent('fakeid', '{"eventkind": "init", "name": "abc", "avatar": "/assets/somefile.png"}')
 >>> gs.process_cli_msg(ce)
 >>> gs.current()
-{'dynamic': {}, 'players': {'fakeid': Player(x=500, y=500, name='abc', change_x=0, change_y=0, location='world')}}
+{'dynamic': {}, 'players': {'fakeid': Player(x=500, y=500, name='abc', avatar='/assets/somefile.png', change_x=0, change_y=0)}}
 
 >>> gs.handleCE(CliEvent('fakeid', '{"eventkind": "keydown", "key": "w"}'))
 >>> gs.current()
-{'dynamic': {}, 'players': {'fakeid': Player(x=500, y=500, name='abc', change_x=0, change_y=-50, location='world')}}
+{'dynamic': {}, 'players': {'fakeid': Player(x=500, y=500, name='abc', avatar='/assets/somefile.png', change_x=0, change_y=-50)}}
 """
 import copy
 from dataclasses import dataclass
@@ -77,7 +77,7 @@ class Entity:
     def todict(self):
         """
         Omits attrs that end with _
-        >>> Entity(3, 5, "abc", "/assets/cool.png", 3.2, True).todict()
+        >>> Entity(3, 5, "abc", "/assets/cool.png", True).todict()
         {'x': 3, 'y': 5, 'name': 'abc', 'avatar': '/assets/cool.png', 'passable': True}
         """
         def impl():
@@ -98,11 +98,7 @@ class CliEvent:
     """A string which we can parse using get_payload"""
 
     def get_payload(self):
-        """
-        >>> ce = CliEvent('fakeid', '{"eventkind": "init", "name": "abc", "shape": "circle", "color": "green"}')
-        >>> ce.get_payload()
-        InitEv(name='abc', shape='circle', color='green', eventkind='init')
-        """
+        """Parse the payload to the appropriate event type. Examples in module docstring/doctests"""
         try:
             parsed = json.loads(self.payload_raw)
             if parsed["eventkind"] == "init":
@@ -165,12 +161,12 @@ class GameState:
     __dynamic: "dict[str, Entity]"
     __static: "dict[str, Entity]"
     def __init__(self, create_entities = True):
-        """Can specify create_entities = False if you want no dynamic, which can be useful for doctests."""
+        """Can specify create_entities = False if you want no entities, which can be useful for doctests."""
         self.__players = {} 
         if create_entities:
             self.__static, self.__dynamic = loadmap("map.txt")
         else:
-            self.__dynamic = {}
+            self.__static, self.__dynamic = {}, {}
 
     def get_static(self):
         staticdict = {k: v.todict() for k, v in self.__static.items()}
