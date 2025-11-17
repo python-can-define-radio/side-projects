@@ -141,7 +141,7 @@ class _ConnMgr:
             disposable_tick.dispose()
 
         websocket_send_sync(self.__gs.get_static())
-        cid = "".join(random.sample(string.ascii_lowercase, k=4))
+        cid = "".join(random.sample(string.ascii_lowercase, k=10))
         disposable_tick = self.__tickresult.subscribe(on_next=websocket_send_sync)
         return proc, discon
 
