@@ -65,12 +65,18 @@ After disconnecting, ticks no longer send data to that client:
 In the current implementation, `ws_setup` (shown above) is only
 called in `websocket_endpoint_impl`. Here's a demo doctest:
 
->>> async def fake_websocket_recv():
+>>> async def async_fake_websocket_send(x):
+...     print("async send:", x)
+
+>>> async def async_fake_websocket_recv():
 ...     return '{"eventkind": "init", "name": "abc", "avatar": "/assets/somefile.png"}'
 
->>> asyncio.run(cm.websocket_endpoint_impl(fake_websocket_send, fake_websocket_recv, max_rcv_msgs=2))
-send: {"static": {}}
+In the example below, the removal appears to be happening before the intial send.
+Someday we may figure out how to avoid this race condition, but for now, it's probably
+ok because most players aren't going to exit the game immediately after connecting.
+>>> asyncio.run(cm.websocket_endpoint_impl(async_fake_websocket_send, async_fake_websocket_recv, max_rcv_msgs=2))
 I: Removing ... from dict
+async send: {"static": {}}
 """
 
 
@@ -111,7 +117,7 @@ class _ConnMgr:
         r = self.__gs.tick()
         self.__tickresult.on_next(r)
 
-    def ws_setup(self, websocket_send: Callable, verbose=False):
+    def ws_setup(self, websocket_send_sync: Callable, verbose=False):
         """Create connections between the `websocket` and rxpy, and send GameState static entities to the client.  
         Returns `(proc, discon)`:
         - `proc`: should call this on incoming messages from the client
@@ -134,9 +140,9 @@ class _ConnMgr:
             proc(None)
             disposable_tick.dispose()
 
-        websocket_send(self.__gs.get_static())
+        websocket_send_sync(self.__gs.get_static())
         cid = "".join(random.sample(string.ascii_lowercase, k=4))
-        disposable_tick = self.__tickresult.subscribe(on_next=websocket_send)
+        disposable_tick = self.__tickresult.subscribe(on_next=websocket_send_sync)
         return proc, discon
 
     async def websocket_endpoint_impl(self, websocket_send, websocket_recv, max_rcv_msgs = int(10e9)):
@@ -147,7 +153,9 @@ class _ConnMgr:
         - `max_rcv_msgs` is reached
         - Any other exception is raised (these exceptions are intentionally not caught)
         """
-        proc, discon = self.ws_setup(websocket_send)
+        def send_sync(x):
+            asyncio.create_task(websocket_send(x))
+        proc, discon = self.ws_setup(send_sync)
         try:
             for _i in range(max_rcv_msgs):
                 proc(await websocket_recv())
@@ -172,11 +180,7 @@ async def gethome():
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
-    def send(x):
-        asyncio.create_task(websocket.send_text(x))
-    def recv():
-        return websocket.receive_text()
-    await _connmgr.websocket_endpoint_impl(send, recv)
+    await _connmgr.websocket_endpoint_impl(websocket.send_text, websocket.receive_text)
 
 
 if __name__ == "__main__":
