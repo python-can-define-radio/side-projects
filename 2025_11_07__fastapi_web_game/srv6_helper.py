@@ -137,28 +137,25 @@ def gridify(val, gridsize):
     return round(val/gridsize) * gridsize
 
 
-def makewalls():
-    f = open("map.txt")
+def loadmap(currentmap):
+    f = open(currentmap)
     lines = f.read().splitlines()
     f.close()
-    if len(set(map(lambda x: len(x), lines))) != 1:
-        raise ValueError("Map must be rectangular, that is, each line must have the same lengths")
-    walls = {}
+    static = {}
+    dynamic = {}
     xindexes = range(-10, len(lines[0]))
     yindexes = range(-10, len(lines))
     for yidx, line in zip(yindexes, lines):
         for xidx, char in zip(xindexes, line):
             if char == "w":
-                walls[f"wall{xidx},{yidx}"] = Entity(50*xidx, 50*yidx, "", "/assets/brick2.png", False)
+                static[f"wall{xidx},{yidx}"] = Entity(50*xidx, 50*yidx, "", "/assets/brick2.png", False)
             elif char == "t":
-                walls[f"tree{xidx},{yidx}"] = Entity(50*xidx, 50*yidx, "", "/assets/tree.png", False)
-    return walls
-
-
-def makecoins():
-    def cointouch(e: Entity, p: Player):
-        ... # p.x = p.x - 50
-    return {f"{x}": Entity(random.randrange(50, 4950, 50), random.randrange(50, 4950, 50), "", "/assets/coinGold.png", True, cointouch) for x in range(400)}
+                static[f"tree{xidx},{yidx}"] = Entity(50*xidx, 50*yidx, "", "/assets/tree.png", False)
+            elif char == "c":
+                dynamic[f"coin{xidx},{yidx}"] = Entity(50*xidx, 50*yidx, "", "/assets/coin.png", True)
+            elif char == "👮":
+                dynamic[f"npc{xidx},{yidx}"] = Entity(50*xidx, 50*yidx, "", "/assets/alienBlue_front.png", False)
+    return static, dynamic
 
 
 @dataclass
@@ -167,12 +164,11 @@ class GameState:
     __players: "dict[str, Player]" 
     __dynamic: "dict[str, Entity]"
     __static: "dict[str, Entity]"
-    def __init__(self, create_dynamic = True):
-        """Can specify create_dynamic = False if you want no dynamic, which can be useful for doctests."""
-        self.__players = {}
-        self.__static = makewalls()
-        if create_dynamic:
-            self.__dynamic = makecoins()
+    def __init__(self, create_entities = True):
+        """Can specify create_entities = False if you want no dynamic, which can be useful for doctests."""
+        self.__players = {} 
+        if create_entities:
+            self.__static, self.__dynamic = loadmap("map.txt")
         else:
             self.__dynamic = {}
 
