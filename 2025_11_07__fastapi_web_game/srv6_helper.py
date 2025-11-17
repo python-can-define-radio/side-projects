@@ -20,7 +20,7 @@ from dataclasses import dataclass
 import dataclasses
 import json
 import random
-from typing import Literal, Callable
+from typing import Literal, Callable, Union
 
 
 @dataclass
@@ -50,6 +50,9 @@ class ClickEv:
     eventkind: Literal['click']
 
 
+Payload = Union[InitEv, ClickEv, KeyupEv, KeydownEv]
+
+
 @dataclass
 class Player:
     x: int
@@ -58,6 +61,7 @@ class Player:
     avatar: str = "/assets/femaleAdventurer_idle.png"
     change_x: int = 0
     change_y: int = 0
+    trying_action: bool = False
 
     def todict(self):
         return dataclasses.asdict(self)
@@ -88,7 +92,6 @@ class Entity:
         return dict(impl())
            
         
-
 @dataclass
 class CliEvent:
     """Client Event"""
@@ -97,7 +100,7 @@ class CliEvent:
     payload_raw: str
     """A string which we can parse using get_payload"""
 
-    def get_payload(self):
+    def get_payload(self) -> Payload:
         """Parse the payload to the appropriate event type. Examples in module docstring/doctests"""
         try:
             parsed = json.loads(self.payload_raw)
@@ -119,6 +122,42 @@ class Disconnect:
     """Disconnect message from a client"""
     cid: str
     """Client ID"""
+
+
+def handle_ce_impl(paylo: Payload, player: Player):
+    """Mutate `player` based on `paylo` to set the player's speed and `trying_action` attribute."""
+    if type(paylo) == ClickEv:
+        xcmp = player.x - paylo.x
+        ycmp = player.y - paylo.y
+        if xcmp < -100:
+            player.change_x = 50
+        elif xcmp > 100:
+            player.change_x = -50
+        else:
+            player.change_x = 0
+        if ycmp < -100:
+            player.change_y = 50
+        elif ycmp > 100:
+            player.change_y = -50
+        else:
+            player.change_y = 0
+    elif type(paylo) == KeydownEv:
+        if paylo.key == "w":
+            player.change_y = -50
+        elif paylo.key == "s":
+            player.change_y = 50
+        elif paylo.key == "a":
+            player.change_x = -50
+        elif paylo.key == "d":
+            player.change_x = 50
+        print(f"keypress: {paylo.key}")
+        player.trying_action = (paylo.key == "spacebar")
+    elif type(paylo) == KeyupEv:
+        if paylo.key in ["w", "s"]:
+            player.change_y = 0
+        if paylo.key in ["a", "d"]:
+            player.change_x = 0
+
 
 
 def gridify(val, gridsize):
@@ -192,39 +231,16 @@ class GameState:
         del self.__players[ce.cid]
         
     def handleCE(self, ce: CliEvent):
-        """Update state when clients send events, such as mouse or keyboard input."""
+        """Update state when clients send events, such as mouse or keyboard input.
+        Specifically:
+        - InitEv: Create a new player; store that player in `self.__players`  
+          with a key of `ce.cid`.
+        - Other events are passed to `handle_ce_impl`."""
         paylo = ce.get_payload()
         if type(paylo) == InitEv:
             self.__players[ce.cid] = Player(500, 500, paylo.name, paylo.avatar)
-        elif type(paylo) == ClickEv:
-            xcmp = self.__players[ce.cid].x - paylo.x
-            ycmp = self.__players[ce.cid].y - paylo.y
-            if xcmp < -100:
-                self.__players[ce.cid].change_x = 50
-            elif xcmp > 100:
-                self.__players[ce.cid].change_x = -50
-            else:
-                self.__players[ce.cid].change_x = 0
-            if ycmp < -100:
-                self.__players[ce.cid].change_y = 50
-            elif ycmp > 100:
-                self.__players[ce.cid].change_y = -50
-            else:
-                self.__players[ce.cid].change_y = 0
-        elif type(paylo) == KeydownEv:
-            if paylo.key == "w":
-                self.__players[ce.cid].change_y = -50
-            elif paylo.key == "s":
-                self.__players[ce.cid].change_y = 50
-            elif paylo.key == "a":
-                self.__players[ce.cid].change_x = -50
-            elif paylo.key == "d":
-                self.__players[ce.cid].change_x = 50
-        elif type(paylo) == KeyupEv:
-            if paylo.key in ["w", "s"]:
-                self.__players[ce.cid].change_y = 0
-            if paylo.key in ["a", "d"]:
-                self.__players[ce.cid].change_x = 0
+        else:
+            handle_ce_impl(paylo, self.__players[ce.cid])
 
     def handle_collisions(self):
         all_ents = list(self.__static.values()) + list(self.__dynamic.values())
