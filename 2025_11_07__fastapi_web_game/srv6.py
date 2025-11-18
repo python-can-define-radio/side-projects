@@ -137,8 +137,8 @@ class _ConnMgr:
 
         def discon():
             """Tell the GameState that this client disconnected, and dispose the tick subscribe resources."""
-            proc(None)
             disposable_tick.dispose()
+            proc(None)
 
         websocket_send_sync(self.__gs.get_static())
         cid = "".join(random.sample(string.ascii_lowercase, k=10))
