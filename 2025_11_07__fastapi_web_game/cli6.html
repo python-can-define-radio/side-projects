@@ -207,8 +207,7 @@
                             infoX.textContent = me.x.toFixed(0);
                             infoY.textContent = me.y.toFixed(0);
                             infoScore.textContent = score; // static for now
-                            infoDialog.textContent = me.dialog;
-
+                            if (me.talking_to) { infoDialog.textContent = me.talking_to.dialog; }
                             draw(players, me.x, me.y);
                             draw(dynamic, me.x, me.y);
                             draw(gstatic, me.x, me.y);

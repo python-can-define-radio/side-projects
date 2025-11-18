@@ -65,16 +65,9 @@ class Player:
     """wasd -> up, left, down, right"""
     trying_action: bool = False
     talking_to: "Entity | None" = None
-    dialog: "str | None" = None
 
     def todict(self):
         return dataclasses.asdict(self)
-
-
-def adjacent(a, b):
-    abovebelow = abs(a.x - b.x) == 50 and a.y == b.y
-    leftright = abs(a.y - b.y) == 50 and a.x == b.x
-    return abovebelow or leftright
 
 
 @dataclass
@@ -84,20 +77,8 @@ class Entity:
     name: str
     avatar: str
     passable: bool
-    action: "dict | None" = None
-    def on_action(self, p: Player):
-        """If the player is trying to act and is adjacent to an interactable Entity,
-        call the entity's on_action_ function."""
-        if not p.trying_action:
-            return
-        if not adjacent(self, p):
-            return
-        if not self.action:
-            return
-        if "dialog" not in self.action:
-            raise NotImplementedError("Only dialog is implemented right now")
-        p.talking_to = self
-        p.dialog = self.action["dialog"]
+    dialog: "str | None" = None
+    
     def todict(self):
         """
         Omits attrs that end with _
@@ -144,6 +125,29 @@ class Disconnect:
     """Client ID"""
 
 
+def adjacent(p: Player, e: Entity):
+    if p.x == e.x and p.facing_direction == "w" and p.y == e.y + 50:
+        return True
+    elif p.x == e.x and p.facing_direction == "s" and p.y == e.y - 50:
+        return True
+    elif p.y == e.y and p.facing_direction == "a" and p.x == e.x + 50:
+        return True
+    elif p.y == e.y and p.facing_direction == "d" and p.x == e.x - 50:
+        return True
+    return False
+
+
+def on_action(p: Player, e: Entity):
+        """If the player is trying to act and is adjacent to an interactable Entity,
+        call the entity's on_action_ function."""
+        if not p.trying_action:
+            return
+        if not adjacent(p, e):
+            return
+        if not e.dialog:
+            return
+        p.talking_to = e
+
 
 def handle_collisions(p: Player, e: Entity):
     if p.x == e.x and p.y == e.y:
@@ -166,7 +170,6 @@ def handle_ce_impl(paylo: Payload, player: Player):
         elif paylo.key == "d":
             player.change_x = 50
         player.facing_direction = paylo.key if paylo.key in list("wasd") else player.facing_direction  # type: ignore
-        print(player.facing_direction)
         player.trying_action = (paylo.key == " ")
     elif type(paylo) == KeyupEv:
         if paylo.key in ["w", "s"]:
@@ -201,11 +204,11 @@ def loadmap(currentmap):
             if char == "w":
                 static[f"wall{xidx},{yidx}"] = Entity(50*xidx, 50*yidx, "", "/assets/brick2.png", False)
             elif char == "t":
-                static[f"tree{xidx},{yidx}"] = Entity(50*xidx, 50*yidx, "", "/assets/tree.png", False, {"dialog": "woooosshhhhhh.... rustle rustle"})
+                static[f"tree{xidx},{yidx}"] = Entity(50*xidx, 50*yidx, "", "/assets/tree.png", False, dialog="woooosshhhhhh.... rustle rustle")
             elif char == "c":
                 dynamic[f"coin{xidx},{yidx}"] = Entity(50*xidx, 50*yidx, "", "/assets/coin.png", True)
             elif char == "👮":
-                dynamic[f"npc{xidx},{yidx}"] = Entity(50*xidx, 50*yidx, "", "/assets/alienBlue_front.png", False, {"dialog": "Private asdf, weclome."})
+                dynamic[f"npc{xidx},{yidx}"] = Entity(50*xidx, 50*yidx, "", "/assets/alienBlue_front.png", False, dialog="Private asdf, weclome.")
     return static, dynamic
 
 
@@ -279,7 +282,7 @@ class GameState:
             p.y += p.change_y
             for e in all_ents:
                 handle_collisions(p, e)
-                e.on_action(p)
+                on_action(p, e)
             p.trying_action = False
         return self.jsondumps()
         

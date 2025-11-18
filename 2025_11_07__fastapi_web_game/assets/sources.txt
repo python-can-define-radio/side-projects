@@ -2,4 +2,4 @@ brick.png: Custom-made
 brick2.png: Custom-made
 coin.png: Custom-made
 tree.png: Custom-made
-femaleAdventurer_idle.png: Arcade Resources
+all avatars: Arcade Resources for now

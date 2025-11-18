@@ -1,7 +1,5 @@
 Make interaction of some sort, hopefully involving EM waves, probably some other fun stuff like fireballs that come from a box
 
-- How to interact with an NPC?
-- How to have dialog?
 - How to change location?
 - 
 
