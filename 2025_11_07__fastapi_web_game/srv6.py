@@ -113,9 +113,11 @@ class _ConnMgr:
         """Used to pass data to clients on each frame/tick"""
 
     def trigger_tick(self):
-        """Notify all subscribers of the latest game state computed by `.tick()`"""
+        """Notify all subscribers of the latest game state computed by `.tick()`.
+        If the result of a tick is empty (no change), then don't notify subscribers."""
         r = self.__gs.tick()
-        self.__tickresult.on_next(r)
+        if r != "{}":
+            self.__tickresult.on_next(r)
 
     def ws_setup(self, websocket_send_sync: Callable, verbose=False):
         """Create connections between the `websocket` and rxpy, and send GameState static entities to the client.  

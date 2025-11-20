@@ -77,6 +77,7 @@ class Entity:
     avatar: str
     passable: bool
     dialog: "str | None" = None
+    info: "str | None" = None
     
     def todict(self):
         """
@@ -206,7 +207,7 @@ def loadmap(currentmap):
             if char == "w":
                 static[f"wall{xidx},{yidx}"] = Entity(50*xidx, 50*yidx, "", "/assets/brick2.png", False)
             elif char == "t":
-                static[f"tree{xidx},{yidx}"] = Entity(50*xidx, 50*yidx, "", "/assets/tree.png", False, dialog="woooosshhhhhh.... rustle rustle")
+                static[f"tree{xidx},{yidx}"] = Entity(50*xidx, 50*yidx, "", "/assets/tree.png", False, info="You hear the leaves faintly rustling as wind passes.")
             elif char == "c":
                 dynamic[f"coin{xidx},{yidx}"] = Entity(50*xidx, 50*yidx, "", "/assets/coin.png", True)
             elif char == "👮":
