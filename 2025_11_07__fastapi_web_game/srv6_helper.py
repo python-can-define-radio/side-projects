@@ -45,8 +45,7 @@ class KeyupEv:
 
 @dataclass
 class ClickEv:
-    x: int
-    y: int
+    button: Literal["mission-cancel"]
     eventkind: Literal['click']
 
 
@@ -159,8 +158,11 @@ def handle_collisions(p: Player, e: Entity):
 def handle_ce_impl(paylo: Payload, player: Player):
     """Mutate `player` based on `paylo` to set the player's speed and `trying_action` attribute."""
     if type(paylo) == ClickEv:
-        pass  # Might use this eventually
-    if type(paylo) == KeydownEv:
+        if paylo.button == "mission-cancel":
+            player.talking_to = None
+        else:
+            print("User clicked an unknown button:", paylo.button)
+    elif type(paylo) == KeydownEv:
         if paylo.key == "w":
             player.change_y = -50
         elif paylo.key == "s":
@@ -208,7 +210,7 @@ def loadmap(currentmap):
             elif char == "c":
                 dynamic[f"coin{xidx},{yidx}"] = Entity(50*xidx, 50*yidx, "", "/assets/coin.png", True)
             elif char == "👮":
-                dynamic[f"npc{xidx},{yidx}"] = Entity(50*xidx, 50*yidx, "", "/assets/alienBlue_front.png", False, dialog="Private asdf, weclome.")
+                dynamic[f"npc{xidx},{yidx}"] = Entity(50*xidx, 50*yidx, "", "/assets/alienBlue_front.png", False, dialog="Commander, we’ve detected unusual energy signatures in the nearby ruins.\nYour objective is to investigate the site, collect three energy crystals, and return safely.\nBeware — hostile entities may be present.")
     return static, dynamic
 
 

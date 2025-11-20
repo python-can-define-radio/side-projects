@@ -50,6 +50,17 @@
         .avatar-group input[type="radio"] {
             margin-bottom: 4px;
         }
+
+        #game-container {
+            display: none;
+            align-items: flex-start;
+            gap: 20px;
+        }
+
+        #mission-panel img {
+            max-width: none;
+            max-height: none;
+        }
     </style>
 </head>
 
@@ -116,14 +127,44 @@
     <div id="game-container">
         <canvas id="canvas" width="1000" height="1000"></canvas>
 
-        <div id="game-text">
-            <h3>Player Info</h3>
-            <p><strong>Name:</strong> <span id="info-name">---</span></p>
-            <p><strong>X:</strong> <span id="info-x">0</span></p>
-            <p><strong>Y:</strong> <span id="info-y">0</span></p>
-            <p><strong>Score:</strong> <span id="info-score">0</span></p>
-            <p><strong>Dialog:</strong> <span id="info-dialog"></span></p>
+        <div id="right-side" style="display:flex; flex-direction:column; gap:20px;">
+            <div id="game-text">
+                <h3>Player Info</h3>
+                <p><strong>Name:</strong> <span id="info-name">---</span></p>
+                <p><strong>X:</strong> <span id="info-x">0</span></p>
+                <p><strong>Y:</strong> <span id="info-y">0</span></p>
+                <p><strong>Score:</strong> <span id="info-score">0</span></p>
+                <!-- <p><strong>Dialog:</strong> <span id="info-dialog"></span></p> -->
+            </div>
+
+            <div id="mission-panel" style="
+    display:none;
+    border:1px solid #ccc;
+    background:#eef;
+    border-radius:6px;
+    padding:15px;
+    width:100%;
+    max-width:700px;
+    min-height:250px;
+    font-family:Arial, sans-serif;
+">
+                <div style="display:flex; gap:15px; align-items:flex-start;">
+                    <img id="mission-npc-img" src="" style="image-rendering:pixelated;">
+
+                    <div id="mission-text" style="flex-grow:1;">
+                        <h3>Mission Briefing</h3>
+                        <p id="mission-dialog">
+                        </p>
+                    </div>
+                </div>
+
+                <div style="margin-top:20px; display:flex; gap:10px;">
+                    <button id="mission-accept">Accept Mission</button>
+                    <button id="mission-cancel">Cancel</button>
+                </div>
+            </div>
         </div>
+
     </div>
 
     <script>
@@ -136,7 +177,6 @@
         const infoX = document.getElementById('info-x');
         const infoY = document.getElementById('info-y');
         const infoScore = document.getElementById('info-score');
-        const infoDialog = document.getElementById('info-dialog');
 
         let userConfig = {};
         let score = 0; // placeholder
@@ -207,7 +247,19 @@
                             infoX.textContent = me.x.toFixed(0);
                             infoY.textContent = me.y.toFixed(0);
                             infoScore.textContent = score; // static for now
-                            if (me.talking_to) { infoDialog.textContent = me.talking_to.dialog; }
+                            if (me.talking_to) {
+
+
+                                // SHOW MISSION PANEL
+                                missionPanel.style.display = "block";
+                                missionNPCImg.src = me.talking_to.avatar;
+                                missionDialog.textContent = me.talking_to.dialog || "";
+
+                            } else {
+                                // HIDE MISSION PANEL
+                                missionPanel.style.display = "none";
+                            }
+
                             draw(players, me.x, me.y);
                             draw(dynamic, me.x, me.y);
                             draw(gstatic, me.x, me.y);
@@ -225,21 +277,6 @@
                 }
             };
 
-            canvas.addEventListener("click", function (event) {
-                const rect = canvas.getBoundingClientRect();
-                const canvasx = event.clientX - rect.left;
-                const worldadjustx = canvas.width / 2 - userConfig.x;
-                const x = canvasx - worldadjustx;
-                const canvasy = event.clientY - rect.top;
-                const worldadjusty = canvas.height / 2 - userConfig.y;
-                const y = canvasy - worldadjusty;
-
-                socket.send(JSON.stringify({
-                    x, y,
-                    eventkind: "click",
-                }));
-            });
-
             addEventListener("keydown", function (event) {
                 socket.send(JSON.stringify({
                     key: event.key,
@@ -253,6 +290,26 @@
                     eventkind: "keyup",
                 }));
             });
+
+            const missionPanel = document.getElementById("mission-panel");
+            const missionNPCImg = document.getElementById("mission-npc-img");
+            const missionDialog = document.getElementById("mission-dialog");
+
+            document.getElementById("mission-cancel").onclick = () => {
+                missionPanel.style.display = "none";
+
+                socket.send(JSON.stringify({
+                    eventkind: "click",
+                    button: "mission-cancel",
+                }));
+            };
+
+            document.getElementById("mission-accept").onclick = () => {
+                // For now: simply hide panel
+                missionPanel.style.display = "none";
+
+                // NOTE: you can later add mission acceptance logic here.
+            };
         }
 
 
