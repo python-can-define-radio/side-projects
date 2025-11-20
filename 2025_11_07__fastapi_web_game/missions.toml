@@ -1,0 +1,11 @@
+[[missions]]
+id = 23
+name = "Investigate the Ruins"
+dialog = "<h4>Mission: Investigate the ruins</h4><br>Commander, we’ve detected unusual energy signatures in the nearby ruins. Your objective is to investigate the site, collect three energy crystals, and return safely.<br>Beware — hostile entities may be present.<br><br><h4>Mission Objectives</h4><br>1. Investigate site<br>2. Collect energy crystals.<br>3. Return to NPC (because I'm self-aware that this is a game, strangely)."
+objectives = []
+
+[[missions]]
+id = 612
+name = "sdfdsf"
+dialog = "diaaaaalog"
+objectives = []

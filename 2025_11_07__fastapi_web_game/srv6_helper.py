@@ -22,6 +22,8 @@ import json
 import random
 from typing import Literal, Callable, Union
 
+import toml
+
 
 @dataclass
 class InitEv:
@@ -64,6 +66,9 @@ class Player:
     """wasd -> up, left, down, right"""
     trying_action: bool = False
     talking_to: "Entity | None" = None
+    completed_missions: "list[Mission]" = dataclasses.field(default_factory=list)
+    potential_mission: "Mission | None" = None
+    assigned_mission: "Mission | None" = None
 
     def todict(self):
         return dataclasses.asdict(self)
@@ -76,7 +81,7 @@ class Entity:
     name: str
     avatar: str
     passable: bool
-    dialog: "str | None" = None
+    available_missions: "list[int]" = dataclasses.field(default_factory=list)
     info: "str | None" = None
     
     def todict(self):
@@ -125,6 +130,20 @@ class Disconnect:
     """Client ID"""
 
 
+@dataclass
+class Objective:
+    is_complete: bool
+    complete_condition: Callable
+    
+
+@dataclass
+class Mission:
+    id: int
+    name: str
+    dialog: str
+    objectives: "list[Objective]"
+
+
 def adjacent(p: Player, e: Entity):
     if p.x == e.x and p.facing_direction == "w" and p.y == e.y + 50:
         return True
@@ -137,16 +156,27 @@ def adjacent(p: Player, e: Entity):
     return False
 
 
+def next_available_mission(mission_status: "list[Mission]", available_missions: "list[int]"):
+    with open("missions.toml") as f:
+        missionstoml = toml.load(f)
+    missions_section = missionstoml["missions"]
+    assert type(missions_section) == list
+    missions = list(map(lambda item: Mission(**item), missions_section))
+    print(missions)
+    return Mission(23, "Investigate the Ruins", "<h4>Mission: Investigate the ruins</h4><br>Commander, we’ve detected...", [])
+
+
 def on_action(p: Player, e: Entity):
-        """If the player is trying to act and is adjacent to an interactable Entity,
-        call the entity's on_action_ function."""
-        if not p.trying_action:
-            return
-        if not adjacent(p, e):
-            return
-        if not e.dialog:
-            return
-        p.talking_to = e
+    """If the player is trying to act and is adjacent to an interactable Entity,
+    call the entity's on_action_ function."""
+    if not p.trying_action:
+        return
+    if not adjacent(p, e):
+        return
+    if not e.available_missions:
+        return
+    p.talking_to = e
+    p.potential_mission = next_available_mission(p.completed_missions, e.available_missions)
 
 
 def handle_collisions(p: Player, e: Entity):
@@ -211,7 +241,7 @@ def loadmap(currentmap):
             elif char == "c":
                 dynamic[f"coin{xidx},{yidx}"] = Entity(50*xidx, 50*yidx, "", "/assets/coin.png", True)
             elif char == "👮":
-                dynamic[f"npc{xidx},{yidx}"] = Entity(50*xidx, 50*yidx, "", "/assets/alienBlue_front.png", False, dialog="Commander, we’ve detected unusual energy signatures in the nearby ruins.\nYour objective is to investigate the site, collect three energy crystals, and return safely.\nBeware — hostile entities may be present.")
+                dynamic[f"npc{xidx},{yidx}"] = Entity(50*xidx, 50*yidx, "", "/assets/alienBlue_front.png", False, available_missions=[23])
     return static, dynamic
 
 

@@ -149,7 +149,7 @@
     font-family:Arial, sans-serif;
 ">
                 <div style="display:flex; gap:15px; align-items:flex-start;">
-                    <img id="mission-npc-img" src="" style="image-rendering:pixelated;">
+                    <img id="mission-npc-img" src="", style="width: 900px;">
 
                     <div id="mission-text" style="flex-grow:1;">
                         <h3>Mission Briefing</h3>
@@ -253,7 +253,11 @@
                                 // SHOW MISSION PANEL
                                 missionPanel.style.display = "block";
                                 missionNPCImg.src = me.talking_to.avatar;
-                                missionDialog.textContent = me.talking_to.dialog || "";
+                                if (me.potential_mission) {
+                                    missionDialog.innerHTML = me.potential_mission.dialog;
+                                } else {
+                                    missionDialog.innerHTML = "not sure what to say";
+                                }
 
                             } else {
                                 // HIDE MISSION PANEL
