@@ -3,3 +3,4 @@ brick2.png: Custom-made
 coin.png: Custom-made
 tree.png: Custom-made
 all avatars: Arcade Resources for now
+ruins.png: https://www.emojis.com/emoji/ruin-bywFk5TAnU

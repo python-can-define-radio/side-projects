@@ -162,8 +162,7 @@ def next_available_mission(mission_status: "list[Mission]", available_missions: 
     missions_section = missionstoml["missions"]
     assert type(missions_section) == list
     missions = list(map(lambda item: Mission(**item), missions_section))
-    print(missions)
-    return Mission(23, "Investigate the Ruins", "<h4>Mission: Investigate the ruins</h4><br>Commander, we’ve detected...", [])
+    return Mission(23, "Investigate the Ruins", "<h2>Mission Briefing: Investigate the ruins</h2><br>Commander, we’ve detected unusual energy signatures in the nearby ruins. Your objective is to investigate the site, collect three energy crystals, and return safely.<br>Beware — hostile entities may be present.<br><br><h3>Mission Objectives</h3><br>1. Investigate site<br>2. Collect energy crystals.<br>3. Return to NPC", [])
 
 
 def on_action(p: Player, e: Entity):
@@ -236,6 +235,8 @@ def loadmap(currentmap):
         for xidx, char in zip(xindexes, line):
             if char == "w":
                 static[f"wall{xidx},{yidx}"] = Entity(50*xidx, 50*yidx, "", "/assets/brick2.png", False)
+            if char == "r":
+                static[f"ruin{xidx},{yidx}"] = Entity(50*xidx, 50*yidx, "", "/assets/ruins.png", False)
             elif char == "t":
                 static[f"tree{xidx},{yidx}"] = Entity(50*xidx, 50*yidx, "", "/assets/tree.png", False, info="You hear the leaves faintly rustling as wind passes.")
             elif char == "c":
