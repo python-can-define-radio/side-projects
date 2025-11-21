@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EML</title>
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.27.2/full/pyodide.js"></script>
+    <script>
+        async function js_main() {
+            let pyodide = await loadPyodide();
+            let response = await fetch("eml.py");
+            let code = await response.text();
+            await pyodide.runPythonAsync(code);
+            await pyodide.runPythonAsync("main_wrapper()");
+        }
+        document.addEventListener("DOMContentLoaded", js_main);
+    </script>
+    <style>
+        #console {
+            background-color: black;
+            color: white;
+            font-family: monospace;
+            padding: 10px;
+            height: 200px;
+            overflow-y: auto;
+            font-size: 2em;
+        }
+
+        #game-container {
+            display: none;
+            /* hidden until Start is pressed */
+
+            align-items: flex-start;
+            gap: 20px;
+        }
+
+        #game-text {
+            border: 1px solid #ccc;
+            padding: 10px;
+            width: 180px;
+            background-color: #f8f8f8;
+            border-radius: 6px;
+            font-family: Arial, sans-serif;
+        }
+
+        #game-text p {
+            margin: 6px 0;
+        }
+
+        canvas {
+            border: 1px solid black;
+        }
+
+        /* Make all avatar groups horizontal */
+        .avatar-group {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        /* Make each label a column (radio above image or side by side) */
+        .avatar-group label {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        /* Hide the radio visually but keep it clickable */
+        .avatar-group input[type="radio"] {
+            margin-bottom: 4px;
+        }
+
+        #game-container {
+            display: none;
+            align-items: flex-start;
+            gap: 20px;
+        }
+
+        #mission-panel img {
+            max-width: none;
+            max-height: none;
+        }
+    </style>
+</head>
+
+<body>
+  <div id="menu">
+        <h2>Select Your Avatar</h2>
+        <label>
+            name:
+            <input type="text" id="name" placeholder="Enter your name" autocomplete="name" />
+        </label>
+        <br><br>
+        <label>
+            Gender:
+            <select id="gender">
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+            </select>
+        </label>
+        <br><br>
+
+        <div id="avatar_cont">
+
+            <!-- Male avatars -->
+            <div class="avatar-group" data-gender="male">
+                <label>
+                    <input type="radio" name="avatar" value="/assets/maleAdventurer_idle.png">
+                    <img src="/assets/maleAdventurer_idle.png" width="70">
+                </label>
+
+                <label>
+                    <input type="radio" name="avatar" value="/assets/malePerson_idle.png">
+                    <img src="/assets/malePerson_idle.png" width="70">
+                </label>
+
+                <label>
+                    <input type="radio" name="avatar" value="/assets/zombie_idle.png">
+                    <img src="/assets/zombie_idle.png" width="70">
+                </label>
+            </div>
+
+            <!-- Female avatars -->
+            <div class="avatar-group" data-gender="female" style="display:none;">
+                <label>
+                    <input type="radio" name="avatar" value="/assets/femaleAdventurer_idle.png">
+                    <img src="/assets/femaleAdventurer_idle.png" width="70">
+                </label>
+
+                <label>
+                    <input type="radio" name="avatar" value="/assets/femalePerson_idle.png">
+                    <img src="/assets/femalePerson_idle.png" width="70">
+                </label>
+
+                <label>
+                    <input type="radio" name="avatar" value="/assets/robot_idle.png">
+                    <img src="/assets/robot_idle.png" width="70">
+                </label>
+            </div>
+
+        </div>
+        <br><br>
+        <button id="startBtn">Start Game</button>
+    </div>
+    <div id="game-container">
+        <canvas id="canvas" width="1000" height="1000"></canvas>
+
+        <div id="right-side" style="display:flex; flex-direction:column; gap:20px;">
+            <div id="game-text">
+                <h3>Player Info</h3>
+                <p><strong>Name:</strong> <span id="info-name">---</span></p>
+                <p><strong>X:</strong> <span id="info-x">0</span></p>
+                <p><strong>Y:</strong> <span id="info-y">0</span></p>
+            </div>
+
+            <div id="mission-panel" style="
+    display:none;
+    border:1px solid #ccc;
+    background:#eef;
+    border-radius:6px;
+    padding:15px;
+    width:100%;
+    max-width:700px;
+    min-height:250px;
+    font-family:Arial, sans-serif;
+">
+                <div style="display:flex; gap:15px; align-items:flex-start;">
+                    <img id="mission-npc-img" src="", style="width: 900px;">
+
+                    <div id="mission-text" style="flex-grow:1;">
+                        <p id="mission-dialog">
+                        </p>
+                    </div>
+                </div>
+
+                <div style="margin-top:20px; display:flex; gap:10px;">
+                    <button id="mission-accept">Accept Mission</button>
+                    <button id="mission-cancel">Cancel</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+  <div id="console">Loading Pyodide...<br/></div>
+</body>
+
+</html>
