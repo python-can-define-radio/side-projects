@@ -1,8 +1,10 @@
 import asyncio
-from dataclasses import dataclass
+from dataclasses import dataclass, field, fields
+import html
 import random
 from typing import Any, Callable, TYPE_CHECKING
 
+from pyodide.http import pyfetch
 from js import document
 
 
@@ -18,6 +20,8 @@ if TYPE_CHECKING:
     class CanvasRenderingContext:
         fillStyle: str
         """should be a color or hex code"""
+        def fillText(text: str, x: int, y: int):
+            ...
         fillRect: Callable[[int, int, int, int], None]
 
     class Canvas(HTMLElement):
@@ -26,12 +30,35 @@ if TYPE_CHECKING:
         width: int
 
 console_div = document.getElementById("console")
-def print_to_div(*args, **kwargs):
-    text = " ".join(str(a) for a in args)
+def print_to_div(*args):
+    text = " ".join(html.escape(str(a)) for a in args)
     console_div.innerHTML += text + "<br>"
+
 
 # Override built-in print
 print = print_to_div
+
+def prex(f: Callable):
+    """`try` calling `f`. Print any exceptions that are raised.
+    f must take no arguments, so any functions that take arguments must be wrapped in a lambda as shown:
+    prex(lambda: the_function_we_want_to_call(3, 5))"""
+    try:
+        return f()
+    except Exception as e:
+        print("Exception in", f.__name__, e)
+        raise
+
+
+def prex_passive(f: Callable):
+    """Equivalent of `prex`, used for so-called 'passive functions'.
+    Example: element.onclick = prex_passive(the_function_we_want_to_call)"""
+    async def prexwrap(*args, **kwargs):
+        try:
+            return await f(*args, **kwargs)
+        except Exception as e:
+            print("Exception in", f.__name__, e)
+            raise
+    return prexwrap
 
 
 class ElementNotFoundError(Exception):
@@ -44,6 +71,30 @@ class Player:
     name: str
     avatar: str = "/assets/femaleAdventurer_idle.png"
 
+
+@dataclass
+class Entity:
+    x: int
+    y: int
+    name: str
+    avatar: str
+    passable: bool
+    available_missions: "list[int]" = field(default_factory=list)
+    info: "str | None" = None
+    
+    def todict(self):
+        """
+        Omits attrs that end with _
+        >>> Entity(3, 5, "abc", "/assets/cool.png", True).todict()
+        {'x': 3, 'y': 5, 'name': 'abc', 'avatar': '/assets/cool.png', 'passable': True}
+        """
+        def impl():
+            fds = fields(self.__class__)
+            for fd in fds:
+                if not fd.name.endswith("_"):
+                    yield fd.name, getattr(self, fd.name)
+        return dict(impl())
+    
 
 def getElementByIdWithErr(elemid: str) -> "HTMLElement":
     """Same as normal `document.getElementById`, but
@@ -77,7 +128,8 @@ try:
         infoY = getElementByIdWithErr('info-y')
         ctx: "CanvasRenderingContext" = canvas.getContext('2d')  # type: ignore
         userConfig = {}
-        gstatic = {}
+        static = {}
+        dynamic = {}
         img = {}
         player: "Player | None"
         y_tmp: int = 300
@@ -85,13 +137,13 @@ except Exception as _exception_while_create_G:
     print("Exception while creating class G:", _exception_while_create_G)
 
 
-def keydown(event):
+async def keydown(event):
     print("pressed:", event.key)
 
-def keyup(event):
+async def keyup(event):
     print("released:", event.key)
 
-def start_btn_clicked(event=None):
+async def start_btn_clicked(event=None):
     global userConfig
     userConfig = {
         "name": getElementByIdWithErr('name').value.strip(),
@@ -102,14 +154,15 @@ def start_btn_clicked(event=None):
     G.infoName.textContent = userConfig["name"]
     G.menu.style.display = 'none'
     G.gameContainer.style.display = 'flex'
-    G.body.onkeydown = keydown
-    G.body.onkeyup = keyup
-    asyncio.create_task(draw_loop())
+    G.body.onkeydown = prex_passive(keydown)
+    G.body.onkeyup = prex_passive(keyup)
+    G.static, G.dynamic = await prex(loadmap)
+    asyncio.create_task(draw_loop())    
 
 
 def draw(items, centerx, centery):
     for cid in items.keys():
-        print("todo", cid)
+        print("todo: convert below from JS", cid)
         # const { x, y, name, avatar } = items[cid];
         # const offsetx = x - centerx + canvas.width / 2;
         # const offsety = y - centery + canvas.height / 2;
@@ -124,25 +177,55 @@ def draw(items, centerx, centery):
         # ctx.textAlign = 'center';
         # ctx.fillText(name, offsetx, offsety + 40);
 
-def draw_background():
+def draw_one_frame():
+    """draws bg and a randomly resizing square"""
     G.ctx.fillStyle = "#bfb"
     G.ctx.fillRect(0, 0, G.canvas.width, G.canvas.height)
     G.ctx.fillStyle = "#000"
     G.ctx.fillRect(0, 0, 200, G.y_tmp)
     G.y_tmp += random.randint(-2, 2)
+    G.ctx.fillText("Blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah", 100, 500)
+
+
+async def loadmap():
+    filename = "map.txt"
+    response = await pyfetch(filename)
+    if not response.ok:
+        raise FileNotFoundError(f"Failed to load {filename} (status {response.status})")
+    text: str = await response.text()
+    lines = text.splitlines()
+    static = {}
+    dynamic = {}
+    xindexes = range(-10, len(lines[0]))
+    yindexes = range(-10, len(lines))
+    for yidx, line in zip(yindexes, lines):
+        for xidx, char in zip(xindexes, line):
+            if char == "w":
+                static[f"wall{xidx},{yidx}"] = Entity(50*xidx, 50*yidx, "", "/assets/brick2.png", False)
+            if char == "r":
+                static[f"ruin{xidx},{yidx}"] = Entity(50*xidx, 50*yidx, "", "/assets/ruins.png", False)
+            elif char == "t":
+                static[f"tree{xidx},{yidx}"] = Entity(50*xidx, 50*yidx, "", "/assets/tree.png", False, info="You hear the leaves faintly rustling as wind passes.")
+            elif char == "c":
+                dynamic[f"coin{xidx},{yidx}"] = Entity(50*xidx, 50*yidx, "", "/assets/coin.png", True)
+            elif char == "👮":
+                dynamic[f"npc{xidx},{yidx}"] = Entity(50*xidx, 50*yidx, "", "/assets/alienBlue_front.png", False, available_missions=[23])
+    return static, dynamic
+
 
 async def draw_loop():
     fps = 30
     while True:
-        draw_background()
+        prex(draw_one_frame)
         await asyncio.sleep(1 / fps)
 
 
-def main():
+async def main():
     print("Python started!")
-    G.startBtn.onclick = start_btn_clicked
+    G.startBtn.onclick = prex_passive(start_btn_clicked)
 
 
+    # TODO: convert below from JS
 #         #                     infoX.textContent = me.x.toFixed(0);
 #         #                     infoY.textContent = me.y.toFixed(0);
 #         #                     infoScore.textContent = score; // static for now
@@ -235,8 +318,9 @@ def main():
 #         # });
 
 
-def main_wrapper():
+
+async def main_wrapper():
     try:
-        main()
+        await main()
     except Exception as e:
         print("Exception:", e)
