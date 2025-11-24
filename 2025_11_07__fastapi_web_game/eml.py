@@ -4,11 +4,14 @@ import html
 import random
 from typing import Any, Callable, TYPE_CHECKING
 
-from pyodide.http import pyfetch
-from js import document
+from pyodide.http import pyfetch  # type: ignore
+from js import document, Image  # type: ignore
 
 
 if TYPE_CHECKING:
+    class JSImg:
+        """Created by Image.new(). There's probably a better name for this"""
+
     class HTMLElement:
         textContent: str
         style: ...
@@ -20,9 +23,15 @@ if TYPE_CHECKING:
     class CanvasRenderingContext:
         fillStyle: str
         """should be a color or hex code"""
+        font: str
+        textAlign: str
+        @staticmethod
         def fillText(text: str, x: int, y: int):
             ...
         fillRect: Callable[[int, int, int, int], None]
+        @staticmethod
+        def drawImage(img: JSImg, x: int, y: int, h: int, w: int):
+            ...
 
     class Canvas(HTMLElement):
         getContext: Callable
@@ -128,10 +137,10 @@ try:
         infoY = getElementByIdWithErr('info-y')
         ctx: "CanvasRenderingContext" = canvas.getContext('2d')  # type: ignore
         userConfig = {}
-        static = {}
+        static: "dict[str, Entity]" = {}
         dynamic = {}
         img = {}
-        player: "Player | None"
+        player: "Player"
         y_tmp: int = 300
 except Exception as _exception_while_create_G:
     print("Exception while creating class G:", _exception_while_create_G)
@@ -139,6 +148,14 @@ except Exception as _exception_while_create_G:
 
 async def keydown(event):
     print("pressed:", event.key)
+    if event.key == "w":
+        G.player.y -= 50
+    elif event.key == "d":
+        G.player.x += 50
+    elif event.key == "a":
+        G.player.x -= 50
+    elif event.key == "s":
+        G.player.y += 50
 
 async def keyup(event):
     print("released:", event.key)
@@ -157,35 +174,39 @@ async def start_btn_clicked(event=None):
     G.body.onkeydown = prex_passive(keydown)
     G.body.onkeyup = prex_passive(keyup)
     G.static, G.dynamic = await prex(loadmap)
+    G.player = Player(500, 500, userConfig["name"], userConfig["avatar"])
     asyncio.create_task(draw_loop())    
 
 
-def draw(items, centerx, centery):
-    for cid in items.keys():
-        print("todo: convert below from JS", cid)
-        # const { x, y, name, avatar } = items[cid];
-        # const offsetx = x - centerx + canvas.width / 2;
-        # const offsety = y - centery + canvas.height / 2;
-        # if (!(avatar in img)) {
-        #     img[avatar] = new Image();
-        #     img[avatar].src = avatar;
-        # }
-        # ctx.drawImage(img[avatar], offsetx - 25, offsety - 25, 50, 50);
+def make_image(entity: "Entity | Player") -> "JSImg":
+    img = Image.new()
+    img.src = entity.avatar
+    return img
+    
 
-        # ctx.font = '12px Arial';
-        # ctx.fillStyle = 'black';
-        # ctx.textAlign = 'center';
-        # ctx.fillText(name, offsetx, offsety + 40);
+def draw_entities():
+    for entity in G.static.values():
+        img = make_image(entity)
+        G.ctx.drawImage(img, entity.x,entity.y,50,50)
+        offsetx = entity.x - G.player.x + G.canvas.width // 2
+        offsety = entity.y - G.player.y + G.canvas.height // 2
+        G.ctx.font = '12px Arial'
+        G.ctx.fillStyle = 'black'
+        G.ctx.textAlign = 'center'
+        G.ctx.fillText(entity.name, offsetx, offsety + 40)
+
+
+def draw_player():
+    img = make_image(G.player)
+    G.ctx.drawImage(img, G.player.x, G.player.y, 50, 50)
+
 
 def draw_one_frame():
     """draws bg and a randomly resizing square"""
     G.ctx.fillStyle = "#bfb"
     G.ctx.fillRect(0, 0, G.canvas.width, G.canvas.height)
-    G.ctx.fillStyle = "#000"
-    G.ctx.fillRect(0, 0, 200, G.y_tmp)
-    G.y_tmp += random.randint(-2, 2)
-    G.ctx.fillText("Blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah", 100, 500)
-
+    draw_player()
+    draw_entities()
 
 async def loadmap():
     filename = "map.txt"
@@ -223,15 +244,13 @@ async def draw_loop():
 async def main():
     print("Python started!")
     G.startBtn.onclick = prex_passive(start_btn_clicked)
-
+    
 
     # TODO: convert below from JS
 #         #                     infoX.textContent = me.x.toFixed(0);
 #         #                     infoY.textContent = me.y.toFixed(0);
 #         #                     infoScore.textContent = score; // static for now
 #         #                     if (me.talking_to) {
-
-
 #         #                         // SHOW MISSION PANEL
 #         #                         missionPanel.style.display = "block";
 #         #                         missionNPCImg.src = me.talking_to.avatar;
@@ -245,25 +264,8 @@ async def main():
 #         #                         // HIDE MISSION PANEL
 #         #                         missionPanel.style.display = "none";
 #         #                     }
-
-#         #                     draw(players, me.x, me.y);
+#         #                    
 #         #                     draw(dynamic, me.x, me.y);
-#         #                     draw(gstatic, me.x, me.y);
-#         #                 }
-#         #             } else {
-#         #                 const { static } = JSON.parse(event.data);
-#         #                 if (static !== undefined) {
-#         #                     gstatic = static;
-#         #                 } else {
-#         #                     alert("Err: Didn't receive static Entity info, but was expecting to.")
-#         #                 }
-#         #             }
-#         #         } catch (e) {
-#         #             alert(e);
-#         #         }
-#         #     };
-
-
 
 #         #     addEventListener("keyup", function (event) {
 #         #         socket.send(JSON.stringify({
@@ -279,12 +281,6 @@ async def main():
 #         #     document.getElementById("mission-cancel").onclick = () => {
 #         #         missionPanel.style.display = "none";
 
-#         #         socket.send(JSON.stringify({
-#         #             eventkind: "click",
-#         #             button: "mission-cancel",
-#         #         }));
-#         #     };
-
 #         #     document.getElementById("mission-accept").onclick = () => {
 #         #         // For now: simply hide panel
 #         #         missionPanel.style.display = "none";
@@ -292,7 +288,6 @@ async def main():
 #         #         // NOTE: you can later add mission acceptance logic here.
 #         #     };
 #         # }
-
 
 #         # const genderSelect = document.getElementById("gender");
 #         # const avatarGroups = document.querySelectorAll(".avatar-group");
