@@ -11,6 +11,7 @@ from js import document, Image  # type: ignore
 if TYPE_CHECKING:
     class JSImg:
         """Created by Image.new(). There's probably a better name for this"""
+        src: str
 
     class HTMLElement:
         textContent: str
@@ -120,7 +121,7 @@ def querySelectorWithErr(query: str) -> "HTMLElement":
     raises an exception if the element does not exist."""
     r = document.querySelector(query)
     if r is None:
-        raise ElementNotFoundError(f"Query '{query}' found no elements")
+        raise ElementNotFoundError(f"Query '{query}' found no elements its possible you havent selected an avatar.")
     else:
         return r
 
@@ -138,8 +139,8 @@ try:
         ctx: "CanvasRenderingContext" = canvas.getContext('2d')  # type: ignore
         userConfig = {}
         static: "dict[str, Entity]" = {}
-        dynamic = {}
-        img = {}
+        dynamic: "dict[str, Entity]" = {}
+        img_cache: "dict[str, JSImg]" = {}
         player: "Player"
         y_tmp: int = 300
 except Exception as _exception_while_create_G:
@@ -147,7 +148,6 @@ except Exception as _exception_while_create_G:
 
 
 async def keydown(event):
-    print("pressed:", event.key)
     if event.key == "w":
         G.player.y -= 50
     elif event.key == "d":
@@ -158,7 +158,8 @@ async def keydown(event):
         G.player.y += 50
 
 async def keyup(event):
-    print("released:", event.key)
+    ...
+    # print("released:", event.key)
 
 async def start_btn_clicked(event=None):
     global userConfig
@@ -177,28 +178,37 @@ async def start_btn_clicked(event=None):
     G.player = Player(500, 500, userConfig["name"], userConfig["avatar"])
     asyncio.create_task(draw_loop())    
 
-
-def make_image(entity: "Entity | Player") -> "JSImg":
-    img = Image.new()
-    img.src = entity.avatar
-    return img
     
+def make_image(ep: "Entity | Player") -> "JSImg":
+    source = ep.avatar
+    if source not in G.img_cache:
+        img: "JSImg" = Image.new()
+        img.src = source
+        G.img_cache[source] = img
+    return G.img_cache[source]
+
 
 def draw_entities():
-    for entity in G.static.values():
+    for entity in list(G.static.values()) + list(G.dynamic.values()):
         img = make_image(entity)
-        G.ctx.drawImage(img, entity.x,entity.y,50,50)
-        offsetx = entity.x - G.player.x + G.canvas.width // 2
-        offsety = entity.y - G.player.y + G.canvas.height // 2
+        # Camera offset
+        screen_x = entity.x - G.player.x + G.canvas.width // 2
+        screen_y = entity.y - G.player.y + G.canvas.height // 2
+        G.ctx.drawImage(img, screen_x - 25, screen_y - 25, 50, 50)  # center entity image
+        
+        # Draw name above entity
         G.ctx.font = '12px Arial'
         G.ctx.fillStyle = 'black'
         G.ctx.textAlign = 'center'
-        G.ctx.fillText(entity.name, offsetx, offsety + 40)
+        G.ctx.fillText(entity.name, screen_x, screen_y + 40)
+
 
 
 def draw_player():
     img = make_image(G.player)
-    G.ctx.drawImage(img, G.player.x, G.player.y, 50, 50)
+    cx = G.canvas.width // 2
+    cy = G.canvas.height // 2
+    G.ctx.drawImage(img, cx - 25, cy - 25, 50, 50) 
 
 
 def draw_one_frame():
@@ -207,6 +217,7 @@ def draw_one_frame():
     G.ctx.fillRect(0, 0, G.canvas.width, G.canvas.height)
     draw_player()
     draw_entities()
+
 
 async def loadmap():
     filename = "map.txt"
