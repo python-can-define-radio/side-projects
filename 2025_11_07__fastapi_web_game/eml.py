@@ -2,7 +2,7 @@ import asyncio
 from dataclasses import dataclass, field, fields
 import html
 import random
-from typing import Any, Callable, TYPE_CHECKING
+from typing import Any, Callable, TYPE_CHECKING, Literal
 
 from pyodide.http import pyfetch  # type: ignore
 from js import document, Image  # type: ignore
@@ -80,6 +80,8 @@ class Player:
     y: int
     name: str
     avatar: str = "/assets/femaleAdventurer_idle.png"
+    facing_direction: Literal["w", "a", "s", "d"] = "d"
+    """wasd -> up, left, down, right"""
 
 
 @dataclass
@@ -90,7 +92,6 @@ class Entity:
     avatar: str
     passable: bool
     available_missions: "list[int]" = field(default_factory=list)
-    info: "str | None" = None
     
     def todict(self):
         """
@@ -148,14 +149,28 @@ except Exception as _exception_while_create_G:
 
 
 async def keydown(event):
+    step = 50
+    new_x, new_y = G.player.x, G.player.y
+
     if event.key == "w":
-        G.player.y -= 50
-    elif event.key == "d":
-        G.player.x += 50
-    elif event.key == "a":
-        G.player.x -= 50
+        new_y -= step
     elif event.key == "s":
-        G.player.y += 50
+        new_y += step
+    elif event.key == "a":
+        new_x -= step
+    elif event.key == "d":
+        new_x += step
+    elif event.key == " ":
+        for entity in G.dynamic.values():
+            if is_adjacent(G.player, entity) and entity.available_missions:
+                print(entity.avatar, entity.x, entity.y, entity.available_missions)
+
+    if is_passable(new_x, new_y):
+        G.player.x, G.player.y = new_x, new_y
+    if event.key in ["w", "a", "s", "d"]:
+        G.player.facing_direction = event.key # type: ignore
+    
+
 
 async def keyup(event):
     ...
@@ -178,8 +193,45 @@ async def start_btn_clicked(event=None):
     G.player = Player(500, 500, userConfig["name"], userConfig["avatar"])
     asyncio.create_task(draw_loop())    
 
-    
+
+def is_passable(new_x: int, new_y: int) -> bool:
+    """Check if the player can move to (new_x, new_y) based on entities."""
+    # Check static entities first
+    for entity in G.static.values():
+        if not entity.passable:
+            if (
+                new_x < entity.x + 50 and
+                new_x + 50 > entity.x and
+                new_y < entity.y + 50 and
+                new_y + 50 > entity.y
+            ):
+                return False
+    # Check dynamic entities (if needed)
+    for entity in G.dynamic.values():
+        if not entity.passable:
+            if (
+                new_x < entity.x + 50 and
+                new_x + 50 > entity.x and
+                new_y < entity.y + 50 and
+                new_y + 50 > entity.y
+            ):
+                return False
+    return True
+
+def is_adjacent(p: Player, e: Entity):
+    if p.x == e.x and p.facing_direction == "w" and p.y == e.y + 50:
+        return True
+    elif p.x == e.x and p.facing_direction == "s" and p.y == e.y - 50:
+        return True
+    elif p.y == e.y and p.facing_direction == "a" and p.x == e.x + 50:
+        return True
+    elif p.y == e.y and p.facing_direction == "d" and p.x == e.x - 50:
+        return True
+    return False
+
+
 def make_image(ep: "Entity | Player") -> "JSImg":
+    """Creates an image object for either an Entity or the Player and caches it in img_cache"""
     source = ep.avatar
     if source not in G.img_cache:
         img: "JSImg" = Image.new()
@@ -189,30 +241,28 @@ def make_image(ep: "Entity | Player") -> "JSImg":
 
 
 def draw_entities():
+    """Draws all entities from the static dictionary to the canvas."""
     for entity in list(G.static.values()) + list(G.dynamic.values()):
         img = make_image(entity)
-        # Camera offset
         screen_x = entity.x - G.player.x + G.canvas.width // 2
         screen_y = entity.y - G.player.y + G.canvas.height // 2
         G.ctx.drawImage(img, screen_x - 25, screen_y - 25, 50, 50)  # center entity image
         
-        # Draw name above entity
-        G.ctx.font = '12px Arial'
-        G.ctx.fillStyle = 'black'
-        G.ctx.textAlign = 'center'
-        G.ctx.fillText(entity.name, screen_x, screen_y + 40)
-
-
-
+        
 def draw_player():
+    """Draws the player at the center of the canvas and their chosen name below their avatar."""
     img = make_image(G.player)
     cx = G.canvas.width // 2
     cy = G.canvas.height // 2
     G.ctx.drawImage(img, cx - 25, cy - 25, 50, 50) 
+    G.ctx.font = '12px Arial'
+    G.ctx.fillStyle = 'black'
+    G.ctx.textAlign = 'center'
+    G.ctx.fillText(G.player.name, cx, cy + 40)
 
 
 def draw_one_frame():
-    """draws bg and a randomly resizing square"""
+    """draws bg and runs draw_player() and draw_entities() functions"""
     G.ctx.fillStyle = "#bfb"
     G.ctx.fillRect(0, 0, G.canvas.width, G.canvas.height)
     draw_player()
@@ -237,7 +287,7 @@ async def loadmap():
             if char == "r":
                 static[f"ruin{xidx},{yidx}"] = Entity(50*xidx, 50*yidx, "", "/assets/ruins.png", False)
             elif char == "t":
-                static[f"tree{xidx},{yidx}"] = Entity(50*xidx, 50*yidx, "", "/assets/tree.png", False, info="You hear the leaves faintly rustling as wind passes.")
+                static[f"tree{xidx},{yidx}"] = Entity(50*xidx, 50*yidx, "", "/assets/tree.png", False)
             elif char == "c":
                 dynamic[f"coin{xidx},{yidx}"] = Entity(50*xidx, 50*yidx, "", "/assets/coin.png", True)
             elif char == "👮":
