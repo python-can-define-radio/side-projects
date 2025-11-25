@@ -98,9 +98,30 @@
             gap: 20px;
         }
 
-        #mission-panel img {
-            max-width: none;
-            max-height: none;
+        #mission-panel {
+            display: flex;
+            flex-direction: column;
+            border: 1px solid #ccc;
+            background: #eef;
+            border-radius: 6px;
+            padding: 15px;
+            width: 100%;
+            max-width: 700px;
+            min-height: 250px;
+            font-family: Arial, sans-serif;
+        }
+
+        #mission-panel .mission-content {
+            display: flex;
+            gap: 15px;
+            align-items: flex-start;
+            flex-grow: 1;
+        }
+
+        #mission-panel .mission-buttons {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
         }
     </style>
 </head>
@@ -175,31 +196,19 @@
                 <p><strong>Y:</strong> <span id="info-y">0</span></p>
             </div>
 
-            <div id="mission-panel" style="
-    display:none;
-    border:1px solid #ccc;
-    background:#eef;
-    border-radius:6px;
-    padding:15px;
-    width:100%;
-    max-width:700px;
-    min-height:250px;
-    font-family:Arial, sans-serif;
-">
-                <div style="display:flex; gap:15px; align-items:flex-start;">
-                    <img id="mission-npc-img" src="" , style="width: 900px;">
-
-                    <div id="mission-text" style="flex-grow:1;">
-                        <p id="mission-dialog">
-                        </p>
+            <div id="mission-panel" style="display:none;">
+                <div class="mission-content">
+                    <img id="mission-npc-img" src="" style="width: 300px;">
+                    <div id="mission-text">
+                        <p id="mission-dialog"></p>
                     </div>
                 </div>
-
-                <div style="margin-top:20px; display:flex; gap:10px;">
+                <div class="mission-buttons">
                     <button id="mission-accept">Accept Mission</button>
                     <button id="mission-cancel">Cancel</button>
                 </div>
             </div>
+
         </div>
 
     </div>

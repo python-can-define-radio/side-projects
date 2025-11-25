@@ -3,7 +3,7 @@ from dataclasses import dataclass, field, fields
 import html
 import inspect
 import random
-from typing import Any, Callable, TYPE_CHECKING, Literal
+from typing import Any, Callable, TYPE_CHECKING, Literal, overload, Coroutine
 
 from pyodide.http import pyfetch  # type: ignore
 from js import document, Image  # type: ignore
@@ -15,13 +15,20 @@ if TYPE_CHECKING:
         """Created by Image.new(). There's probably a better name for this"""
         src: str
 
+    class StyleAttr:
+        display: str
+        width: str
+        height: str
+
     class HTMLElement:
         textContent: str
-        style: ...
+        style: StyleAttr
         onclick: Callable
         onkeydown: Callable
         onkeyup: Callable
         value: "str | Any"
+        src: str
+        innerHTML: str
 
     class CanvasRenderingContext:
         fillStyle: str
@@ -51,9 +58,9 @@ def print_to_div(*args):
 print = print_to_div
 
 
-
 def prex(func):
-    """`try` calling `func`. Print any exceptions that are raised.
+    """A decorator that calls the function in a `try...except`.
+    Any exceptions will be printed in the pseudo-console using the modified `print` function.
     Works for sync and async functions;
     Works regardless of whether the function is used with parentheses (`func()` and `onclick = func` both work)."""
     if inspect.iscoroutinefunction(func):
@@ -184,7 +191,8 @@ async def keydown(event):
         for entity in G.dynamic.values():
             if is_adjacent(G.player, entity) and entity.available_missions:
                 mission = await next_available_mission()
-                print(mission)
+                show_mission_panel(entity, mission)
+
 
     if is_passable(new_x, new_y):
         G.player.x, G.player.y = new_x, new_y
@@ -269,12 +277,48 @@ async def load_missions():
 
 # arguments for this function (mission_status: "list[Mission]", available_missions: "list[int]")
 @prex
-async def next_available_mission():
+async def next_available_mission() -> Mission:
     missionstoml = await load_missions()
     missions_section = missionstoml["missions"]
     assert type(missions_section) == list
     missions = list(map(lambda item: Mission(**item), missions_section))
     return Mission(23, "Investigate the Ruins", "<h2>Mission Briefing: Investigate the ruins</h2><br>Commander, we’ve detected unusual energy signatures in the nearby ruins. Your objective is to investigate the site, collect three energy crystals, and return safely.<br>Beware — hostile entities may be present.<br><br><h3>Mission Objectives</h3><br>1. Investigate site<br>2. Collect energy crystals.<br>3. Return to NPC", [])
+
+
+@prex
+def show_mission_panel(npc: Entity, mission: Mission):
+    panel = getElementByIdWithErr("mission-panel")
+    npc_img = getElementByIdWithErr("mission-npc-img")
+    dialog = getElementByIdWithErr("mission-dialog")
+    accept_btn = getElementByIdWithErr("mission-accept")
+    cancel_btn = getElementByIdWithErr("mission-cancel")
+
+    def cancel_mission():
+        panel.style.display = "none"
+        print(f"Mission cancelled: {mission.name}")
+
+    # Show panel
+    panel.style.display = "flex"  # make sure flex layout shows it
+
+    # Set NPC avatar
+    npc_img.src = npc.avatar
+    npc_img.style.width = "300px" 
+    npc_img.style.height = "auto"
+
+    # Set mission dialog
+    dialog.innerHTML = mission.dialog
+
+    # Button actions
+    accept_btn.onclick = lambda e=None: accept_mission(mission)
+    cancel_btn.onclick = lambda e=None: cancel_mission()
+
+
+@prex
+def accept_mission(mission: Mission):
+    print(f"Mission accepted: {mission.name}")
+    panel = getElementByIdWithErr("mission-panel")
+    panel.style.display = "none"
+    # TODO: Add mission logic here (e.g., mark objectives active)
 
 
 @prex
