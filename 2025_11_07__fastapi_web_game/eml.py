@@ -1,6 +1,7 @@
 import asyncio
 from dataclasses import dataclass, field, fields
 import html
+import inspect
 import random
 from typing import Any, Callable, TYPE_CHECKING, Literal
 
@@ -49,27 +50,29 @@ def print_to_div(*args):
 # Override built-in print
 print = print_to_div
 
-def prex(f: Callable):
-    """`try` calling `f`. Print any exceptions that are raised.
-    f must take no arguments, so any functions that take arguments must be wrapped in a lambda as shown:
-    prex(lambda: the_function_we_want_to_call(3, 5))"""
-    try:
-        return f()
-    except Exception as e:
-        print("Exception in", f.__name__, e)
-        raise
 
 
-def prex_passive(f: Callable):
-    """Equivalent of `prex`, used for so-called 'passive functions'.
-    Example: element.onclick = prex_passive(the_function_we_want_to_call)"""
-    async def prexwrap(*args, **kwargs):
-        try:
-            return await f(*args, **kwargs)
-        except Exception as e:
-            print("Exception in", f.__name__, e)
-            raise
-    return prexwrap
+def prex(func):
+    """`try` calling `func`. Print any exceptions that are raised.
+    Works for sync and async functions;
+    Works regardless of whether the function is used with parentheses (`func()` and `onclick = func` both work)."""
+    if inspect.iscoroutinefunction(func):
+        async def wrapper1(*args, **kwargs):
+            try:
+                return await func(*args, **kwargs)
+            except Exception as e:
+                print("Exception in", func.__name__, e)
+                raise
+        return wrapper1
+    else:
+        def wrapper2(*args, **kwargs):
+            try:
+                return func(*args, **kwargs)
+            except Exception as e:
+                print("Exception in", func.__name__, e)
+                raise
+        return wrapper2
+
 
 
 class ElementNotFoundError(Exception):
@@ -94,6 +97,7 @@ class Entity:
     passable: bool
     available_missions: "list[int]" = field(default_factory=list)
     
+    @prex
     def todict(self):
         """
         Omits attrs that end with _
@@ -122,6 +126,7 @@ class Mission:
     objectives: "list[Objective]"
 
 
+@prex
 def getElementByIdWithErr(elemid: str) -> "HTMLElement":
     """Same as normal `document.getElementById`, but
     raises an exception if the element does not exist."""
@@ -132,6 +137,7 @@ def getElementByIdWithErr(elemid: str) -> "HTMLElement":
         return r
 
 
+@prex
 def querySelectorWithErr(query: str) -> "HTMLElement":
     """Same as normal `document.querySelector`, but
     raises an exception if the element does not exist."""
@@ -161,6 +167,7 @@ except Exception as _exception_while_create_G:
     print("Exception while creating class G:", _exception_while_create_G)
 
 
+@prex
 async def keydown(event):
     step = 50
     new_x, new_y = G.player.x, G.player.y
@@ -186,10 +193,13 @@ async def keydown(event):
     
 
 
+@prex
 async def keyup(event):
     ...
     # print("released:", event.key)
 
+
+@prex
 async def start_btn_clicked(event=None):
     global userConfig
     userConfig = {
@@ -201,13 +211,14 @@ async def start_btn_clicked(event=None):
     G.infoName.textContent = userConfig["name"]
     G.menu.style.display = 'none'
     G.gameContainer.style.display = 'flex'
-    G.body.onkeydown = prex_passive(keydown)
-    G.body.onkeyup = prex_passive(keyup)
-    G.static, G.dynamic = await prex(loadmap)
+    G.body.onkeydown = keydown
+    G.body.onkeyup = keyup
+    G.static, G.dynamic = await loadmap()
     G.player = Player(500, 500, userConfig["name"], userConfig["avatar"])
     asyncio.create_task(draw_loop())    
 
 
+@prex
 def is_passable(new_x: int, new_y: int) -> bool:
     """Check if the player can move to (new_x, new_y) based on entities."""
     for entity in G.static.values():
@@ -230,6 +241,8 @@ def is_passable(new_x: int, new_y: int) -> bool:
                 return False
     return True
 
+
+@prex
 def is_adjacent(p: Player, e: Entity):
     if p.x == e.x and p.facing_direction == "w" and p.y == e.y + 50:
         return True
@@ -242,6 +255,7 @@ def is_adjacent(p: Player, e: Entity):
     return False
 
 
+@prex
 async def load_missions():
         import toml
         filename = "missions.toml"
@@ -254,6 +268,7 @@ async def load_missions():
 
 
 # arguments for this function (mission_status: "list[Mission]", available_missions: "list[int]")
+@prex
 async def next_available_mission():
     missionstoml = await load_missions()
     missions_section = missionstoml["missions"]
@@ -262,16 +277,25 @@ async def next_available_mission():
     return Mission(23, "Investigate the Ruins", "<h2>Mission Briefing: Investigate the ruins</h2><br>Commander, we’ve detected unusual energy signatures in the nearby ruins. Your objective is to investigate the site, collect three energy crystals, and return safely.<br>Beware — hostile entities may be present.<br><br><h3>Mission Objectives</h3><br>1. Investigate site<br>2. Collect energy crystals.<br>3. Return to NPC", [])
 
 
+@prex
 def make_image(ep: "Entity | Player") -> "JSImg":
     """Creates an image object for either an Entity or the Player and caches it in img_cache"""
     source = ep.avatar
     if source not in G.img_cache:
-        img: "JSImg" = Image.new()
+        img = Image.new()
+        
+        def onerror(event):
+            print(f"ERROR: failed to load image '{source}'")
+            raise FileNotFoundError(f"Image not found: {source}")
+
+        img.onerror = onerror
         img.src = source
         G.img_cache[source] = img
     return G.img_cache[source]
 
 
+
+@prex
 def draw_entities():
     """Draws all entities from the static dictionary to the canvas."""
     for entity in list(G.static.values()) + list(G.dynamic.values()):
@@ -280,7 +304,8 @@ def draw_entities():
         screen_y = entity.y - G.player.y + G.canvas.height // 2
         G.ctx.drawImage(img, screen_x - 25, screen_y - 25, 50, 50)  # center entity image
         
-        
+
+@prex
 def draw_player():
     """Draws the player at the center of the canvas and their chosen name below their avatar."""
     img = make_image(G.player)
@@ -293,6 +318,7 @@ def draw_player():
     G.ctx.fillText(G.player.name, cx, cy + 40)
 
 
+@prex
 def draw_one_frame():
     """draws bg and runs draw_player() and draw_entities() functions"""
     G.ctx.fillStyle = "#bfb"
@@ -301,6 +327,7 @@ def draw_one_frame():
     draw_entities()
 
 
+@prex
 async def loadmap():
     filename = "map.txt"
     response = await pyfetch(filename)
@@ -327,20 +354,22 @@ async def loadmap():
     return static, dynamic
 
 
+@prex
 async def draw_loop():
     fps = 30
     while True:
-        prex(draw_one_frame)
+        draw_one_frame()
         await asyncio.sleep(1 / fps)
 
 
+@prex
 async def main():
     print("Python started!")
     import pyodide_js # type: ignore
     await pyodide_js.loadPackage("micropip")
     import micropip
     await micropip.install("toml")
-    G.startBtn.onclick = prex_passive(start_btn_clicked)
+    G.startBtn.onclick = start_btn_clicked
     
 
     # TODO: convert below from JS
@@ -379,8 +408,5 @@ async def main():
 #         #     };
 #         # }
 
-async def main_wrapper():
-    try:
-        await main()
-    except Exception as e:
-        print("Exception:", e)
+
+    

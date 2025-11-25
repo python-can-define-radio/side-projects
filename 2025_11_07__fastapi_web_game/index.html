@@ -13,7 +13,7 @@
             let response = await fetch("eml.py");
             let code = await response.text();
             await pyodide.runPythonAsync(code);
-            await pyodide.runPythonAsync("main_wrapper()");
+            await pyodide.runPythonAsync("main()");
         }
         document.addEventListener("DOMContentLoaded", js_main);
         document.addEventListener("DOMContentLoaded", () => {
