@@ -9,12 +9,32 @@
     <script>
         async function js_main() {
             let pyodide = await loadPyodide();
+            // await pyodide.loadPackage("micropip");
             let response = await fetch("eml.py");
             let code = await response.text();
             await pyodide.runPythonAsync(code);
             await pyodide.runPythonAsync("main_wrapper()");
         }
         document.addEventListener("DOMContentLoaded", js_main);
+        document.addEventListener("DOMContentLoaded", () => {
+            const genderSelect = document.getElementById("gender");
+
+            function updateAvatarGroup() {
+                const selectedGender = genderSelect.value;
+                const groups = document.querySelectorAll("#avatar_cont .avatar-group");
+
+                groups.forEach(group => {
+                    if (group.dataset.gender === selectedGender) {
+                        group.style.display = "flex";
+                    } else {
+                        group.style.display = "none";
+                    }
+                });
+            }
+            updateAvatarGroup();
+            genderSelect.addEventListener("change", updateAvatarGroup);
+        });
+
     </script>
     <style>
         #console {
@@ -86,7 +106,7 @@
 </head>
 
 <body>
-  <div id="menu">
+    <div id="menu">
         <h2>Select Your Avatar</h2>
         <label>
             name:
@@ -167,7 +187,7 @@
     font-family:Arial, sans-serif;
 ">
                 <div style="display:flex; gap:15px; align-items:flex-start;">
-                    <img id="mission-npc-img" src="", style="width: 900px;">
+                    <img id="mission-npc-img" src="" , style="width: 900px;">
 
                     <div id="mission-text" style="flex-grow:1;">
                         <p id="mission-dialog">
@@ -183,7 +203,7 @@
         </div>
 
     </div>
-  <div id="console">Loading Pyodide...<br/></div>
+    <div id="console">Loading Pyodide...<br /></div>
 </body>
 
 </html>

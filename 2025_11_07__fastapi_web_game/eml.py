@@ -8,6 +8,7 @@ from pyodide.http import pyfetch  # type: ignore
 from js import document, Image  # type: ignore
 
 
+
 if TYPE_CHECKING:
     class JSImg:
         """Created by Image.new(). There's probably a better name for this"""
@@ -104,8 +105,22 @@ class Entity:
             for fd in fds:
                 if not fd.name.endswith("_"):
                     yield fd.name, getattr(self, fd.name)
-        return dict(impl())
+        return dict(impl()) 
     
+
+@dataclass
+class Objective:
+    is_complete: bool
+    complete_condition: Callable
+
+
+@dataclass
+class Mission:
+    id: int
+    name: str
+    dialog: str
+    objectives: "list[Objective]"
+
 
 def getElementByIdWithErr(elemid: str) -> "HTMLElement":
     """Same as normal `document.getElementById`, but
@@ -135,8 +150,6 @@ try:
         gameContainer = getElementByIdWithErr('game-container')
         canvas: "Canvas" = getElementByIdWithErr('canvas')  # type: ignore
         infoName = getElementByIdWithErr('info-name')
-        infoX = getElementByIdWithErr('info-x')
-        infoY = getElementByIdWithErr('info-y')
         ctx: "CanvasRenderingContext" = canvas.getContext('2d')  # type: ignore
         userConfig = {}
         static: "dict[str, Entity]" = {}
@@ -163,7 +176,8 @@ async def keydown(event):
     elif event.key == " ":
         for entity in G.dynamic.values():
             if is_adjacent(G.player, entity) and entity.available_missions:
-                print(entity.avatar, entity.x, entity.y, entity.available_missions)
+                mission = await next_available_mission()
+                print(mission)
 
     if is_passable(new_x, new_y):
         G.player.x, G.player.y = new_x, new_y
@@ -196,7 +210,6 @@ async def start_btn_clicked(event=None):
 
 def is_passable(new_x: int, new_y: int) -> bool:
     """Check if the player can move to (new_x, new_y) based on entities."""
-    # Check static entities first
     for entity in G.static.values():
         if not entity.passable:
             if (
@@ -206,7 +219,6 @@ def is_passable(new_x: int, new_y: int) -> bool:
                 new_y + 50 > entity.y
             ):
                 return False
-    # Check dynamic entities (if needed)
     for entity in G.dynamic.values():
         if not entity.passable:
             if (
@@ -228,6 +240,26 @@ def is_adjacent(p: Player, e: Entity):
     elif p.y == e.y and p.facing_direction == "d" and p.x == e.x - 50:
         return True
     return False
+
+
+async def load_missions():
+        import toml
+        filename = "missions.toml"
+        response = await pyfetch(filename)
+        if not response.ok:
+            raise FileNotFoundError(f"Failed to load {filename} (status {response.status})")
+        text = await response.text()
+        file = toml.loads(text)
+        return file
+
+
+# arguments for this function (mission_status: "list[Mission]", available_missions: "list[int]")
+async def next_available_mission():
+    missionstoml = await load_missions()
+    missions_section = missionstoml["missions"]
+    assert type(missions_section) == list
+    missions = list(map(lambda item: Mission(**item), missions_section))
+    return Mission(23, "Investigate the Ruins", "<h2>Mission Briefing: Investigate the ruins</h2><br>Commander, we’ve detected unusual energy signatures in the nearby ruins. Your objective is to investigate the site, collect three energy crystals, and return safely.<br>Beware — hostile entities may be present.<br><br><h3>Mission Objectives</h3><br>1. Investigate site<br>2. Collect energy crystals.<br>3. Return to NPC", [])
 
 
 def make_image(ep: "Entity | Player") -> "JSImg":
@@ -304,6 +336,10 @@ async def draw_loop():
 
 async def main():
     print("Python started!")
+    import pyodide_js # type: ignore
+    await pyodide_js.loadPackage("micropip")
+    import micropip
+    await micropip.install("toml")
     G.startBtn.onclick = prex_passive(start_btn_clicked)
     
 
@@ -328,13 +364,6 @@ async def main():
 #         #                    
 #         #                     draw(dynamic, me.x, me.y);
 
-#         #     addEventListener("keyup", function (event) {
-#         #         socket.send(JSON.stringify({
-#         #             key: event.key,
-#         #             eventkind: "keyup",
-#         #         }));
-#         #     });
-
 #         #     const missionPanel = document.getElementById("mission-panel");
 #         #     const missionNPCImg = document.getElementById("mission-npc-img");
 #         #     const missionDialog = document.getElementById("mission-dialog");
@@ -349,31 +378,6 @@ async def main():
 #         #         // NOTE: you can later add mission acceptance logic here.
 #         #     };
 #         # }
-
-#         # const genderSelect = document.getElementById("gender");
-#         # const avatarGroups = document.querySelectorAll(".avatar-group");
-
-#         # function updateAvatarGroup() {
-#         #     const selectedGender = document.getElementById("gender").value;
-#         #     const groups = document.querySelectorAll("#avatar_cont .avatar-group");
-
-#         #     groups.forEach(group => {
-#         #         if (group.dataset.gender === selectedGender) {
-#         #             group.style.display = "flex";
-#         #         } else {
-#         #             group.style.display = "none";
-#         #         }
-#         #     });
-#         # }
-
-#         # // Call on page load to set the correct default
-#         # document.addEventListener("DOMContentLoaded", () => {
-#         #     updateAvatarGroup();
-#         #     // Add event listener for dropdown changes
-#         #     document.getElementById("gender").addEventListener("change", updateAvatarGroup);
-#         # });
-
-
 
 async def main_wrapper():
     try:
