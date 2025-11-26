@@ -412,13 +412,20 @@ async def draw_loop():
 
 
 @prex
-async def main():
-    print("Python started!")
+async def install_modules(to_install: "list[str]"):
+    print("Installing modules:", to_install)
     import pyodide_js # type: ignore
     await pyodide_js.loadPackage("micropip")
-    import micropip
-    await micropip.install("toml")
+    import micropip # type: ignore
+    for modulename in to_install:
+        await micropip.install(modulename)
+
+
+@prex
+async def main():
+    await install_modules(["toml", "fdtd"])
     G.startBtn.onclick = start_btn_clicked
+    print("Ready.")
     
 
     # TODO: convert below from JS

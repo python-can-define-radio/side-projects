@@ -8,11 +8,15 @@
     <script src="https://cdn.jsdelivr.net/pyodide/v0.27.2/full/pyodide.js"></script>
     <script>
         async function js_main() {
+            document.getElementById("console").innerHTML = "Loading Pyodide...";
             let pyodide = await loadPyodide();
             // await pyodide.loadPackage("micropip");
+            document.getElementById("console").innerHTML = "Loading eml.py...";
             let response = await fetch("eml.py");
             let code = await response.text();
+            document.getElementById("console").innerHTML = "Importing eml.py...<br/>";
             await pyodide.runPythonAsync(code);
+            document.getElementById("console").innerHTML += "Running main()...<br/>";
             await pyodide.runPythonAsync("main()");
         }
         document.addEventListener("DOMContentLoaded", js_main);
@@ -212,7 +216,7 @@
                     <button id="mission-cancel">Cancel</button>
                 </div>
             </div>
-            <div id="console">Loading Pyodide...<br /></div>
+            <div id="console">If this message remains, then your Javascript code is not running.<br /></div>
         </div>
 
     </div>

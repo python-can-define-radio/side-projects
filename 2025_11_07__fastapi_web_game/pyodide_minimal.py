@@ -1,24 +1,47 @@
+import asyncio
 import html
-from js import document
+from js import document, ImageData, Uint8ClampedArray
 
 
 
 def setup_all_fdtd():
+    """
+    Most of this is copied from the `grid.visualize` method provided in
+    the fdtd module.
+    """
     import fdtd
     import numpy as np
-
-
-    ## Imports
-    import os
-
-    # plotting
-    import matplotlib.pyplot as plt
-    import matplotlib.patches as ptc
-    from matplotlib.colors import LogNorm
 
     # relative
     from fdtd.backend import backend as bd
 
+
+    def visualize_supersimple_v1(grid):
+        grid_energy_3d = bd.sum(grid.E ** 2 + grid.H ** 2, -1)
+        grid_energy_xy = grid_energy_3d[:, :, 0]
+        assert type(grid_energy_xy) == np.ndarray
+        assert grid_energy_xy.ndim == 2
+        canvas = document.getElementById("simpledrawcanvas")
+        ctx = canvas.getContext("2d")
+
+        # --- Example NumPy image (replace with your own) ---
+        img = np.array(
+            grid_energy_xy * 1e6
+        )
+        # img = np.tile(np.arange(256, dtype=np.uint8), (256,1))
+        h, w = img.shape
+        # Convert to RGBA
+        rgba = np.zeros((h, w, 4), dtype=np.uint8)
+        rgba[..., :3] = img[..., None]
+        rgba[..., 3] = 255
+
+        # Convert NumPy array -> JS Uint8ClampedArray
+        data = Uint8ClampedArray.new(rgba.tobytes())
+
+        # Create and return JS ImageData
+        imageData = ImageData.new(data, w, h)
+
+        ctx.putImageData(imageData, 0, 0)
 
 
     def visualize(
@@ -58,6 +81,12 @@ def setup_all_fdtd():
             save: save frames in a folder
             folder: path to folder to save frames
         """
+
+        # plotting
+        import matplotlib.pyplot as plt
+        import matplotlib.patches as ptc
+        from matplotlib.colors import LogNorm
+
         if norm not in ("linear", "lin", "log"):
             raise ValueError("Color map normalization should be 'linear' or 'log'.")
         # imports (placed here to circumvent circular imports)
@@ -308,7 +337,7 @@ def setup_all_fdtd():
             # cmap_norm = LogNorm(vmin=1e-4, vmax=grid_energy.max() + 1e-4)    # COMMENTED 2025-11-25
         # print(grid_energy.max())  # ADDED 2025-11-25
         # plt.imshow(abs(bd.numpy(grid_energy)), cmap=cmap, interpolation="sinc", norm=cmap_norm)  # COMMENTED 2025-11-25
-        plt.imshow(abs(bd.numpy(grid_energy)), cmap=cmap, interpolation="none", norm=cmap_norm)  # COMMENTED 2025-11-25
+        plt.imshow(abs(bd.numpy(grid_energy)), cmap=cmap, interpolation="none", norm=cmap_norm)  # ADDED 2025-11-25
 
         # finalize the plot
         plt.ylabel(xlabel)
@@ -319,15 +348,15 @@ def setup_all_fdtd():
         plt.tight_layout()
 
         # save frame (require folder path and index)
-        if save:
-            plt.savefig(os.path.join(folder, f"file{str(index).zfill(4)}.png"))
+        # if save: # COMMENTED 2025-11-26
+            # plt.savefig(os.path.join(folder, f"file{str(index).zfill(4)}.png"))  # COMMENTED 2025-11-26
 
         # show if not animating
         if show:
             plt.show()
 
     fdtd.set_backend("numpy")
-    return visualize
+    return visualize, visualize_supersimple_v1
 
 
 
@@ -358,34 +387,44 @@ async def main():
         await pyodide_js.loadPackage("micropip")
         import micropip  # type: ignore
         await micropip.install("fdtd")
-        el = document.getElementById("execthis")
-        el.onkeyup = lambda event: exec_text(event, el)
-        exec("import fdtd", globals(), persistvars)
-        exec("visualize = setup_all_fdtd()", globals(), persistvars)
-        print("ready")
-        import asyncio
-        async def dostuff():
-            import fdtd
-            fdtd.set_backend("numpy")
+        
+        import fdtd
+        visualize, visualize_supersimple_v1 = setup_all_fdtd()
+        grid = fdtd.Grid(
+            shape = (100, 500, 1),  # type: ignore
+            grid_spacing = 1,
+        )
+        grid[30, 80, 0] = fdtd.PointSource(
+            period = 60, name="source1", pulse=True, cycle=1  # type: ignore
+        )
+        for unus in range(700):
+            visualize_supersimple_v1(grid)
+            grid.step() 
+            await asyncio.sleep(0)
 
-            grid = fdtd.Grid(
-                shape = (100, 500, 1),  # type: ignore
-                grid_spacing = 1,
-            )
 
-            grid[30, 80, 0] = fdtd.PointSource(
-                period = 60, name="source1", pulse=True, cycle=1  # type: ignore
-            )
+        if False:
+            el = document.getElementById("execthis")
+            el.onkeyup = lambda event: exec_text(event, el)
+            exec("import fdtd", globals(), persistvars)
+            exec("visualize = setup_all_fdtd()", globals(), persistvars)
+            print("ready")
+            async def dostuff():
+                
 
-            try:
-                visualize = globals()["persistvars"]["visualize"]
-                # grid = globals()["persistvars"]["grid"]
-                for unus in range(700):
-                    visualize(grid, z=0, animate=True, norm="log")
-                    grid.step() 
-                    await asyncio.sleep(0)  # apparently this allows the browser to refresh
-            except Exception as e:
-                print("ex", e)
-        asyncio.create_task(dostuff())
+            
+
+            
+
+                try:
+                    visualize = globals()["persistvars"]["visualize"]
+                    # grid = globals()["persistvars"]["grid"]
+                    for unus in range(700):
+                        visualize(grid, z=0, animate=True, norm="log")
+                        grid.step() 
+                        await asyncio.sleep(0)  # apparently this allows the browser to refresh
+                except Exception as e:
+                    print("ex", e)
+            asyncio.create_task(dostuff())
     except Exception as e:
         print(e)
