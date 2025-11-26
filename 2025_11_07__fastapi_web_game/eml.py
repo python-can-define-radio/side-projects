@@ -90,6 +90,7 @@ class Player:
     x: int
     y: int
     name: str
+    current_missions: "list[int]"
     avatar: str = "/assets/femaleAdventurer_idle.png"
     facing_direction: Literal["w", "a", "s", "d"] = "d"
     """wasd -> up, left, down, right"""
@@ -190,7 +191,7 @@ async def keydown(event):
     elif event.key == " ":
         for entity in G.dynamic.values():
             if is_adjacent(G.player, entity) and entity.available_missions:
-                mission = await next_available_mission()
+                mission = await next_available_mission(entity.available_missions)
                 show_mission_panel(entity, mission)
 
 
@@ -275,14 +276,15 @@ async def load_missions():
         return file
 
 
-# arguments for this function (mission_status: "list[Mission]", available_missions: "list[int]")
+# arguments for this function (mission_status: "list[Mission]")
 @prex
-async def next_available_mission() -> Mission:
+async def next_available_mission(available_missions: "list[int]") -> Mission:
     missionstoml = await load_missions()
     missions_section = missionstoml["missions"]
     assert type(missions_section) == list
     missions = list(map(lambda item: Mission(**item), missions_section))
-    return Mission(23, "Investigate the Ruins", "<h2>Mission Briefing: Investigate the ruins</h2><br>Commander, we’ve detected unusual energy signatures in the nearby ruins. Your objective is to investigate the site, collect three energy crystals, and return safely.<br>Beware — hostile entities may be present.<br><br><h3>Mission Objectives</h3><br>1. Investigate site<br>2. Collect energy crystals.<br>3. Return to NPC", [])
+    avail_missions = list(filter(lambda x: x.id in available_missions, missions))
+    return avail_missions[0]
 
 
 @prex
@@ -318,6 +320,7 @@ def accept_mission(mission: Mission):
     print(f"Mission accepted: {mission.name}")
     panel = getElementByIdWithErr("mission-panel")
     panel.style.display = "none"
+    G.player.current_missions.append(mission.id)
     # TODO: Add mission logic here (e.g., mark objectives active)
 
 
@@ -393,8 +396,10 @@ async def loadmap():
                 static[f"tree{xidx},{yidx}"] = Entity(50*xidx, 50*yidx, "", "/assets/tree.png", False)
             elif char == "c":
                 dynamic[f"coin{xidx},{yidx}"] = Entity(50*xidx, 50*yidx, "", "/assets/coin.png", True)
+            elif char == "n":
+                dynamic[f"npcr2{xidx},{yidx}"] = Entity(50*xidx, 50*yidx, "", "/assets/officer.png", False, available_missions=[27, 29])
             elif char == "👮":
-                dynamic[f"npc{xidx},{yidx}"] = Entity(50*xidx, 50*yidx, "", "/assets/alienBlue_front.png", False, available_missions=[23])
+                dynamic[f"npcr1{xidx},{yidx}"] = Entity(50*xidx, 50*yidx, "", "/assets/alienBlue_front.png", False, available_missions=[23, 25])
     return static, dynamic
 
 

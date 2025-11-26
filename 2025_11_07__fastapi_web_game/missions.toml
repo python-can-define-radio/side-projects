@@ -1,11 +1,23 @@
 [[missions]]
 id = 23
 name = "Investigate the Ruins"
-dialog = "<h2>Mission Briefing: Investigate the ruins</h2><br>Commander, we’ve detected unusual energy signatures in the nearby ruins. Your objective is to investigate the site, collect three energy crystals, and return safely.<br>Beware — hostile entities may be present.<br><br><h3>Mission Objectives</h3><br>1. Investigate site<br>2. Collect energy crystals.<br>3. Return to NPC (because I'm self-aware that this is a game, strangely)."
+dialog = "<h2>Mission Briefing: Investigate the ruins</h2><br>Commander, we’ve detected unusual energy signatures in the nearby ruins. Your objective is to investigate the site, collect three energy crystals, and return safely.<br>Beware — hostile entities may be present.<br><br><h3>Mission Objectives</h3><br>1. Investigate site<br>2. Collect energy crystals<br>3. Return to your Captain"
 objectives = []
 
 [[missions]]
-id = 612
-name = "sdfdsf"
-dialog = "diaaaaalog"
+id = 25
+name = "Operation Signal Breaker"
+dialog = "<h2>Mission Briefing: Operation Signal Breaker</h2><br>Enemy forces are coordinating their assaults through a fortified communications hub deep within contested territory. Your mission is to infiltrate the area, disrupt their networks, and ensure their command structure collapses. Expect heavy patrols and rapid retaliation once the jamming begins. Precision and timing will determine the mission’s success.<br><br><h3>Mission Objectives</h3><br>1. Deploy a Recon Drone<br>2. Jam the enemy long-range transmitter<br>3. Plant an EMP Charge"
+objectives = []
+
+[[missions]]
+id = 27
+name = "Ghost in the Grid"
+dialog = "<h2>Mission Briefing: Ghost in the Grid</h2><br>Intelligence suggests the enemy’s tactical AI has been upgraded with predictive combat algorithms. To counter it, we need access to their core data node. Deploy your hacker units, breach the network without raising alarms, and extract the AI routines. This is a high-risk digital infiltration—speed and stealth are essential.<br><br><h3>Mission Objectives</h3><br>1. Infiltrate the enemy’s network node<br>2. Bypass three tiers of firewall defenses<br>3. Download the enemy’s battlefield AI subroutines"
+objectives = []
+
+[[missions]]
+id = 29
+name = "Blackout"
+dialog = "<h2>Mission Briefing: Blackout</h2><br>A major offensive is planned across the Red Horizon sector, but the enemy’s automated defenses make a direct assault impossible. Establish an electronic warfare foothold, suppress their targeting arrays, and secure the sector’s power grid. Once the grid falls, the entire region will be plunged into blackout—giving our forces the opening we need.<br><br><h3>Mission Objectives</h3><br>1. Establish a forward EW outpost<br>2. Use pulse-jammers to disable enemy targeting systems<br>3. Lead a coordinated attack"
 objectives = []
