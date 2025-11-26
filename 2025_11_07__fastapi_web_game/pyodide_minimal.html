@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EML</title>
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.27.2/full/pyodide.js"></script>
+    <script>
+        async function js_main() {
+            try {
+                let pyodide = await loadPyodide();
+                let response = await fetch("pyodide_minimal.py");
+                let code = await response.text();
+                await pyodide.runPythonAsync(code);
+                await pyodide.runPythonAsync("main()");
+            } catch (e) {
+                alert(e);
+            }
+        }
+        document.addEventListener("DOMContentLoaded", js_main);
+    </script>
+</head>
+<body><div id="console"></div></body>
+<textarea id="execthis" ></textarea>
+</html>
