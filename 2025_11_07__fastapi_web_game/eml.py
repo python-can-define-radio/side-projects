@@ -384,9 +384,10 @@ async def loadmap():
     lines = text.splitlines()
     static = {}
     dynamic = {}
-    xindexes = range(-10, len(lines[0]))
+
     yindexes = range(-10, len(lines))
     for yidx, line in zip(yindexes, lines):
+        xindexes = range(-10, len(line))
         for xidx, char in zip(xindexes, line):
             if char == "w":
                 static[f"wall{xidx},{yidx}"] = Entity(50*xidx, 50*yidx, "", "/assets/brick2.png", False)

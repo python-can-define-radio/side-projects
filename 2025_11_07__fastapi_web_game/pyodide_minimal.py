@@ -1,7 +1,9 @@
 import asyncio
 import html
-from js import document, ImageData, Uint8ClampedArray
+from typing import TYPE_CHECKING
 
+from js import document, ImageData, Uint8ClampedArray  # type: ignore
+from pyodide.http import pyfetch  # type: ignore
 
 
 def setup_all_fdtd():
@@ -15,32 +17,36 @@ def setup_all_fdtd():
     # relative
     from fdtd.backend import backend as bd
 
+    def np_array_to_imagedata(img: "np.ndarray"):
+        """Convert `img` to the Javascript `ImageData` type,
+        which is useable in an HTML canvas context's putImageData. Source: ChatGPT"""
+        assert img.ndim == 2
+        h, w = img.shape
+        # Convert to RGBA, which Uint8ClampedArray expects 
+        rgba = np.zeros((h, w, 4), dtype=np.uint8)
+        rgba[:, :, 0] = img  # red?
+        rgba[:, :, 1] = img  # green?
+        rgba[:, :, 2] = img  # blue?
+        rgba[:, :, 3] = 255  # opacity / "alpha"
+        # Convert NumPy array -> JS Uint8ClampedArray
+        clamp = Uint8ClampedArray.new(rgba.tobytes())
+        # Create and return JS ImageData
+        return ImageData.new(clamp, w, h)
+
+
+# 0 -> 85  would be 0 red to 255 red
+# 86 -> 170 would be 0 blue to max blue
+# 171 -> 255 would be 0 blue to max blue
 
     def visualize_supersimple_v1(grid):
-        grid_energy_3d = bd.sum(grid.E ** 2 + grid.H ** 2, -1)
+        grid_energy_3d = bd.sum(grid.E ** 2 + grid.H ** 2, -1)  # type: ignore 
+        assert type(grid_energy_3d) == np.ndarray
         grid_energy_xy = grid_energy_3d[:, :, 0]
-        assert type(grid_energy_xy) == np.ndarray
-        assert grid_energy_xy.ndim == 2
+        geplus1 = grid_energy_xy + 1
+        grid_energy_logscale = np.log10(geplus1) * 10 * 100  # first * 10 is to make it dB
         canvas = document.getElementById("simpledrawcanvas")
         ctx = canvas.getContext("2d")
-
-        # --- Example NumPy image (replace with your own) ---
-        img = np.array(
-            grid_energy_xy * 1e6
-        )
-        # img = np.tile(np.arange(256, dtype=np.uint8), (256,1))
-        h, w = img.shape
-        # Convert to RGBA
-        rgba = np.zeros((h, w, 4), dtype=np.uint8)
-        rgba[..., :3] = img[..., None]
-        rgba[..., 3] = 255
-
-        # Convert NumPy array -> JS Uint8ClampedArray
-        data = Uint8ClampedArray.new(rgba.tobytes())
-
-        # Create and return JS ImageData
-        imageData = ImageData.new(data, w, h)
-
+        imageData = np_array_to_imagedata(grid_energy_logscale)
         ctx.putImageData(imageData, 0, 0)
 
 
@@ -141,7 +147,7 @@ def setup_all_fdtd():
         plt.plot([], lw=3, color=detcolor, label="Detectors")
 
         # Grid energy
-        grid_energy = bd.sum(grid.E ** 2 + grid.H ** 2, -1)
+        grid_energy = bd.sum(grid.E ** 2 + grid.H ** 2, -1)  # type: ignore
         if x is not None:
             assert grid.Ny > 1 and grid.Nz > 1
             xlabel, ylabel = "y", "z"
@@ -188,46 +194,46 @@ def setup_all_fdtd():
                 elif z is not None:
                     _x = source.x
                     _y = source.y
-                plt.plot(_y - 0.5, _x - 0.5, lw=3, marker="o", color=srccolor)
+                plt.plot(_y - 0.5, _x - 0.5, lw=3, marker="o", color=srccolor)  # type: ignore
                 grid_energy[_x, _y] = 0  # do not visualize energy at location of source
             elif isinstance(source, PlaneSource):
                 if x is not None:
                     _x = (
                         source.y
-                        if source.y.stop > source.y.start + 1
-                        else slice(source.y.start, source.y.start)
+                        if source.y.stop > source.y.start + 1  # type: ignore
+                        else slice(source.y.start, source.y.start)  # type: ignore
                     )
                     _y = (
                         source.z
-                        if source.z.stop > source.z.start + 1
-                        else slice(source.z.start, source.z.start)
+                        if source.z.stop > source.z.start + 1  # type: ignore
+                        else slice(source.z.start, source.z.start)  # type: ignore
                     )
                 elif y is not None:
                     _x = (
                         source.z
-                        if source.z.stop > source.z.start + 1
-                        else slice(source.z.start, source.z.start)
+                        if source.z.stop > source.z.start + 1  # type: ignore
+                        else slice(source.z.start, source.z.start)  # type: ignore
                     )
                     _y = (
                         source.x
-                        if source.x.stop > source.x.start + 1
-                        else slice(source.x.start, source.x.start)
+                        if source.x.stop > source.x.start + 1  # type: ignore
+                        else slice(source.x.start, source.x.start)  # type: ignore
                     )
                 elif z is not None:
                     _x = (
                         source.x
-                        if source.x.stop > source.x.start + 1
-                        else slice(source.x.start, source.x.start)
+                        if source.x.stop > source.x.start + 1  # type: ignore
+                        else slice(source.x.start, source.x.start)  # type: ignore
                     )
                     _y = (
                         source.y
-                        if source.y.stop > source.y.start + 1
-                        else slice(source.y.start, source.y.start)
+                        if source.y.stop > source.y.start + 1  # type: ignore
+                        else slice(source.y.start, source.y.start)  # type: ignore
                     )
                 patch = ptc.Rectangle(
-                    xy=(_y.start - 0.5, _x.start - 0.5),
-                    width=_y.stop - _y.start,
-                    height=_x.stop - _x.start,
+                    xy=(_y.start - 0.5, _x.start - 0.5),  # type: ignore
+                    width=_y.stop - _y.start,  # type: ignore
+                    height=_x.stop - _x.start,  # type: ignore
                     linewidth=0,
                     edgecolor="none",
                     facecolor=srccolor,
@@ -249,8 +255,8 @@ def setup_all_fdtd():
             if detector.__class__.__name__ == "BlockDetector":
                 # BlockDetector
                 plt.plot(
-                    [_y[0], _y[1], _y[1], _y[0], _y[0]],
-                    [_x[0], _x[0], _x[1], _x[1], _x[0]],
+                    [_y[0], _y[1], _y[1], _y[0], _y[0]],  # type: ignore
+                    [_x[0], _x[0], _x[1], _x[1], _x[0]],  # type: ignore
                     lw=3,
                     color=detcolor,
                 )
@@ -321,9 +327,9 @@ def setup_all_fdtd():
                 _y = (obj.y.start, obj.y.stop)
 
             patch = ptc.Rectangle(
-                xy=(min(_y) - 0.5, min(_x) - 0.5),
-                width=max(_y) - min(_y),
-                height=max(_x) - min(_x),
+                xy=(min(_y) - 0.5, min(_x) - 0.5),  # type: ignore
+                width=max(_y) - min(_y),  # type: ignore
+                height=max(_x) - min(_x),  # type: ignore
                 linewidth=0,
                 edgecolor="none",
                 facecolor=objcolor,
@@ -337,7 +343,7 @@ def setup_all_fdtd():
             # cmap_norm = LogNorm(vmin=1e-4, vmax=grid_energy.max() + 1e-4)    # COMMENTED 2025-11-25
         # print(grid_energy.max())  # ADDED 2025-11-25
         # plt.imshow(abs(bd.numpy(grid_energy)), cmap=cmap, interpolation="sinc", norm=cmap_norm)  # COMMENTED 2025-11-25
-        plt.imshow(abs(bd.numpy(grid_energy)), cmap=cmap, interpolation="none", norm=cmap_norm)  # ADDED 2025-11-25
+        plt.imshow(abs(bd.numpy(grid_energy)), cmap=cmap, interpolation="none", norm=cmap_norm)  # ADDED 2025-11-25    # type: ignore
 
         # finalize the plot
         plt.ylabel(xlabel)
@@ -380,24 +386,59 @@ def exec_text(ev, el):
         print(e)
 
 
+
+async def loadgrid():
+    import fdtd
+    filename = "fdtdmap.txt"
+    response = await pyfetch(filename)
+    if not response.ok:
+        raise FileNotFoundError(f"Failed to load {filename} (status {response.status})")
+    text: str = await response.text()
+    lines = text.splitlines()
+    if TYPE_CHECKING:
+        from typing_extensions import TypedDict
+        class MaterialProperty(TypedDict):
+            permittivity: float
+            conductivity: float
+    materials: "dict[str, MaterialProperty]" = {
+            "metal": {"permittivity": 1e4, "conductivity": 1e5},  # source: ChatGPT
+            "dry sand": {"permittivity": 3.0, "conductivity": 1e-4},  # source: ChatGPT
+            "moist sand": {"permittivity": 10.0, "conductivity": 1e-2},  # source: ChatGPT
+            "fake1": {"permittivity": 4.5, "conductivity": 1e-3},  # source: made it up
+        }
+
+    grid = fdtd.Grid(
+                # height (y), width (x), depth (z)
+        shape = (100, 200, 1),  # type: ignore
+        grid_spacing = 1,
+    )
+    yindexes = range(len(lines))
+    for yidx, line in zip(yindexes, lines):
+        xindexes = range(len(line))
+        for xidx, char in zip(xindexes, line):
+            if char == "m":
+                grid[yidx, xidx, 0] = fdtd.AbsorbingObject(**materials["metal"])
+            if char == "p":
+                grid[yidx, xidx, 0] = fdtd.PointSource(period = 60, amplitude=4) # type: ignore
+            
+    return grid
+    ## idea:
+    ## read the file map.txt
+    ## create a PointSource in spots with "p"
+    ## create metal in spots with "m"
+
+
 async def main():
-    print("words and things")
+    print("Loading fdtd package...")
     try:
         import pyodide_js # type: ignore
         await pyodide_js.loadPackage("micropip")
         import micropip  # type: ignore
         await micropip.install("fdtd")
         
-        import fdtd
         visualize, visualize_supersimple_v1 = setup_all_fdtd()
-        grid = fdtd.Grid(
-            shape = (100, 500, 1),  # type: ignore
-            grid_spacing = 1,
-        )
-        grid[30, 80, 0] = fdtd.PointSource(
-            period = 60, name="source1", pulse=True, cycle=1  # type: ignore
-        )
-        for unus in range(700):
+        grid = await loadgrid()
+        for unus in range(2000):
             visualize_supersimple_v1(grid)
             grid.step() 
             await asyncio.sleep(0)
