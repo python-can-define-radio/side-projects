@@ -2,11 +2,12 @@ import asyncio
 from dataclasses import dataclass, field, fields
 import html
 import inspect
+import json
 import random
 from typing import Any, Callable, TYPE_CHECKING, Literal, overload, Coroutine
 
 from pyodide.http import pyfetch  # type: ignore
-from js import document, Image  # type: ignore
+from js import document, Image, localStorage, window  # type: ignore
 
 
 
@@ -29,6 +30,10 @@ if TYPE_CHECKING:
         value: "str | Any"
         src: str
         innerHTML: str
+        scrollTop: str
+        scrollHeight: str
+        onchange: Callable
+        dataset: ...
 
     class CanvasRenderingContext:
         fillStyle: str
@@ -48,10 +53,18 @@ if TYPE_CHECKING:
         height: int
         width: int
 
-console_div = document.getElementById("console")
 def print_to_div(*args):
-    text = " ".join(html.escape(str(a)) for a in args)
-    console_div.innerHTML += text + "<br>"
+    text = " ".join(html.escape(str(a)) for a in args) + "<br/>"
+    loader_console = getElementByIdWithErr("loader-console")
+    game_console = getElementByIdWithErr("game-console")
+    
+    if loader_console:
+        loader_console.innerHTML += text
+        loader_console.scrollTop = loader_console.scrollHeight
+    
+    if game_console and game_console.style.display != "none":
+        game_console.innerHTML += text
+        game_console.scrollTop = game_console.scrollHeight
 
 
 # Override built-in print
@@ -81,17 +94,18 @@ def prex(func):
         return wrapper2
 
 
-
 class ElementNotFoundError(Exception):
     ...
+
 
 @dataclass
 class Player:
     x: int
     y: int
     name: str
-    current_missions: "list[int]"
     avatar: str = "/assets/femaleAdventurer_idle.png"
+    current_missions: "list[int]" = field(default_factory=list)
+    completed_missions: "set[int]" = field(default_factory=set)
     facing_direction: Literal["w", "a", "s", "d"] = "d"
     """wasd -> up, left, down, right"""
 
@@ -154,6 +168,17 @@ def querySelectorWithErr(query: str) -> "HTMLElement":
         raise ElementNotFoundError(f"Query '{query}' found no elements its possible you havent selected an avatar.")
     else:
         return r
+    
+
+@prex
+def querySelectorAllWithErr(query: str) -> "list[HTMLElement]":
+    """Returns a Python list of HTMLElements."""
+    node_list = document.querySelectorAll(query)
+
+    if node_list.length == 0:
+        raise ElementNotFoundError(f"No elements match selector '{query}'")
+
+    return [node_list[i] for i in range(node_list.length)]
 
 try:
     class G:
@@ -197,10 +222,10 @@ async def keydown(event):
 
     if is_passable(new_x, new_y):
         G.player.x, G.player.y = new_x, new_y
+        update_player_info()
     if event.key in ["w", "a", "s", "d"]:
         G.player.facing_direction = event.key # type: ignore
     
-
 
 @prex
 async def keyup(event):
@@ -222,8 +247,10 @@ async def start_btn_clicked(event=None):
     G.gameContainer.style.display = 'flex'
     G.body.onkeydown = keydown
     G.body.onkeyup = keyup
+    await asyncio.sleep(0.1)  # yields control to browser to render DOM
     G.static, G.dynamic = await loadmap()
     G.player = Player(500, 500, userConfig["name"], userConfig["avatar"])
+    update_player_info()
     asyncio.create_task(draw_loop())    
 
 
@@ -276,7 +303,6 @@ async def load_missions():
         return file
 
 
-# arguments for this function (mission_status: "list[Mission]")
 @prex
 async def next_available_mission(available_missions: "list[int]") -> Mission:
     missionstoml = await load_missions()
@@ -299,18 +325,11 @@ def show_mission_panel(npc: Entity, mission: Mission):
         panel.style.display = "none"
         print(f"Mission cancelled: {mission.name}")
 
-    # Show panel
-    panel.style.display = "flex"  # make sure flex layout shows it
-
-    # Set NPC avatar
+    panel.style.display = "flex"  
     npc_img.src = npc.avatar
     npc_img.style.width = "300px" 
     npc_img.style.height = "auto"
-
-    # Set mission dialog
     dialog.innerHTML = mission.dialog
-
-    # Button actions
     accept_btn.onclick = lambda e=None: accept_mission(mission)
     cancel_btn.onclick = lambda e=None: cancel_mission()
 
@@ -339,7 +358,6 @@ def make_image(ep: "Entity | Player") -> "JSImg":
         img.src = source
         G.img_cache[source] = img
     return G.img_cache[source]
-
 
 
 @prex
@@ -414,56 +432,97 @@ async def draw_loop():
 
 @prex
 async def install_modules(to_install: "list[str]"):
-    print("Installing modules:", to_install)
+    print("Installing modules standby ...:", to_install)
     import pyodide_js # type: ignore
     await pyodide_js.loadPackage("micropip")
     import micropip # type: ignore
     for modulename in to_install:
         await micropip.install(modulename)
+        print(f"{modulename} installed and imported")
+
+
+@prex
+def update_player_info():
+    G.infoName.textContent = G.player.name
+    getElementByIdWithErr("info-x").textContent = str(G.player.x)
+    getElementByIdWithErr("info-y").textContent = str(G.player.y)
+
+
+@prex
+def update_avatar_group(event=None):
+    gender_select = getElementByIdWithErr("gender")
+    selected = gender_select.value
+
+    avatar_groups = querySelectorAllWithErr("#avatar_cont .avatar-group")
+    for group in avatar_groups:
+        if group.dataset.gender == selected:
+            group.style.display = "flex"
+        else:
+            group.style.display = "none"
+
+
+@prex
+def start_game_ui_changes(event=None):
+    getElementByIdWithErr("menu").style.display = "none"
+    getElementByIdWithErr("loader-console").style.display = "none"
+    getElementByIdWithErr("game-container").style.display = "flex"
+    getElementByIdWithErr("game-console").style.display = "block"
+
+
+@prex
+def start_button_clicked(event=None):
+    start_game_ui_changes()   
+    return start_btn_clicked()  
+
+
+@prex
+def save_game():
+    """Prompt the player for a save filename and save the current player state."""
+    filename = window.prompt("Enter a name for your save:")
+    if not filename:
+        print("Save cancelled.")
+        return
+    
+    player_dict = G.player.__dict__.copy()
+    player_dict["completed_missions"] = list(player_dict["completed_missions"])
+    localStorage.setItem(f"save_{filename}", json.dumps(player_dict))
+    print(f"Game saved as '{filename}'.")
+
+
+@prex
+def load_game():
+    """Prompt player to select which save to load."""
+    # List available saves
+    saves = [localStorage.key(i).replace("save_", "") 
+             for i in range(localStorage.length) if localStorage.key(i).startswith("save_")]
+
+    if not saves:
+        print("No saved games found.")
+        return
+
+    save_to_load = window.prompt("Enter the name of the save to load:\n" + "\n".join(saves))
+    if not save_to_load or not localStorage.getItem(f"save_{save_to_load}"):
+        print("Load cancelled or save not found.")
+        return
+
+    raw = localStorage.getItem(f"save_{save_to_load}")
+    data = json.loads(raw)
+    data["completed_missions"] = set(data["completed_missions"])
+    G.player = Player(**data)
+    print(f"Game loaded from '{save_to_load}'.")
+
+    try:
+        update_player_info()
+    except Exception as e:
+        print("Error updating player info UI:", e)
 
 
 @prex
 async def main():
     await install_modules(["toml", "fdtd"])
+    getElementByIdWithErr("gender").onchange = update_avatar_group
+    update_avatar_group()
     G.startBtn.onclick = start_btn_clicked
+    getElementByIdWithErr("save-game").onclick = lambda e: save_game()
+    getElementByIdWithErr("load-game").onclick = lambda e: load_game()
     print("Ready.")
-    
-
-    # TODO: convert below from JS
-#         #                     infoX.textContent = me.x.toFixed(0);
-#         #                     infoY.textContent = me.y.toFixed(0);
-#         #                     infoScore.textContent = score; // static for now
-#         #                     if (me.talking_to) {
-#         #                         // SHOW MISSION PANEL
-#         #                         missionPanel.style.display = "block";
-#         #                         missionNPCImg.src = me.talking_to.avatar;
-#         #                         if (me.potential_mission) {
-#         #                             missionDialog.innerHTML = me.potential_mission.dialog;
-#         #                         } else {
-#         #                             missionDialog.innerHTML = "not sure what to say";
-#         #                         }
-
-#         #                     } else {
-#         #                         // HIDE MISSION PANEL
-#         #                         missionPanel.style.display = "none";
-#         #                     }
-#         #                    
-#         #                     draw(dynamic, me.x, me.y);
-
-#         #     const missionPanel = document.getElementById("mission-panel");
-#         #     const missionNPCImg = document.getElementById("mission-npc-img");
-#         #     const missionDialog = document.getElementById("mission-dialog");
-
-#         #     document.getElementById("mission-cancel").onclick = () => {
-#         #         missionPanel.style.display = "none";
-
-#         #     document.getElementById("mission-accept").onclick = () => {
-#         #         // For now: simply hide panel
-#         #         missionPanel.style.display = "none";
-
-#         #         // NOTE: you can later add mission acceptance logic here.
-#         #     };
-#         # }
-
-
-    

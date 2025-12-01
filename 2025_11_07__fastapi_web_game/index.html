@@ -6,120 +6,73 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EML</title>
     <script src="https://cdn.jsdelivr.net/pyodide/v0.27.2/full/pyodide.js"></script>
-    <script>
-        async function js_main() {
-            document.getElementById("console").innerHTML = "Loading Pyodide...";
-            let pyodide = await loadPyodide();
-            // await pyodide.loadPackage("micropip");
-            document.getElementById("console").innerHTML = "Loading eml.py...";
-            let response = await fetch("eml.py");
-            let code = await response.text();
-            document.getElementById("console").innerHTML = "Importing eml.py...<br/>";
-            await pyodide.runPythonAsync(code);
-            document.getElementById("console").innerHTML += "Running main()...<br/>";
-            await pyodide.runPythonAsync("main()");
-        }
-        document.addEventListener("DOMContentLoaded", js_main);
-        document.addEventListener("DOMContentLoaded", () => {
-            const genderSelect = document.getElementById("gender");
-
-            function updateAvatarGroup() {
-                const selectedGender = genderSelect.value;
-                const groups = document.querySelectorAll("#avatar_cont .avatar-group");
-
-                groups.forEach(group => {
-                    if (group.dataset.gender === selectedGender) {
-                        group.style.display = "flex";
-                    } else {
-                        group.style.display = "none";
-                    }
-                });
-            }
-            updateAvatarGroup();
-            genderSelect.addEventListener("change", updateAvatarGroup);
-        });
-
-    </script>
     <style>
-        #console {
-            background-color: black;
-            color: white;
-            font-family: monospace;
-            padding: 10px;
-            height: 200px;
-            overflow-y: auto;
-            font-size: 2em;
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            font-family: Arial, sans-serif;
+        }
+
+        #menu {
+            padding: 20px;
         }
 
         #game-container {
             display: none;
-            /* hidden until Start is pressed */
+            flex-direction: row;
+            align-items: stretch;
+            gap: 20px;
+            padding: 20px;
+            height: 100vh;
+            box-sizing: border-box;
+        }
 
-            align-items: flex-start;
+        canvas {
+            border: 1px solid black;
+            max-width: 100%;
+            max-height: 100%;
+            flex-shrink: 0;
+        }
+
+        #right-side {
+            display: flex;
+            flex-direction: column;
+            min-width: 220px;
+            flex-shrink: 0;
+            height: 100%;
             gap: 20px;
         }
 
         #game-text {
             border: 1px solid #ccc;
             padding: 10px;
-            width: 180px;
             background-color: #f8f8f8;
             border-radius: 6px;
             font-family: Arial, sans-serif;
+            margin-bottom: 20px;
         }
 
         #game-text p {
             margin: 6px 0;
         }
 
-        canvas {
-            border: 1px solid black;
-        }
-
-        /* Make all avatar groups horizontal */
-        .avatar-group {
-            display: flex;
-            gap: 20px;
-            align-items: center;
-        }
-
-        /* Make each label a column (radio above image or side by side) */
-        .avatar-group label {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            cursor: pointer;
-        }
-
-        /* Hide the radio visually but keep it clickable */
-        .avatar-group input[type="radio"] {
-            margin-bottom: 4px;
-        }
-
-        #game-container {
-            display: none;
-            align-items: flex-start;
-            gap: 20px;
-        }
-
         #mission-panel {
-            display: flex;
+            display: none;
             flex-direction: column;
             border: 1px solid #ccc;
             background: #eef;
             border-radius: 6px;
             padding: 15px;
-            width: 100%;
-            max-width: 700px;
-            min-height: 250px;
             font-family: Arial, sans-serif;
+            margin-bottom: 20px;
         }
 
         #mission-panel .mission-content {
             display: flex;
             gap: 15px;
             align-items: flex-start;
-            flex-grow: 1;
         }
 
         #mission-panel .mission-buttons {
@@ -131,6 +84,54 @@
         #mission-npc-img {
             flex-shrink: 0;
         }
+
+        #game-console {
+            display: none;
+            background-color: rgb(209, 74, 74);
+            color: white;
+            font-family: monospace;
+            padding: 10px;
+            font-size: 1em;
+            margin-top: auto;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        #loader-console {
+            background-color: black;
+            color: white;
+            font-family: monospace;
+            padding: 10px;
+            height: 200px;
+            overflow-y: auto;
+            font-size: 1em;
+            margin: 20px;
+        }
+
+        .avatar-group {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .avatar-group label {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        .avatar-group input[type="radio"] {
+            margin-bottom: 4px;
+        }
+
+        input,
+        select,
+        button {
+            font-size: 1em;
+            padding: 4px 8px;
+            margin: 2px 0;
+        }
     </style>
 </head>
 
@@ -138,8 +139,8 @@
     <div id="menu">
         <h2>Select Your Avatar</h2>
         <label>
-            name:
-            <input type="text" id="name" placeholder="Enter your name" autocomplete="name" />
+            Name:
+            <input type="text" id="name" placeholder="Enter your name" autocomplete="name">
         </label>
         <br><br>
         <label>
@@ -150,63 +151,59 @@
             </select>
         </label>
         <br><br>
-
         <div id="avatar_cont">
-
-            <!-- Male avatars -->
             <div class="avatar-group" data-gender="male">
                 <label>
                     <input type="radio" name="avatar" value="/assets/maleAdventurer_idle.png">
                     <img src="/assets/maleAdventurer_idle.png" width="70">
                 </label>
-
                 <label>
                     <input type="radio" name="avatar" value="/assets/malePerson_idle.png">
                     <img src="/assets/malePerson_idle.png" width="70">
                 </label>
-
                 <label>
                     <input type="radio" name="avatar" value="/assets/zombie_idle.png">
                     <img src="/assets/zombie_idle.png" width="70">
                 </label>
             </div>
-
-            <!-- Female avatars -->
             <div class="avatar-group" data-gender="female" style="display:none;">
                 <label>
                     <input type="radio" name="avatar" value="/assets/femaleAdventurer_idle.png">
                     <img src="/assets/femaleAdventurer_idle.png" width="70">
                 </label>
-
                 <label>
                     <input type="radio" name="avatar" value="/assets/femalePerson_idle.png">
                     <img src="/assets/femalePerson_idle.png" width="70">
                 </label>
-
                 <label>
                     <input type="radio" name="avatar" value="/assets/robot_idle.png">
                     <img src="/assets/robot_idle.png" width="70">
                 </label>
             </div>
-
         </div>
         <br><br>
         <button id="startBtn">Start Game</button>
     </div>
+
+    <!-- Loader console always visible -->
+    <div id="loader-console" class="console"></div>
+
     <div id="game-container">
         <canvas id="canvas" width="1000" height="1000"></canvas>
-
-        <div id="right-side" style="display:flex; flex-direction:column; gap:20px;">
+        <div id="right-side">
             <div id="game-text">
                 <h3>Player Info</h3>
                 <p><strong>Name:</strong> <span id="info-name">---</span></p>
                 <p><strong>X:</strong> <span id="info-x">0</span></p>
                 <p><strong>Y:</strong> <span id="info-y">0</span></p>
+                <div>
+                    <button id="save-game">Save</button>
+                    <button id="load-game">Load</button>
+                </div>
             </div>
-
-            <div id="mission-panel" style="display:none;">
+            <div id="mission-panel">
                 <div class="mission-content">
-                    <img id="mission-npc-img" src="" style="width: 300px;">
+                    <img id="mission-npc-img" src="" style="width:300px;">
                     <div id="mission-text">
                         <p id="mission-dialog"></p>
                     </div>
@@ -216,11 +213,47 @@
                     <button id="mission-cancel">Cancel</button>
                 </div>
             </div>
-            <div id="console">If this message remains, then your Javascript code is not running.<br /></div>
+            <div id="game-console" class="console"><br />
+            </div>
         </div>
-
     </div>
-    
+
+    <script>
+        // Safe console logging
+        function logToConsole(msg) {
+            const loaderConsole = document.getElementById("loader-console");
+            const gameConsole = document.getElementById("game-console");
+
+            if (loaderConsole) loaderConsole.innerHTML += msg + "<br/>";
+
+            if (gameConsole && gameConsole.style.display !== "none") {
+                gameConsole.innerHTML += msg + "<br/>";
+                // Auto-scroll to bottom
+                gameConsole.scrollTop = gameConsole.scrollHeight;
+            }
+        }
+
+
+        document.addEventListener("DOMContentLoaded", async () => {
+            try {
+                // Pyodide init
+                logToConsole("Loading Pyodide...");
+                let pyodide = await loadPyodide();
+                logToConsole("Fetching eml.py...");
+                const response = await fetch("eml.py");
+                if (!response.ok) throw new Error("Failed to fetch eml.py");
+                const code = await response.text();
+                logToConsole("Running eml.py...");
+                await pyodide.runPythonAsync(code);
+                logToConsole("Initializing main()...");
+                await pyodide.runPythonAsync("main()");
+
+            } catch (err) {
+                console.error(err);
+                logToConsole("JS Error: " + err);
+            }
+        });
+    </script>
 </body>
 
 </html>
