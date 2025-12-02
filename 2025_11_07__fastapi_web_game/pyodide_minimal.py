@@ -22,6 +22,7 @@ def setup_all_fdtd():
         which is useable in an HTML canvas context's putImageData. Source: ChatGPT"""
         assert img.ndim == 2
         h, w = img.shape
+        img[img > 255] = 255
         # Convert to RGBA, which Uint8ClampedArray expects 
         rgba = np.zeros((h, w, 4), dtype=np.uint8)
         rgba[:, :, 0] = img  # red?
@@ -42,8 +43,8 @@ def setup_all_fdtd():
         grid_energy_3d = bd.sum(grid.E ** 2 + grid.H ** 2, -1)  # type: ignore 
         assert type(grid_energy_3d) == np.ndarray
         grid_energy_xy = grid_energy_3d[:, :, 0]
-        geplus1 = grid_energy_xy + 1
-        grid_energy_logscale = np.log10(geplus1) * 10 * 100  # first * 10 is to make it dB
+        geplus1 = grid_energy_xy
+        grid_energy_logscale = geplus1 * 50000
         canvas = document.getElementById("simpledrawcanvas")
         ctx = canvas.getContext("2d")
         imageData = np_array_to_imagedata(grid_energy_logscale)
@@ -419,7 +420,7 @@ async def loadgrid():
             if char == "m":
                 grid[yidx, xidx, 0] = fdtd.AbsorbingObject(**materials["metal"])
             if char == "p":
-                grid[yidx, xidx, 0] = fdtd.PointSource(period = 60, amplitude=4) # type: ignore
+                grid[yidx, xidx, 0] = fdtd.PointSource(period = 60, amplitude=4, pulse=True, cycle=1) # type: ignore
             
     return grid
     ## idea:
