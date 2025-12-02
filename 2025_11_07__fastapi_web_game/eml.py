@@ -470,9 +470,10 @@ def start_game_ui_changes(event=None):
 
 
 @prex
-def start_button_clicked(event=None):
-    start_game_ui_changes()   
-    return start_btn_clicked()  
+async def start_button_clicked(event=None):
+    start_game_ui_changes()
+    await start_btn_clicked()
+ 
 
 
 @prex
@@ -522,7 +523,11 @@ async def main():
     await install_modules(["toml", "fdtd"])
     getElementByIdWithErr("gender").onchange = update_avatar_group
     update_avatar_group()
-    G.startBtn.onclick = start_btn_clicked
+
+    # FIX: use the wrapper that updates UI correctly
+    G.startBtn.onclick = start_button_clicked   
+
     getElementByIdWithErr("save-game").onclick = lambda e: save_game()
     getElementByIdWithErr("load-game").onclick = lambda e: load_game()
     print("Ready.")
+
