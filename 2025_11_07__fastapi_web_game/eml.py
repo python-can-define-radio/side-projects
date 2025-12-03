@@ -53,6 +53,7 @@ if TYPE_CHECKING:
         height: int
         width: int
 
+
 def print_to_div(*args):
     text = " ".join(html.escape(str(a)) for a in args) + "<br/>"
     loader_console = getElementByIdWithErr("loader-console")
@@ -432,13 +433,13 @@ async def draw_loop():
 
 @prex
 async def install_modules(to_install: "list[str]"):
-    print("Installing modules standby ...:", to_install)
+    print(f"Installing {to_install} modules, please standby...")
     import pyodide_js # type: ignore
     await pyodide_js.loadPackage("micropip")
     import micropip # type: ignore
     for modulename in to_install:
         await micropip.install(modulename)
-        print(f"{modulename} installed and imported")
+        print(f"{modulename.upper()} module installed and imported")
 
 
 @prex
@@ -474,7 +475,6 @@ async def start_button_clicked(event=None):
     start_game_ui_changes()
     await start_btn_clicked()
  
-
 
 @prex
 def save_game():

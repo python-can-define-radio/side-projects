@@ -39,11 +39,13 @@
         #right-side {
             display: flex;
             flex-direction: column;
-            min-width: 220px;
-            flex-shrink: 0;
+            width: 100%;
+            max-width: 100%;
             height: 100%;
             gap: 20px;
+            box-sizing: border-box;
         }
+
 
         #game-text {
             border: 1px solid #ccc;
@@ -67,12 +69,18 @@
             padding: 15px;
             font-family: Arial, sans-serif;
             margin-bottom: 20px;
+            max-width: 100%;
+            width: 100%;
+            box-sizing: border-box;
         }
+
 
         #mission-panel .mission-content {
             display: flex;
             gap: 15px;
             align-items: flex-start;
+            flex-wrap: wrap;
+            max-width: 100%;
         }
 
         #mission-panel .mission-buttons {
@@ -83,6 +91,13 @@
 
         #mission-npc-img {
             flex-shrink: 0;
+            max-width: 100%;
+            height: auto;
+        }
+
+        #mission-text {
+            flex: 1;
+            min-width: 200px;
         }
 
         #game-console {
@@ -243,9 +258,8 @@
                 const response = await fetch("eml.py");
                 if (!response.ok) throw new Error("Failed to fetch eml.py");
                 const code = await response.text();
-                logToConsole("Running eml.py...");
                 await pyodide.runPythonAsync(code);
-                logToConsole("Initializing main()...");
+                logToConsole("Initializing main() of eml.py...");
                 await pyodide.runPythonAsync("main()");
 
             } catch (err) {
