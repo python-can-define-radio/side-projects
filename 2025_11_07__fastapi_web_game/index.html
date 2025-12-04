@@ -234,34 +234,23 @@
     </div>
 
     <script>
-        // Safe console logging
         function logToConsole(msg) {
             const loaderConsole = document.getElementById("loader-console");
             const gameConsole = document.getElementById("game-console");
-
-            if (loaderConsole) loaderConsole.innerHTML += msg + "<br/>";
-
-            if (gameConsole && gameConsole.style.display !== "none") {
-                gameConsole.innerHTML += msg + "<br/>";
-                // Auto-scroll to bottom
-                gameConsole.scrollTop = gameConsole.scrollHeight;
-            }
+            loaderConsole.innerHTML = msg + "<br/>" + loaderConsole.innerHTML;
+            gameConsole.innerHTML = msg + "<br/>" + loaderConsole.innerHTML;
         }
 
 
         document.addEventListener("DOMContentLoaded", async () => {
             try {
-                // Pyodide init
                 logToConsole("Loading Pyodide...");
                 let pyodide = await loadPyodide();
-                logToConsole("Fetching eml.py...");
                 const response = await fetch("eml.py");
-                if (!response.ok) throw new Error("Failed to fetch eml.py");
                 const code = await response.text();
+                logToConsole("Running eml.py main()...");
                 await pyodide.runPythonAsync(code);
-                logToConsole("Initializing main() of eml.py...");
                 await pyodide.runPythonAsync("main()");
-
             } catch (err) {
                 console.error(err);
                 logToConsole("JS Error: " + err);

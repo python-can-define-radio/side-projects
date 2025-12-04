@@ -58,14 +58,8 @@ def print_to_div(*args):
     text = " ".join(html.escape(str(a)) for a in args) + "<br/>"
     loader_console = getElementByIdWithErr("loader-console")
     game_console = getElementByIdWithErr("game-console")
-    
-    if loader_console:
-        loader_console.innerHTML += text
-        loader_console.scrollTop = loader_console.scrollHeight
-    
-    if game_console and game_console.style.display != "none":
-        game_console.innerHTML += text
-        game_console.scrollTop = game_console.scrollHeight
+    loader_console.innerHTML = text + loader_console.innerHTML
+    game_console.innerHTML = text + game_console.innerHTML
 
 
 # Override built-in print
