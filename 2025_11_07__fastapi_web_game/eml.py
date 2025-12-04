@@ -5,10 +5,18 @@ import inspect
 import json
 import random
 from typing import Any, Callable, TYPE_CHECKING, Literal, overload, Coroutine
+from types import SimpleNamespace as Sns
 
-from pyodide.http import pyfetch  # type: ignore
-from js import document, Image, localStorage, window  # type: ignore
 
+try:
+    from pyodide.http import pyfetch  # type: ignore
+    from js import document, Image, localStorage, window  # type: ignore
+    # only override print if the browser imports worked
+    loaded_browser_modules = True
+    def print(*args):
+        print_to_div(args)
+except ModuleNotFoundError:
+    loaded_browser_modules = False
 
 
 if TYPE_CHECKING:
@@ -43,18 +51,23 @@ if TYPE_CHECKING:
         @staticmethod
         def fillText(text: str, x: int, y: int):
             ...
-        fillRect: Callable[[int, int, int, int], None]
+        @staticmethod
+        def fillRect(a: int, b: int, c: int, d: int):
+            ...
         @staticmethod
         def drawImage(img: JSImg, x: int, y: int, h: int, w: int):
             ...
 
     class Canvas(HTMLElement):
-        getContext: Callable
+        @staticmethod
+        def getContext(x: str) -> CanvasRenderingContext:
+            ...
         height: int
         width: int
 
 
 def print_to_div(*args):
+    """Overriding the built-in print to log messages to built-in pseudo-console"""
     text = " ".join(html.escape(str(a)) for a in args) + "<br/>"
     loader_console = getElementByIdWithErr("loader-console")
     game_console = getElementByIdWithErr("game-console")
@@ -62,15 +75,15 @@ def print_to_div(*args):
     game_console.innerHTML = text + game_console.innerHTML
 
 
-# Override built-in print
-print = print_to_div
-
-
 def prex(func):
     """A decorator that calls the function in a `try...except`.
     Any exceptions will be printed in the pseudo-console using the modified `print` function.
     Works for sync and async functions;
     Works regardless of whether the function is used with parentheses (`func()` and `onclick = func` both work)."""
+    
+    if loaded_browser_modules == False:
+        return func
+    
     if inspect.iscoroutinefunction(func):
         async def wrapper1(*args, **kwargs):
             try:
@@ -101,8 +114,8 @@ class Player:
     avatar: str = "/assets/femaleAdventurer_idle.png"
     current_missions: "list[int]" = field(default_factory=list)
     completed_missions: "set[int]" = field(default_factory=set)
-    facing_direction: Literal["w", "a", "s", "d"] = "d"
-    """wasd -> up, left, down, right"""
+    facing: Literal["w", "a", "s", "d"] = "d"
+    """facing direction. wasd -> up, left, down, right"""
 
 
 @dataclass
@@ -113,20 +126,6 @@ class Entity:
     avatar: str
     passable: bool
     available_missions: "list[int]" = field(default_factory=list)
-    
-    @prex
-    def todict(self):
-        """
-        Omits attrs that end with _
-        >>> Entity(3, 5, "abc", "/assets/cool.png", True).todict()
-        {'x': 3, 'y': 5, 'name': 'abc', 'avatar': '/assets/cool.png', 'passable': True}
-        """
-        def impl():
-            fds = fields(self.__class__)
-            for fd in fds:
-                if not fd.name.endswith("_"):
-                    yield fd.name, getattr(self, fd.name)
-        return dict(impl()) 
     
 
 @dataclass
@@ -178,21 +177,23 @@ def querySelectorAllWithErr(query: str) -> "list[HTMLElement]":
 try:
     class G:
         """Global vars. Don't instantiate this class; it's just a grouping"""
-        body = querySelectorWithErr("body")
-        startBtn = getElementByIdWithErr('startBtn')
-        menu = getElementByIdWithErr('menu')
-        gameContainer = getElementByIdWithErr('game-container')
         canvas: "Canvas" = getElementByIdWithErr('canvas')  # type: ignore
-        infoName = getElementByIdWithErr('info-name')
-        ctx: "CanvasRenderingContext" = canvas.getContext('2d')  # type: ignore
-        userConfig = {}
+        ctx = canvas.getContext('2d')
         static: "dict[str, Entity]" = {}
         dynamic: "dict[str, Entity]" = {}
         img_cache: "dict[str, JSImg]" = {}
         player: "Player"
-        y_tmp: int = 300
 except Exception as _exception_while_create_G:
     print("Exception while creating class G:", _exception_while_create_G)
+
+
+@prex
+async def misisms():
+    """Display mission for entity that player is adjacent and facing"""
+    for entity in G.dynamic.values():
+        if is_face_adj(G.player, entity) and entity.available_missions:
+            mission = await next_available_mission(entity.available_missions)
+            show_mission_panel(entity, mission)
 
 
 @prex
@@ -209,17 +210,14 @@ async def keydown(event):
     elif event.key == "d":
         new_x += step
     elif event.key == " ":
-        for entity in G.dynamic.values():
-            if is_adjacent(G.player, entity) and entity.available_missions:
-                mission = await next_available_mission(entity.available_missions)
-                show_mission_panel(entity, mission)
+        await misisms()
 
 
     if is_passable(new_x, new_y):
         G.player.x, G.player.y = new_x, new_y
         update_player_info()
     if event.key in ["w", "a", "s", "d"]:
-        G.player.facing_direction = event.key # type: ignore
+        G.player.facing = event.key # type: ignore
     
 
 @prex
@@ -229,73 +227,72 @@ async def keyup(event):
 
 
 @prex
-async def start_btn_clicked(event=None):
-    global userConfig
-    userConfig = {
-        "name": getElementByIdWithErr('name').value.strip(),
-        "avatar": querySelectorWithErr('input[name="avatar"]:checked').value,
-        "x": 0,
-        "y": 0,
-    }
-    G.infoName.textContent = userConfig["name"]
-    G.menu.style.display = 'none'
-    G.gameContainer.style.display = 'flex'
-    G.body.onkeydown = keydown
-    G.body.onkeyup = keyup
-    await asyncio.sleep(0.1)  # yields control to browser to render DOM
+async def startBtnclicked(event=None):
+    start_game_ui_changes()
+    name = getElementByIdWithErr('name').value.strip()
+    avatar = querySelectorWithErr('input[name="avatar"]:checked').value
+    G.player = Player(500, 500, name, avatar)
+    body = querySelectorWithErr("body")
+    body.onkeydown = keydown
+    body.onkeyup = keyup
+    await asyncio.sleep(0.0)  # yields control to browser to render DOM
     G.static, G.dynamic = await loadmap()
-    G.player = Player(500, 500, userConfig["name"], userConfig["avatar"])
+    
     update_player_info()
     asyncio.create_task(draw_loop())    
 
 
 @prex
 def is_passable(new_x: int, new_y: int) -> bool:
-    """Check if the player can move to (new_x, new_y) based on entities."""
-    for entity in G.static.values():
-        if not entity.passable:
-            if (
-                new_x < entity.x + 50 and
-                new_x + 50 > entity.x and
-                new_y < entity.y + 50 and
-                new_y + 50 > entity.y
-            ):
-                return False
-    for entity in G.dynamic.values():
-        if not entity.passable:
-            if (
-                new_x < entity.x + 50 and
-                new_x + 50 > entity.x and
-                new_y < entity.y + 50 and
-                new_y + 50 > entity.y
-            ):
+    """Check whether the player can move to (new_x, new_y) based on entities."""
+    all_ents = list(G.static.values()) + list(G.dynamic.values())
+    impas = list(filter(lambda e: not e.passable, all_ents))
+    for entity in impas:
+        if (
+            new_x < entity.x + 50 and
+            new_x + 50 > entity.x and
+            new_y < entity.y + 50 and
+            new_y + 50 > entity.y
+        ):
                 return False
     return True
 
 
 @prex
-def is_adjacent(p: Player, e: Entity):
-    if p.x == e.x and p.facing_direction == "w" and p.y == e.y + 50:
+def is_face_adj(p: Player, e: Entity):
+    """Returns True if player is next-to and facing an entity.
+    Example of player below entity, facing up:
+    >>> p = Sns(x=300, y=750, facing="w")
+    >>> e = Sns(x=300, y=700)
+    >>> is_face_adj(p, e)
+    True
+
+    Player facing to the right:
+    >>> p.facing = "d"
+    >>> is_face_adj(p, e)
+    False
+    """
+    if p.x == e.x and p.facing == "w" and p.y == e.y + 50:
         return True
-    elif p.x == e.x and p.facing_direction == "s" and p.y == e.y - 50:
+    elif p.x == e.x and p.facing == "s" and p.y == e.y - 50:
         return True
-    elif p.y == e.y and p.facing_direction == "a" and p.x == e.x + 50:
+    elif p.y == e.y and p.facing == "a" and p.x == e.x + 50:
         return True
-    elif p.y == e.y and p.facing_direction == "d" and p.x == e.x - 50:
+    elif p.y == e.y and p.facing == "d" and p.x == e.x - 50:
         return True
     return False
 
 
 @prex
 async def load_missions():
-        import toml
-        filename = "missions.toml"
-        response = await pyfetch(filename)
-        if not response.ok:
-            raise FileNotFoundError(f"Failed to load {filename} (status {response.status})")
-        text = await response.text()
-        file = toml.loads(text)
-        return file
+    import toml
+    filename = "missions.toml"
+    response = await pyfetch(filename)
+    if not response.ok:
+        raise FileNotFoundError(f"Failed to load {filename} (status {response.status})")
+    text = await response.text()
+    file = toml.loads(text)
+    return file
 
 
 @prex
@@ -438,7 +435,7 @@ async def install_modules(to_install: "list[str]"):
 
 @prex
 def update_player_info():
-    G.infoName.textContent = G.player.name
+    getElementByIdWithErr('info-name').textContent = G.player.name
     getElementByIdWithErr("info-x").textContent = str(G.player.x)
     getElementByIdWithErr("info-y").textContent = str(G.player.y)
 
@@ -462,16 +459,10 @@ def start_game_ui_changes(event=None):
     getElementByIdWithErr("loader-console").style.display = "none"
     getElementByIdWithErr("game-container").style.display = "flex"
     getElementByIdWithErr("game-console").style.display = "block"
-
-
-@prex
-async def start_button_clicked(event=None):
-    start_game_ui_changes()
-    await start_btn_clicked()
  
 
 @prex
-def save_game():
+def save_game(event=None):
     """Prompt the player for a save filename and save the current player state."""
     filename = window.prompt("Enter a name for your save:")
     if not filename:
@@ -485,7 +476,7 @@ def save_game():
 
 
 @prex
-def load_game():
+def load_game(event=None):
     """Prompt player to select which save to load."""
     # List available saves
     saves = [localStorage.key(i).replace("save_", "") 
@@ -515,13 +506,13 @@ def load_game():
 @prex
 async def main():
     await install_modules(["toml", "fdtd"])
+    getElementByIdWithErr('startBtn').onclick = startBtnclicked
+    getElementByIdWithErr("save_game").onclick = save_game
+    getElementByIdWithErr("load_game").onclick = load_game
     getElementByIdWithErr("gender").onchange = update_avatar_group
     update_avatar_group()
-
-    # FIX: use the wrapper that updates UI correctly
-    G.startBtn.onclick = start_button_clicked   
-
-    getElementByIdWithErr("save-game").onclick = lambda e: save_game()
-    getElementByIdWithErr("load-game").onclick = lambda e: load_game()
     print("Ready.")
 
+
+if __name__ == "__main__":
+    import doctest; doctest.testmod(optionflags=doctest.ELLIPSIS)
