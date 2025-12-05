@@ -209,7 +209,7 @@ async def keydown(event):
         new_x -= step
     elif event.key == "d":
         new_x += step
-    elif event.key == " ":
+    elif event.key == "e":
         await misisms()
 
 
@@ -331,7 +331,8 @@ def accept_mission(mission: Mission):
     print(f"Mission accepted: {mission.name}")
     panel = getElementByIdWithErr("mission-panel")
     panel.style.display = "none"
-    G.player.current_missions.append(mission.id)
+    if mission.id not in G.player.current_missions:
+        G.player.current_missions.append(mission.id)
     # TODO: Add mission logic here (e.g., mark objectives active)
 
 
@@ -505,7 +506,7 @@ def load_game(event=None):
 
 @prex
 async def main():
-    await install_modules(["toml", "fdtd"])
+    await install_modules(["toml"])
     getElementByIdWithErr('startBtn').onclick = startBtnclicked
     getElementByIdWithErr("save_game").onclick = save_game
     getElementByIdWithErr("load_game").onclick = load_game
