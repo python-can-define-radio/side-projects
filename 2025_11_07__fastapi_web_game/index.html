@@ -54,7 +54,16 @@
             border-radius: 6px;
             font-family: Arial, sans-serif;
             margin-bottom: 20px;
+            display: flex;
+            gap: 40px;
+            align-items: flex-start;
         }
+
+        .info,
+        .controls {
+            flex: 1;
+        }
+
 
         #game-text p {
             margin: 6px 0;
@@ -108,7 +117,7 @@
             padding: 10px;
             font-size: 1em;
             margin-top: auto;
-            max-height: 200px;
+            max-height: 150px;
             overflow-y: auto;
         }
 
@@ -207,13 +216,24 @@
         <canvas id="canvas" width="1000" height="1000"></canvas>
         <div id="right-side">
             <div id="game-text">
-                <h3>Player Info</h3>
-                <p><strong>Name:</strong> <span id="info-name">---</span></p>
-                <p><strong>X:</strong> <span id="info-x">0</span></p>
-                <p><strong>Y:</strong> <span id="info-y">0</span></p>
-                <div>
-                    <button id="save_game">Save</button>
-                    <button id="load_game">Load</button>
+                <div class="info">
+                    <h3>Player Info</h3>
+                    <p><strong>Name:</strong> <span id="info-name">---</span></p>
+                    <p><strong>X:</strong> <span id="info-x">0</span></p>
+                    <p><strong>Y:</strong> <span id="info-y">0</span></p>
+                    <div>
+                        <button id="save_game">Save</button>
+                        <button id="load_game">Load</button>
+                    </div>
+                </div>
+                <div class="controls">
+                    <h3>Game Controls</h3>
+                    <p><strong>W:</strong> <span>Move up</span></p>
+                    <p><strong>A:</strong> <span>Move left</span></p>
+                    <p><strong>S:</strong> <span>Move right</span></p>
+                    <p><strong>D:</strong> <span>Move down</span></p>
+                    <p><strong>Q:</strong> <span>Quest tracker</span></p>
+                    <p><strong>E:</strong> <span>Action</span></p>
                 </div>
             </div>
             <div id="mission-panel">
