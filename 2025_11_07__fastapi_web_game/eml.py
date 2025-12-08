@@ -1,16 +1,14 @@
 import asyncio
-from dataclasses import dataclass, field, fields
+from dataclasses import dataclass, field
 import html
 import inspect
 import json
-import random
-from typing import Any, Callable, TYPE_CHECKING, Literal, overload, Coroutine
-from types import SimpleNamespace as Sns
+from typing import Any, Callable, TYPE_CHECKING, Literal
+from types import SimpleNamespace as Sns  # type: ignore
 
 
 try:
-    from pyodide.http import pyfetch  # type: ignore
-    from js import document, Image, localStorage, window  # type: ignore
+    from js import document, localStorage, window  # type: ignore
     # only override print if the browser imports worked
     loaded_browser_modules = True
     def print(*args):
@@ -236,7 +234,7 @@ async def startBtnclicked(event=None):
     body.onkeydown = keydown
     body.onkeyup = keyup
     await asyncio.sleep(0.0)  # yields control to browser to render DOM
-    G.static, G.dynamic = await loadmap()
+    G.static, G.dynamic = await load_map("map.txt")
     
     update_player_info()
     asyncio.create_task(draw_loop())    
@@ -284,20 +282,16 @@ def is_face_adj(p: Player, e: Entity):
 
 
 @prex
-async def load_missions():
+async def load_missions(filename):
     import toml
-    filename = "missions.toml"
-    response = await pyfetch(filename)
-    if not response.ok:
-        raise FileNotFoundError(f"Failed to load {filename} (status {response.status})")
-    text = await response.text()
+    text = await read_text(filename)
     file = toml.loads(text)
     return file
 
 
 @prex
 async def next_available_mission(available_missions: "list[int]") -> Mission:
-    missionstoml = await load_missions()
+    missionstoml = await load_missions("missions.toml")
     missions_section = missionstoml["missions"]
     assert type(missions_section) == list
     missions = list(map(lambda item: Mission(**item), missions_section))
@@ -339,6 +333,7 @@ def accept_mission(mission: Mission):
 @prex
 def make_image(ep: "Entity | Player") -> "JSImg":
     """Creates an image object for either an Entity or the Player and caches it in img_cache"""
+    from js import Image  # type: ignore
     source = ep.avatar
     if source not in G.img_cache:
         img = Image.new()
@@ -386,12 +381,33 @@ def draw_one_frame():
 
 
 @prex
-async def loadmap():
-    filename = "map.txt"
-    response = await pyfetch(filename)
-    if not response.ok:
-        raise FileNotFoundError(f"Failed to load {filename} (status {response.status})")
-    text: str = await response.text()
+async def read_text(filename: str) -> str:
+    """Fetch file using pyfetch if in a browser environment.
+    Read file using conventional Python file read otherwise.
+    Return the text content.
+    
+    This is a doctest:
+    >>> r = asyncio.run(read_text(__file__))
+    >>> type(r)
+    <class 'str'>
+    """
+    try:
+        from pyodide.http import pyfetch  # type: ignore
+    except ModuleNotFoundError:
+        pyfetch = None
+    if pyfetch:
+        response = await pyfetch(filename)
+        if not response.ok:
+            raise FileNotFoundError(f"Failed to load {filename} (status {response.status})")
+        return await response.text()
+    else:
+        from pathlib import Path
+        return Path(filename).read_text()
+
+
+@prex
+async def load_map(filename: str):
+    text = await read_text(filename)
     lines = text.splitlines()
     static = {}
     dynamic = {}
