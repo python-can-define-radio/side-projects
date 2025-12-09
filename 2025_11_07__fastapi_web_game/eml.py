@@ -180,19 +180,22 @@ try:
         img_cache: "dict[str, JSImg]" = {}
         player: "Player"
         current_target: "Entity | None" = None
-        canvas: "Canvas" = getElementByIdWithErr('canvas')  # type: ignore
-        ctx = canvas.getContext('2d')
-        mission_panel = getElementByIdWithErr("mission-panel")
-        npc_img = getElementByIdWithErr("mission-npc-img")
-        dialog = getElementByIdWithErr("mission-dialog")
-        accept_btn = getElementByIdWithErr("mission-accept")
-        cancel_btn = getElementByIdWithErr("mission-cancel")
+        all_missions: "list[Mission]"
+        class H:
+            """HTML-related globals (divs, canvas, etc)"""
+            canvas: "Canvas" = getElementByIdWithErr('canvas')  # type: ignore
+            ctx = canvas.getContext('2d')
+            mission_panel = getElementByIdWithErr("mission-panel")
+            npc_img = getElementByIdWithErr("mission-npc-img")
+            dialog = getElementByIdWithErr("mission-dialog")
+            accept_btn = getElementByIdWithErr("mission-accept")
+            cancel_btn = getElementByIdWithErr("mission-cancel")
 except Exception as _exception_while_create_G:
     print("Exception while creating class G:", _exception_while_create_G)
 
 
 @prex
-async def misisms():
+async def attempt_action():
     """Display mission for entity that player is adjacent and facing"""
     for entity in G.dynamic.values():
         if is_face_adj(G.player, entity) and entity.available_missions:
@@ -214,10 +217,10 @@ async def keydown(event):
     elif event.key == "d":
         new_x += step
     elif event.key == "e":
-        if G.mission_panel.style.display in ["none", ""]:
-            await misisms()
+        if G.H.mission_panel.style.display in ["none", ""]:
+            await attempt_action()
         else:
-            await cancel_mission(None)
+            await cancel_mission()
     
     if is_passable(new_x, new_y):
         G.player.x, G.player.y = new_x, new_y
@@ -290,33 +293,32 @@ def is_face_adj(p: Player, e: Entity):
 
 
 @prex
-async def load_missions(filename):
+async def load_missions(filename: str):
+    """Read `filename`. Set `G.all_missions` to the parsed list of Missions."""
     import toml
     text = await read_text(filename)
-    file = toml.loads(text)
-    return file
+    parsed = toml.loads(text)
+    missions_section = parsed["missions"]
+    assert type(missions_section) == list
+    G.all_missions = list(map(lambda item: Mission(**item), missions_section))
 
 
 @prex
 async def next_available_mission(available_missions: "list[int]") -> Mission:
-    missionstoml = await load_missions("missions.toml")
-    missions_section = missionstoml["missions"]
-    assert type(missions_section) == list
-    missions = list(map(lambda item: Mission(**item), missions_section))
-    avail_missions = list(filter(lambda x: x.id in available_missions, missions))
+    avail_missions = list(filter(lambda x: x.id in available_missions, G.all_missions))
     return avail_missions[0]
 
 
 @prex
 def show_mission_panel(npc: Entity, mission: Mission):
     G.current_target = npc
-    G.mission_panel.style.display = "flex"  
-    G.npc_img.src = npc.avatar
-    G.npc_img.style.width = "300px" 
-    G.npc_img.style.height = "auto"
-    G.dialog.innerHTML = mission.dialog
-    G.accept_btn.onclick = accept_mission
-    G.cancel_btn.onclick = cancel_mission
+    G.H.mission_panel.style.display = "flex"  
+    G.H.npc_img.src = npc.avatar
+    G.H.npc_img.style.width = "300px" 
+    G.H.npc_img.style.height = "auto"
+    G.H.dialog.innerHTML = mission.dialog
+    G.H.accept_btn.onclick = accept_mission
+    G.H.cancel_btn.onclick = cancel_mission
 
 
 @prex
@@ -324,17 +326,16 @@ async def accept_mission(event):
     assert G.current_target is not None
     mission = await next_available_mission(G.current_target.available_missions)
     print(f"Mission accepted: {mission.name}")
-    panel = getElementByIdWithErr("mission-panel")
-    panel.style.display = "none"
+    G.H.mission_panel.style.display = "none"
     if mission.id not in G.player.current_missions:
         G.player.current_missions.append(mission.id)
     # TODO: Add mission logic here (e.g., mark objectives active)
 
 
 @prex
-async def cancel_mission(event):
+async def cancel_mission(event=None):
     assert G.current_target is not None
-    G.mission_panel.style.display = "none"
+    G.H.mission_panel.style.display = "none"
     mission = await next_available_mission(G.current_target.available_missions)
     print(f"Mission cancelled: {mission.name}")
     
@@ -362,29 +363,29 @@ def draw_entities():
     """Draws all entities from the static dictionary to the canvas."""
     for entity in list(G.static.values()) + list(G.dynamic.values()):
         img = make_image(entity)
-        screen_x = entity.x - G.player.x + G.canvas.width // 2
-        screen_y = entity.y - G.player.y + G.canvas.height // 2
-        G.ctx.drawImage(img, screen_x - 25, screen_y - 25, 50, 50)  # center entity image
+        screen_x = entity.x - G.player.x + G.H.canvas.width // 2
+        screen_y = entity.y - G.player.y + G.H.canvas.height // 2
+        G.H.ctx.drawImage(img, screen_x - 25, screen_y - 25, 50, 50)  # center entity image
         
 
 @prex
 def draw_player():
     """Draws the player at the center of the canvas and their chosen name below their avatar."""
     img = make_image(G.player)
-    cx = G.canvas.width // 2
-    cy = G.canvas.height // 2
-    G.ctx.drawImage(img, cx - 25, cy - 25, 50, 50) 
-    G.ctx.font = '12px Arial'
-    G.ctx.fillStyle = 'black'
-    G.ctx.textAlign = 'center'
-    G.ctx.fillText(G.player.name, cx, cy + 40)
+    cx = G.H.canvas.width // 2
+    cy = G.H.canvas.height // 2
+    G.H.ctx.drawImage(img, cx - 25, cy - 25, 50, 50) 
+    G.H.ctx.font = '12px Arial'
+    G.H.ctx.fillStyle = 'black'
+    G.H.ctx.textAlign = 'center'
+    G.H.ctx.fillText(G.player.name, cx, cy + 40)
 
 
 @prex
 def draw_one_frame():
     """draws bg and runs draw_player() and draw_entities() functions"""
-    G.ctx.fillStyle = "#bfb"
-    G.ctx.fillRect(0, 0, G.canvas.width, G.canvas.height)
+    G.H.ctx.fillStyle = "#bfb"
+    G.H.ctx.fillRect(0, 0, G.H.canvas.width, G.H.canvas.height)
     draw_player()
     draw_entities()
 
@@ -537,6 +538,7 @@ async def main():
     getElementByIdWithErr("load_game").onclick = load_game
     getElementByIdWithErr("gender").onchange = update_avatar_group
     update_avatar_group()
+    await load_missions("missions.toml")
     print("Ready.")
 
 
