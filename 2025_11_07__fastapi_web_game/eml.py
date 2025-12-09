@@ -64,7 +64,7 @@ if TYPE_CHECKING:
         width: int
 
 
-def print_to_div(*args):
+def print_to_div(args):
     """Overriding the built-in print to log messages to built-in pseudo-console"""
     text = " ".join(html.escape(str(a)) for a in args) + "<br/>"
     loader_console = getElementByIdWithErr("loader-console")
@@ -175,12 +175,18 @@ def querySelectorAllWithErr(query: str) -> "list[HTMLElement]":
 try:
     class G:
         """Global vars. Don't instantiate this class; it's just a grouping"""
-        canvas: "Canvas" = getElementByIdWithErr('canvas')  # type: ignore
-        ctx = canvas.getContext('2d')
         static: "dict[str, Entity]" = {}
         dynamic: "dict[str, Entity]" = {}
         img_cache: "dict[str, JSImg]" = {}
         player: "Player"
+        current_target: "Entity | None" = None
+        canvas: "Canvas" = getElementByIdWithErr('canvas')  # type: ignore
+        ctx = canvas.getContext('2d')
+        mission_panel = getElementByIdWithErr("mission-panel")
+        npc_img = getElementByIdWithErr("mission-npc-img")
+        dialog = getElementByIdWithErr("mission-dialog")
+        accept_btn = getElementByIdWithErr("mission-accept")
+        cancel_btn = getElementByIdWithErr("mission-cancel")
 except Exception as _exception_while_create_G:
     print("Exception while creating class G:", _exception_while_create_G)
 
@@ -208,9 +214,11 @@ async def keydown(event):
     elif event.key == "d":
         new_x += step
     elif event.key == "e":
-        await misisms()
-
-
+        if G.mission_panel.style.display in ["none", ""]:
+            await misisms()
+        else:
+            await cancel_mission(None)
+    
     if is_passable(new_x, new_y):
         G.player.x, G.player.y = new_x, new_y
         update_player_info()
@@ -301,27 +309,20 @@ async def next_available_mission(available_missions: "list[int]") -> Mission:
 
 @prex
 def show_mission_panel(npc: Entity, mission: Mission):
-    panel = getElementByIdWithErr("mission-panel")
-    npc_img = getElementByIdWithErr("mission-npc-img")
-    dialog = getElementByIdWithErr("mission-dialog")
-    accept_btn = getElementByIdWithErr("mission-accept")
-    cancel_btn = getElementByIdWithErr("mission-cancel")
-
-    def cancel_mission():
-        panel.style.display = "none"
-        print(f"Mission cancelled: {mission.name}")
-
-    panel.style.display = "flex"  
-    npc_img.src = npc.avatar
-    npc_img.style.width = "300px" 
-    npc_img.style.height = "auto"
-    dialog.innerHTML = mission.dialog
-    accept_btn.onclick = lambda e=None: accept_mission(mission)
-    cancel_btn.onclick = lambda e=None: cancel_mission()
+    G.current_target = npc
+    G.mission_panel.style.display = "flex"  
+    G.npc_img.src = npc.avatar
+    G.npc_img.style.width = "300px" 
+    G.npc_img.style.height = "auto"
+    G.dialog.innerHTML = mission.dialog
+    G.accept_btn.onclick = accept_mission
+    G.cancel_btn.onclick = cancel_mission
 
 
 @prex
-def accept_mission(mission: Mission):
+async def accept_mission(event):
+    assert G.current_target is not None
+    mission = await next_available_mission(G.current_target.available_missions)
     print(f"Mission accepted: {mission.name}")
     panel = getElementByIdWithErr("mission-panel")
     panel.style.display = "none"
@@ -329,6 +330,14 @@ def accept_mission(mission: Mission):
         G.player.current_missions.append(mission.id)
     # TODO: Add mission logic here (e.g., mark objectives active)
 
+
+@prex
+async def cancel_mission(event):
+    assert G.current_target is not None
+    G.mission_panel.style.display = "none"
+    mission = await next_available_mission(G.current_target.available_missions)
+    print(f"Mission cancelled: {mission.name}")
+    
 
 @prex
 def make_image(ep: "Entity | Player") -> "JSImg":
