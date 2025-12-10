@@ -8,7 +8,7 @@ from types import SimpleNamespace as Sns  # type: ignore
 
 
 try:
-    from js import document, localStorage, window  # type: ignore
+    from js import document, localStorage, window, ImageData, Uint8ClampedArray  # type: ignore
     # only override print if the browser imports worked
     loaded_browser_modules = True
     def print(*args):
@@ -18,6 +18,11 @@ except ModuleNotFoundError:
 
 
 if TYPE_CHECKING:
+    from typing_extensions import TypedDict
+    class MaterialProperty(TypedDict):
+        permittivity: float
+        conductivity: float
+
     class JSImg:
         """Created by Image.new(). There's probably a better name for this"""
         src: str
@@ -54,6 +59,9 @@ if TYPE_CHECKING:
             ...
         @staticmethod
         def drawImage(img: JSImg, x: int, y: int, h: int, w: int):
+            ...
+        @staticmethod
+        def putImageData(img: JSImg, x: int, y: int):
             ...
 
     class Canvas(HTMLElement):
@@ -181,6 +189,12 @@ try:
         player: "Player"
         current_target: "Entity | None" = None
         all_missions: "list[Mission]"
+        materials: "dict[str, MaterialProperty]" = {
+            "metal": {"permittivity": 1e4, "conductivity": 1e5},  # source: ChatGPT
+            "dry sand": {"permittivity": 3.0, "conductivity": 1e-4},  # source: ChatGPT
+            "moist sand": {"permittivity": 10.0, "conductivity": 1e-2},  # source: ChatGPT
+            "fake1": {"permittivity": 4.5, "conductivity": 1e-3},  # source: made it up
+        }
         class H:
             """HTML-related globals (divs, canvas, etc)"""
             canvas: "Canvas" = getElementByIdWithErr('canvas')  # type: ignore
@@ -530,6 +544,76 @@ def load_game(event=None):
         print("Error updating player info UI:", e)
 
 
+def np_array_to_imagedata(img):
+    """Convert `img` to the Javascript `ImageData` type,
+    which is useable in an HTML canvas context's putImageData. Source: ChatGPT"""
+    import numpy as np
+    assert type(img) == np.ndarray
+    assert img.ndim == 2
+    h, w = img.shape
+    img[img > 255] = 255
+    # Convert to RGBA, which Uint8ClampedArray expects 
+    rgba = np.zeros((h, w, 4), dtype=np.uint8)
+    rgba[:, :, 0] = img  # red?
+    rgba[:, :, 1] = img  # green?
+    rgba[:, :, 2] = img  # blue?
+    rgba[:, :, 3] = 255  # opacity / "alpha"
+    # Convert NumPy array -> JS Uint8ClampedArray
+    clamp = Uint8ClampedArray.new(rgba.tobytes())
+    return ImageData.new(clamp, w, h)
+
+
+def visualize_on_canvas(grid):
+    import numpy as np
+    # relative
+    from fdtd.backend import backend as bd  # type: ignore
+    grid_energy_3d = bd.sum(grid.E ** 2 + grid.H ** 2, -1)  # type: ignore 
+    assert type(grid_energy_3d) == np.ndarray
+    grid_energy_xy = grid_energy_3d[:, :, 0]
+    geplus1 = grid_energy_xy
+    grid_energy_logscale = geplus1 * 50000
+    canvas: "Canvas" = getElementByIdWithErr("simpledrawcanvas") # type: ignore 
+    ctx = canvas.getContext("2d")
+    imageData = np_array_to_imagedata(grid_energy_logscale)
+    ctx.putImageData(imageData, 0, 0)
+
+
+async def loadgrid(filename: str):
+    """roughly,
+    - read `filename`
+    - create a PointSource in spots with "p"
+    - create metal in spots with "m"
+    """
+    import fdtd  # type: ignore
+    text = await read_text(filename)
+    lines = text.splitlines()
+    fdtd.set_backend("numpy")
+    grid = fdtd.Grid(
+                # height (y), width (x), depth (z)
+        shape = (100, 200, 1),  # type: ignore
+        grid_spacing = 1,
+    )
+    yindexes = range(len(lines))
+    for yidx, line in zip(yindexes, lines):
+        xindexes = range(len(line))
+        for xidx, char in zip(xindexes, line):
+            if char == "m":
+                grid[yidx, xidx, 0] = fdtd.AbsorbingObject(**G.materials["metal"])
+            if char == "p":
+                grid[yidx, xidx, 0] = fdtd.PointSource(period = 60, amplitude=4, pulse=True, cycle=1) # type: ignore
+    return grid
+
+
+@prex
+async def run_sim(event=None):
+    await install_modules(["fdtd"])
+    grid = await loadgrid("sim_map.txt")  
+    for _unus in range(2000):
+            visualize_on_canvas(grid)
+            grid.step() 
+            await asyncio.sleep(0)
+
+
 @prex
 async def main():
     await install_modules(["toml"])
@@ -540,7 +624,7 @@ async def main():
     update_avatar_group()
     await load_missions("missions.toml")
     print("Ready.")
-
+    getElementByIdWithErr("run_sim").onclick = run_sim
 
 if __name__ == "__main__":
     import doctest; doctest.testmod(optionflags=doctest.ELLIPSIS)

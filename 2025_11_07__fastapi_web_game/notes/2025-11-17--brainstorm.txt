@@ -8,3 +8,14 @@ Make interaction of some sort, hopefully involving EM waves, probably some other
 - dialog -> brief on the mission
   - press 'begin' / 'accept mission' to start, or cancel
 - separate map for new location
+
+
+- handle rescale when using different screen resolution.
+
+- Links: 
+  - 3d view of a wave propagating in a single dimension:
+    shows interference, wavelength, etc https://emanim.szialab.org/
+  - Cartoony map showing radio transmission and reception towers. Draggable electron. 2d-view, 1d-propagation.
+    https://phet.colorado.edu/sims/cheerpj/radio-waves/latest/radio-waves.html?simulation=radio-waves
+  - cemsim.com: two-dimensional wave propagation with custom geometry (can draw obstacles, emit waves from anywhere).
+
