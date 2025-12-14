@@ -20,6 +20,14 @@
   renderer.setSize(window.innerWidth, window.innerHeight);
   document.body.appendChild(renderer.domElement);
 
+  // Halo-style sky object
+  const haloGeometry = new THREE.TorusGeometry(15, 0.5, 8, 100);
+  const haloMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00, wireframe: true });
+  const halo = new THREE.Mesh(haloGeometry, haloMaterial);
+  halo.position.set(0, 20, 0);
+  halo.rotation.x = Math.PI / 2;
+  scene.add(halo);
+
   // =====================
   // Camera
   // =====================
@@ -65,7 +73,6 @@
   const body = new THREE.Mesh(new THREE.CapsuleGeometry(bodyRadius, bodyHeight, 4, 8), bodyMaterial);
   const head = new THREE.Mesh(new THREE.SphereGeometry(headRadius, 16, 16), headMaterial);
 
-  // Position body on ground
   body.position.y = bodyHeight/2;
   head.position.y = bodyHeight + headRadius;
   
@@ -88,23 +95,18 @@
 
   window.addEventListener('keydown', (e) => {
     keys[e.key.toLowerCase()] = true;
-
     if(e.key.toLowerCase() === 'v') firstPerson = !firstPerson;
-
     if(e.key === ' ' && avatar.position.y <= bodyHeight/2 + 0.001){
       velocityY = jumpStrength;
     }
   });
 
-  window.addEventListener('keyup', (e) => {
-    keys[e.key.toLowerCase()] = false;
-  });
+  window.addEventListener('keyup', (e) => keys[e.key.toLowerCase()] = false);
 
   document.body.addEventListener('click', () => document.body.requestPointerLock());
 
   document.addEventListener('mousemove', (e) => {
     if(document.pointerLockElement !== document.body) return;
-
     const sensitivity = 0.0005;
     yaw   -= e.movementX * sensitivity;
     pitch += e.movementY * sensitivity;
@@ -130,7 +132,6 @@
 
     avatar.rotation.y = yaw;
 
-    // Gravity
     velocityY += gravity;
     avatar.position.y += velocityY;
 
@@ -150,58 +151,53 @@
   let bobTime = 0;
 
   function updateCamera(moving){
+    const UP_LOOK_THRESHOLD = -Math.PI/6; // negative for looking up
     let cameraDistance = BASE_CAMERA_DISTANCE;
 
-    // Determine camera target
+    // Camera switches inside avatar if firstPerson OR looking up
+    const isCameraInside = firstPerson || pitch < UP_LOOK_THRESHOLD;
+
     let cameraTarget = avatar.position.clone();
-    if(firstPerson){
+    if(isCameraInside){
         cameraDistance = MIN_CAMERA_DISTANCE;
-        cameraTarget.y += bodyHeight + headRadius; // move to top of head
+        cameraTarget.y += bodyHeight + headRadius;
     }
 
-    // Head bob only in first-person when moving
+    // Head bob only when inside
     let bobOffset = 0;
-    if(firstPerson && moving){
+    if(isCameraInside && moving){
         bobTime += 0.1;
         bobOffset = Math.sin(bobTime) * 0.05;
     } else bobTime = 0;
 
-    // Camera offset vector
     const offset = new THREE.Vector3(
         Math.sin(yaw) * Math.cos(pitch),
         Math.sin(pitch) + bobOffset,
         Math.cos(yaw) * Math.cos(pitch)
     ).multiplyScalar(cameraDistance);
 
-    // Position camera and look at target
     camera.position.copy(cameraTarget).add(offset);
     camera.lookAt(cameraTarget);
 
-    // Avatar visibility in first-person
-    if(firstPerson){
-        // Hide body
+    // Avatar transparency
+    if(isCameraInside){
         bodyMaterial.opacity = 0;
         bodyMaterial.transparent = true;
-        bodyMaterial.wireframe = false; // hide green lines
+        bodyMaterial.wireframe = false;
 
-        // Hide head
         headMaterial.opacity = 0;
         headMaterial.transparent = true;
-        headMaterial.wireframe = false; // hide yellow lines
+        headMaterial.wireframe = false;
     } else {
-        // Restore body
         bodyMaterial.opacity = 1;
         bodyMaterial.transparent = false;
         bodyMaterial.wireframe = true;
 
-        // Restore head
         headMaterial.opacity = 1;
         headMaterial.transparent = false;
         headMaterial.wireframe = true;
     }
 }
-
-
 
 
   // =====================
