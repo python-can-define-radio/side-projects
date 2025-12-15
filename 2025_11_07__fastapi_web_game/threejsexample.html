@@ -10,12 +10,9 @@
 <body>
 <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
 <script>
-  // =====================
   // Scene & Renderer
-  // =====================
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x1e1e1e);
-
   const renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setSize(window.innerWidth, window.innerHeight);
   document.body.appendChild(renderer.domElement);
@@ -28,67 +25,60 @@
   halo.rotation.x = Math.PI / 2;
   scene.add(halo);
 
-  // =====================
+  // Light
+  scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+  const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+  dirLight.position.set(5,10,5);
+  scene.add(dirLight);
+
   // Camera
-  // =====================
   const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
 
-  // =====================
   // Ground
-  // =====================
   const ground = new THREE.Mesh(
     new THREE.PlaneGeometry(100, 100),
     new THREE.MeshBasicMaterial({ color: 0x333333, wireframe: true })
   );
   ground.rotation.x = -Math.PI/2;
   scene.add(ground);
-
   const grid = new THREE.GridHelper(100, 100);
   scene.add(grid);
 
-  // =====================
   // Reference cubes
-  // =====================
-  const redWire = new THREE.MeshBasicMaterial({ color: 0xff0000, wireframe: true });
-  const greenWire = new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true });
+  const solidMaterial = new THREE.MeshStandardMaterial({ color: 0x888888 });
 
-  const smallCube = new THREE.Mesh(new THREE.BoxGeometry(1,1,1), redWire);
+  // const redWire = new THREE.MeshBasicMaterial({ color: 0xff0000, wireframe: true });
+  // const greenWire = new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true });
+  const smallCube = new THREE.Mesh(new THREE.BoxGeometry(1,1,1), solidMaterial);
   smallCube.position.set(-5,0.5,-5);
   scene.add(smallCube);
-
-  const largeCube = new THREE.Mesh(new THREE.BoxGeometry(2,2,2), greenWire);
-  largeCube.position.set(5,1,5);
+  const mediumCube = new THREE.Mesh(new THREE.BoxGeometry(2,2,2), solidMaterial);
+  mediumCube.position.set(5,1,5);
+  scene.add(mediumCube);
+  const largeCube = new THREE.Mesh(new THREE.BoxGeometry(5,5,5), solidMaterial);
+  largeCube.position.set(10,2.5,5);
   scene.add(largeCube);
 
-  // =====================
   // Player avatar: capsule + head
-  // =====================
   const bodyHeight = 1.0;
   const bodyRadius = 0.3;
   const headRadius = 0.25;
-
   const bodyMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true });
   const headMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00, wireframe: true });
-
   const body = new THREE.Mesh(new THREE.CapsuleGeometry(bodyRadius, bodyHeight, 4, 8), bodyMaterial);
   const head = new THREE.Mesh(new THREE.SphereGeometry(headRadius, 16, 16), headMaterial);
-
   body.position.y = bodyHeight/2;
   head.position.y = bodyHeight + headRadius;
-  
   const avatar = new THREE.Group();
   avatar.add(body);
   avatar.add(head);
   scene.add(avatar);
 
-  // =====================
   // Input & movement
-  // =====================
   const keys = {};
   let yaw = 0;
   let pitch = Math.PI/4;
   let firstPerson = false;
-
   let velocityY = 0;
   const gravity = -0.04;
   const jumpStrength = 0.8;
@@ -102,9 +92,7 @@
   });
 
   window.addEventListener('keyup', (e) => keys[e.key.toLowerCase()] = false);
-
   document.body.addEventListener('click', () => document.body.requestPointerLock());
-
   document.addEventListener('mousemove', (e) => {
     if(document.pointerLockElement !== document.body) return;
     const sensitivity = 0.0005;
@@ -113,16 +101,13 @@
     pitch = THREE.MathUtils.clamp(pitch, -Math.PI/3, Math.PI/2 - 0.2);
   });
 
-  // =====================
   // Movement & jump
-  // =====================
   const speed = 0.08;
   const groundY = bodyHeight/2;
 
   function updateAvatar() {
     const forward = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw));
     const right   = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
-
     let moving = false;
 
     if(keys['w']) { avatar.position.addScaledVector(forward,-speed); moving=true; }
@@ -131,7 +116,6 @@
     if(keys['d']) { avatar.position.addScaledVector(right, speed); moving=true; }
 
     avatar.rotation.y = yaw;
-
     velocityY += gravity;
     avatar.position.y += velocityY;
 
@@ -143,9 +127,7 @@
     return moving;
   }
 
-  // =====================
   // Camera & head bob
-  // =====================
   const BASE_CAMERA_DISTANCE = 6;
   const MIN_CAMERA_DISTANCE = 0.05;
   let bobTime = 0;
@@ -199,10 +181,7 @@
     }
 }
 
-
-  // =====================
   // Animate loop
-  // =====================
   function animate(){
     requestAnimationFrame(animate);
     const moving = updateAvatar();
@@ -211,9 +190,7 @@
   }
   animate();
 
-  // =====================
   // Resize
-  // =====================
   window.addEventListener('resize', ()=>{
     camera.aspect = window.innerWidth/window.innerHeight;
     camera.updateProjectionMatrix();
