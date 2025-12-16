@@ -5,9 +5,42 @@
 <title>Three.js – Capsule + Octree FPS</title>
 <style>
   body { margin: 0; overflow: hidden; cursor: none; }
+
+  #reticule{
+  position:fixed;
+  left:50%;
+  top:50%;
+  width:16px;
+  height:16px;
+  margin-left:-8px;
+  margin-top:-8px;
+  pointer-events:none;
+}
+#reticule span{
+  position:absolute;
+  background:white;
+}
+#reticule span:nth-child(1){
+  left:7px;
+  top:0;
+  width:2px;
+  height:16px;
+}
+#reticule span:nth-child(2){
+  top:7px;
+  left:0;
+  width:16px;
+  height:2px;
+}
+
 </style>
 </head>
 <body>
+<div id="reticule">
+  <span></span>
+  <span></span>
+</div>
+<div>Yaw: <span id="yawtext"></span></div>
 
 <script type="module">
 import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js?module';
@@ -23,30 +56,24 @@ const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
-//
 // Lighting (needed for solid meshes)
-//
 scene.add(new THREE.AmbientLight(0xffffff, 0.4));
 const dirLight = new THREE.DirectionalLight(0xffffff, 1);
 dirLight.position.set(5,10,5);
 scene.add(dirLight);
 
-//
 // Camera
-//
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 
-//
 // Ground
-//
 const ground = new THREE.Mesh(
-  new THREE.PlaneGeometry(100, 100),
+  new THREE.PlaneGeometry(50, 50),
   new THREE.MeshStandardMaterial({ color: 0x444444 })
 );
 ground.rotation.x = -Math.PI / 2;
 scene.add(ground);
 
-const grid = new THREE.GridHelper(100, 100);
+const grid = new THREE.GridHelper(50, 50);
 scene.add(grid);
 
 // Halo-style sky object
@@ -60,29 +87,43 @@ halo.position.set(0, 20, 0);
 halo.rotation.x = Math.PI / 2;
 scene.add(halo);
 
-//
 // Solid cubes (colliders)
-//
-const cubeMaterial = new THREE.MeshStandardMaterial({ color: 0x888888 });
+const cubeMaterialred = new THREE.MeshStandardMaterial({ color: 0xff0000 });
+const cubeMaterialblue = new THREE.MeshStandardMaterial({ color: 0x0000ff80 });
 
-const smallCube = new THREE.Mesh(new THREE.BoxGeometry(1,1,1), cubeMaterial);
+const smallCube = new THREE.Mesh(new THREE.BoxGeometry(1,1,1), cubeMaterialred);
 smallCube.position.set(-5,0.5,-5);
 scene.add(smallCube);
 
-const largeCube = new THREE.Mesh(new THREE.BoxGeometry(2,2,2), cubeMaterial);
-largeCube.position.set(5,1,5);
+const mediumCube = new THREE.Mesh(new THREE.BoxGeometry(2,2,2), cubeMaterialred);
+mediumCube.position.set(5,1,6);
+scene.add(mediumCube);
+
+const mediumCube2 = new THREE.Mesh(new THREE.BoxGeometry(2,2,2), cubeMaterialred);
+mediumCube2.position.set(6,3,6);
+scene.add(mediumCube2);
+
+const mediumCube3 = new THREE.Mesh(new THREE.BoxGeometry(2,2,2), cubeMaterialred);
+mediumCube3.position.set(7,5,6);
+scene.add(mediumCube3);
+
+const mediumCube4 = new THREE.Mesh(new THREE.BoxGeometry(2,2,2), cubeMaterialred);
+mediumCube4.position.set(8,7,6);
+scene.add(mediumCube4);
+
+const largeCube = new THREE.Mesh(new THREE.BoxGeometry(5,5,5), cubeMaterialblue);
+largeCube.position.set(10,7,10);
 scene.add(largeCube);
 
-//
+const camtargcube = new THREE.Mesh(new THREE.BoxGeometry(0.2,0.2,0.2), cubeMaterialred);
+scene.add(camtargcube);
+
 // Player avatar (visual only)
-//
 const bodyHeight = 1.0;
 const bodyRadius = 0.3;
 const headRadius = 0.25;
-
 const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
 const headMaterial = new THREE.MeshStandardMaterial({ color: 0xffff00 });
-
 const body = new THREE.Mesh(
   new THREE.CapsuleGeometry(bodyRadius, bodyHeight, 4, 8),
   bodyMaterial
@@ -101,30 +142,23 @@ avatar.add(body);
 avatar.add(head);
 scene.add(avatar);
 
-//
 // WORLD OCTREE
-//
 const worldOctree = new Octree();
 worldOctree.fromGraphNode(scene);
 
-//
 // PLAYER CAPSULE (collision truth)
-//
 const playerCapsule = new Capsule(
-  new THREE.Vector3(0, bodyRadius, 0),
-  new THREE.Vector3(0, bodyHeight + bodyRadius, 0),
+  new THREE.Vector3(0, bodyRadius, 0),  // location of collider feet 
+  new THREE.Vector3(0, bodyHeight + bodyRadius, 0),  //  location of collider head 
   bodyRadius
 );
 
-//
 // Input
-//
 const keys = {};
 let yaw = 0;
 let pitch = Math.PI / 4;
 let firstPerson = false;
 const UP_LOOK_THRESHOLD = -Math.PI / 24;
-
 
 let isRunning = false;
 
@@ -140,15 +174,12 @@ window.addEventListener('keyup', (e) => {
   if (e.key.toLowerCase() === 'shift') isRunning = false;
 });
 
-
 document.body.addEventListener('click', () => document.body.requestPointerLock());
-
 document.addEventListener('mousemove', (e) => {
   if (document.pointerLockElement !== document.body) return;
   const sensitivity = 0.002;
   yaw   -= e.movementX * sensitivity;
   pitch += e.movementY * sensitivity;
-  // pitch = THREE.MathUtils.clamp(pitch, -Math.PI / 2, Math.PI / 2);
   pitch = THREE.MathUtils.clamp(
     pitch,
     -Math.PI / 2 + 0.1,
@@ -156,12 +187,9 @@ document.addEventListener('mousemove', (e) => {
   );
 });
 
-//
 // Movement & Physics
-//
 const velocity = new THREE.Vector3();
 const direction = new THREE.Vector3();
-
 const GRAVITY = 30;
 const SPEED = 8;
 const JUMP = 10;
@@ -179,14 +207,14 @@ function updatePlayer(delta) {
 
   const currentSpeed = SPEED * (isRunning ? 2 : 1);
   direction.normalize();
+  // Make w/a/s/d relative to camera view rather than static/absolute map directions
   direction.applyAxisAngle(new THREE.Vector3(0,1,0), yaw);
-
   velocity.x = direction.x * currentSpeed;
   velocity.z = direction.z * currentSpeed;
 
   if (onGround) {
     velocity.y = Math.max(0, velocity.y);
-    if (keys[' '] ) velocity.y = JUMP;
+    if (keys[' ']) velocity.y = JUMP;
   } else {
     velocity.y -= GRAVITY * delta;
   }
@@ -209,44 +237,57 @@ function updatePlayer(delta) {
   avatar.rotation.y = yaw;
 }
 
-//
 // Camera
-//
-const BASE_CAMERA_DISTANCE = 6;
-const MIN_CAMERA_DISTANCE = 0.05;
-
-function updateCamera() {
-
-  // Automatic first-person when looking up
+function updateCamera(){
   const isCameraInside = firstPerson || pitch < UP_LOOK_THRESHOLD;
-
+  
   let cameraTarget = avatar.position.clone();
-
   if (isCameraInside) {
-    cameraTarget.y += bodyHeight + headRadius;
+    cameraTarget.x += 0.8 * Math.cos(yaw);
+    cameraTarget.z -= 0.8 * Math.sin(yaw);
+    camera.position.copy(avatar.position);
+  } else {
+    const BASE_CAMERA_DISTANCE = 6;
+    // Camera points slightly to the right and above avatar
+    cameraTarget.x += 0.8 * Math.cos(yaw);
+    cameraTarget.z -= 0.8 * Math.sin(yaw);
+    cameraTarget.y += 1.7;
+    camera.position.x = avatar.position.x - BASE_CAMERA_DISTANCE * Math.cos(yaw + Math.PI / 2) * Math.cos(pitch);
+    camera.position.y = avatar.position.y + BASE_CAMERA_DISTANCE * Math.sin(pitch);
+    camera.position.z = avatar.position.z + BASE_CAMERA_DISTANCE * Math.sin(yaw + Math.PI / 2) * Math.cos(pitch);
   }
-
-  const distance = isCameraInside
-    ? MIN_CAMERA_DISTANCE
-    : BASE_CAMERA_DISTANCE;
-
-  const offset = new THREE.Vector3(
-    Math.sin(yaw) * Math.cos(pitch),
-    Math.sin(pitch),
-    Math.cos(yaw) * Math.cos(pitch)
-  ).multiplyScalar(distance);
-
-  camera.position.copy(cameraTarget).add(offset);
+  
+  camtargcube.position.set(cameraTarget.x, cameraTarget.y, cameraTarget.z);
   camera.lookAt(cameraTarget);
+  
+  // const aimHeight = bodyHeight * 0.9;
 
-  // Hide avatar when camera is inside
-  avatar.visible = !isCameraInside;
+  // cameraTarget.y += isCameraInside
+  //   ? bodyHeight + headRadius
+  //   : aimHeight;
+
+  // const distance = isCameraInside ? MIN_CAMERA_DISTANCE : BASE_CAMERA_DISTANCE;
+  // const sideOffset = isCameraInside ? 0 : 1.2;
+
+  // const offset = new THREE.Vector3(
+  //   Math.sin(yaw) * Math.cos(pitch),
+  //   Math.sin(pitch),
+  //   Math.cos(yaw) * Math.cos(pitch)
+  // ).multiplyScalar(distance);
+
+  // offset.add(new THREE.Vector3(
+  //   Math.cos(yaw) * sideOffset,
+  //   0,
+  //  -Math.sin(yaw) * sideOffset
+  // ));
+
+  // camera.position.copy(cameraTarget).add(offset);
+  // camera.lookAt(cameraTarget);
+
+  // avatar.visible = !isCameraInside;
 }
 
-
-//
 // Animate
-//
 let lastTime = performance.now();
 
 function animate() {
@@ -260,19 +301,17 @@ function animate() {
   updateCamera();
 
   renderer.render(scene, camera);
+  document.getElementById("yawtext").innerHTML = yaw;
 }
 
 animate();
 
-//
 // Resize
-//
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 </script>
-
 </body>
 </html>
