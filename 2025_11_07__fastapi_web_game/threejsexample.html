@@ -118,6 +118,37 @@ scene.add(largeCube);
 const camtargcube = new THREE.Mesh(new THREE.BoxGeometry(0.2,0.2,0.2), cubeMaterialred);
 scene.add(camtargcube);
 
+// group to hold voxels
+const sizeX = 16, sizeY = 16, sizeZ = 16; // keep small for performance
+const voxelGroup = new THREE.Group();
+scene.add(voxelGroup);
+
+for (let x = 8; x < sizeX; x++) {
+  for (let y = 14; y < sizeY; y++) { // avoid division by zero
+    for (let z = 8; z < sizeZ; z++) {
+      const X = (x / sizeX) * Math.PI * 2;
+      const Y = (y / sizeY) * Math.PI * 2;
+      const Z = (z / sizeZ) * Math.PI * 2;
+      const intensity = Math.sin(Z) * Math.sin(X) / Y;
+
+      // map intensity to color and opacity
+      const color = new THREE.Color().setHSL(0.6 - intensity*0.3, 1.0, 0.5);
+      const opacity = Math.min(Math.abs(intensity), 1.0);
+
+      if (opacity > 0.05) { // skip very transparent voxels
+        const material = new THREE.MeshBasicMaterial({
+          color: color,
+          transparent: true,
+          opacity: opacity
+        });
+        const cube = new THREE.Mesh(new THREE.BoxGeometry(1,1,1), material);
+        cube.position.set(x - sizeX/2, y - sizeY/2, z - sizeZ/2);
+        voxelGroup.add(cube);
+      }
+    }
+  }
+}
+
 // Player avatar (visual only)
 const bodyHeight = 1.0;
 const bodyRadius = 0.3;
