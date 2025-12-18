@@ -184,7 +184,7 @@ window.addEventListener('keyup', (e) => {
   if (e.key.toLowerCase() === 'shift') isRunning = false;
 });
 
-document.body.addEventListener('click', () => document.body.requestPointerLock());
+document.body.addEventListener('click', () => document.body.requestPointerLock({unadjustedMovement: true}));
 document.addEventListener('mousemove', (e) => {
   if (document.pointerLockElement !== document.body) return;
   const sensitivity = 0.002;
@@ -212,8 +212,10 @@ function updatePlayer(delta) {
 
   if (keys['w']) direction.z -= 1;
   if (keys['s']) direction.z += 1;
-  if (keys['a']) direction.x -= 1;
-  if (keys['d']) direction.x += 1;
+  if (keys['a']) yaw += 0.07;
+  if (keys['d']) yaw -= 0.07;
+  // if (keys['a']) direction.x -= 1;
+  // if (keys['d']) direction.x += 1;
   if (keys['i']) pitch -= 0.03;
   if (keys['j']) yaw += 0.03;
   if (keys['k']) pitch += 0.03;
@@ -262,7 +264,8 @@ function updatePlayer(delta) {
 
 // Camera
 function updateCamera(){
-  const isCameraInside = firstPerson || pitch < UP_LOOK_THRESHOLD;
+  // const isCameraInside = firstPerson || pitch < UP_LOOK_THRESHOLD;
+  const isCameraInside = false;
   
   let cameraTarget = avatar.position.clone();
   if (isCameraInside) {
@@ -310,20 +313,7 @@ function updateCamera(){
   // avatar.visible = !isCameraInside;
 }
 
-// Animate
-let lastTime = performance.now();
-
-function animate() {
-  requestAnimationFrame(animate);
-
-  const time = performance.now();
-  const delta = Math.min(0.05, (time - lastTime) / 1000);
-  lastTime = time;
-
-  updatePlayer(delta);
-  updateCamera();
-
-  renderer.render(scene, camera);
+function updateHUD() {
   const pos = playerCapsule.start;
 
   document.getElementById("yawtext").textContent =
@@ -337,7 +327,22 @@ function animate() {
 
   document.getElementById("posz").textContent =
     pos.z.toFixed(2);
+}
 
+// Animate
+let lastTime = performance.now();
+
+function animate() {
+  requestAnimationFrame(animate);
+
+  const time = performance.now();
+  const delta = Math.min(0.03, (time - lastTime) / 1000);
+  lastTime = time;
+
+  updatePlayer(delta);
+  updateCamera();
+  renderer.render(scene, camera);
+  updateHUD();
 }
 
 animate();
