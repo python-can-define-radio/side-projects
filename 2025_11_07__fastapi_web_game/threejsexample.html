@@ -1,358 +1,463 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8">
-<title>Three.js – Capsule + Octree FPS</title>
-<style>
-  body { margin: 0; overflow: hidden; cursor: none; }
+  <meta charset="UTF-8">
+  <title>Three.js – Capsule + Octree FPS</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      cursor: none;
+    }
 
-  #reticule{
-  position:fixed;
-  left:50%;
-  top:50%;
-  width:16px;
-  height:16px;
-  margin-left:-8px;
-  margin-top:-8px;
-  pointer-events:none;
-}
-#reticule span{
-  position:absolute;
-  background:white;
-}
-#reticule span:nth-child(1){
-  left:7px;
-  top:0;
-  width:2px;
-  height:16px;
-}
-#reticule span:nth-child(2){
-  top:7px;
-  left:0;
-  width:16px;
-  height:2px;
-}
+    #reticule {
+      position: fixed;
+      left: 50%;
+      top: 50%;
+      width: 16px;
+      height: 16px;
+      margin-left: -8px;
+      margin-top: -8px;
+      pointer-events: none;
+    }
 
-</style>
+    #reticule span {
+      position: absolute;
+      background: white;
+    }
+
+    #reticule span:nth-child(1) {
+      left: 7px;
+      top: 0;
+      width: 2px;
+      height: 16px;
+    }
+
+    #reticule span:nth-child(2) {
+      top: 7px;
+      left: 0;
+      width: 16px;
+      height: 2px;
+    }
+
+    #startScreen {
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(circle at center, #222, #000);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      color: white;
+      font-family: monospace;
+    }
+
+    #startPanel {
+      background: rgba(20, 20, 20, 0.95);
+      padding: 24px 32px;
+      border: 1px solid #555;
+      width: 320px;
+      text-align: center;
+    }
+
+    #startPanel h1 {
+      margin-bottom: 20px;
+    }
+
+    #startPanel label {
+      display: block;
+      margin-bottom: 16px;
+      text-align: left;
+    }
+
+    #startPanel input {
+      width: 100%;
+      padding: 6px;
+      margin-top: 4px;
+      background: #111;
+      border: 1px solid #555;
+      color: white;
+    }
+
+    .avatarSelect {
+      margin-bottom: 20px;
+    }
+
+    .avatarPreview {
+      border: 1px solid #555;
+      padding: 12px;
+      margin: 8px 0;
+      background: #111;
+    }
+
+    #startButton {
+      width: 100%;
+      padding: 10px;
+      background: #2ecc71;
+      border: none;
+      cursor: pointer;
+      font-size: 16px;
+    }
+
+    #startButton:hover {
+      background: #27ae60;
+    }
+  </style>
 </head>
+
 <body>
-<div id="reticule">
-  <span></span>
-  <span></span>
-</div>
-<div style="position:fixed; top:10px; left:10px; color:white; font-family:monospace;">
-  Yaw: <span id="yawtext"></span><br>
-  Pos:
-  <span style="color:#ed8711;">X:</span> <span id="posx"></span>
-  <span style="color:#d2ef1b; margin-left:6px;">Y:</span> <span id="posy"></span>
-  <span style="color:#4488ff; margin-left:6px;">Z:</span> <span id="posz"></span>
-</div>
+  <div id="reticule">
+    <span></span>
+    <span></span>
+  </div>
+  <div style="position:fixed; top:10px; left:10px; color:white; font-family:monospace;">
+    Yaw: <span id="yawtext"></span><br>
+    Pos:
+    <span style="color:#ed8711;">X:</span> <span id="posx"></span>
+    <span style="color:#d2ef1b; margin-left:6px;">Y:</span> <span id="posy"></span>
+    <span style="color:#4488ff; margin-left:6px;">Z:</span> <span id="posz"></span>
+  </div>
+  <div id="startScreen">
+    <div id="startPanel">
+      <h1>Start Game</h1>
+
+      <label>
+        Username
+        <input id="usernameInput" type="text" maxlength="16" placeholder="Player1">
+      </label>
+
+      <div class="avatarSelect">
+        <p>Avatar</p>
+        <div class="avatarPreview">
+          Capsule + Sphere
+        </div>
+        <small>(More avatars coming later)</small>
+      </div>
+
+      <button id="startButton">Start Game</button>
+    </div>
+  </div>
 
 
-<script type="module">
-import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js?module';
-import { Capsule } from 'https://unpkg.com/three@0.160.0/examples/jsm/math/Capsule.js?module';
-import { Octree } from 'https://unpkg.com/three@0.160.0/examples/jsm/math/Octree.js?module';
+  <script type="module">
+    import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js?module';
+    import { Capsule } from 'https://unpkg.com/three@0.160.0/examples/jsm/math/Capsule.js?module';
+    import { Octree } from 'https://unpkg.com/three@0.160.0/examples/jsm/math/Octree.js?module';
 
 
-// Scene & Renderer
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x1e1e1e);
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setSize(window.innerWidth, window.innerHeight);
-document.body.appendChild(renderer.domElement);
+    let gameStarted = false;
+    let playerName = "Player";
 
-// Lighting (needed for solid meshes)
-scene.add(new THREE.AmbientLight(0xffffff, 0.4));
-const dirLight = new THREE.DirectionalLight(0xffffff, 1);
-dirLight.position.set(5,10,5);
-scene.add(dirLight);
+    // Scene & Renderer
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x1e1e1e);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
 
-// Camera
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    // Lighting (needed for solid meshes)
+    scene.add(new THREE.AmbientLight(0xffffff, 0.4));
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+    dirLight.position.set(5, 10, 5);
+    scene.add(dirLight);
 
-// Ground and grid
-const ground = new THREE.Mesh(
-  new THREE.PlaneGeometry(50, 50),
-  new THREE.MeshStandardMaterial({ color: 0x444444 })
-);
-ground.rotation.x = -Math.PI / 2;
-scene.add(ground);
-const grid = new THREE.GridHelper(50, 50);
-scene.add(grid);
+    // Camera
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 
-// Halo-style sky object
-const haloGeometry = new THREE.TorusGeometry(15, 0.5, 8, 100);
-const haloMaterial = new THREE.MeshBasicMaterial({
-  color: 0xffff00,
-  wireframe: true
-});
-const halo = new THREE.Mesh(haloGeometry, haloMaterial);
-halo.position.set(0, 20, 0);
-halo.rotation.x = Math.PI / 2;
-scene.add(halo);
-
-// Solid cubes (colliders)
-const cubeMaterialred = new THREE.MeshStandardMaterial({ color: 0xff0000 });
-const cubeMaterialblue = new THREE.MeshStandardMaterial({ color: 0x0000ff80 });
-
-const smallCube = new THREE.Mesh(new THREE.BoxGeometry(1,1,1), cubeMaterialred);
-smallCube.position.set(-5,0.5,-5);
-scene.add(smallCube);
-
-const mediumCube = new THREE.Mesh(new THREE.BoxGeometry(2,2,2), cubeMaterialred);
-mediumCube.position.set(5,1,6);
-scene.add(mediumCube);
-
-const mediumCube2 = new THREE.Mesh(new THREE.BoxGeometry(2,2,2), cubeMaterialred);
-mediumCube2.position.set(6,3,6);
-scene.add(mediumCube2);
-
-const mediumCube3 = new THREE.Mesh(new THREE.BoxGeometry(2,2,2), cubeMaterialred);
-mediumCube3.position.set(7,5,6);
-scene.add(mediumCube3);
-
-const mediumCube4 = new THREE.Mesh(new THREE.BoxGeometry(2,2,2), cubeMaterialred);
-mediumCube4.position.set(8,7,6);
-scene.add(mediumCube4);
-
-const largeCube = new THREE.Mesh(new THREE.BoxGeometry(5,5,5), cubeMaterialblue);
-largeCube.position.set(10,7,10);
-scene.add(largeCube);
-
-const camtargcube = new THREE.Mesh(new THREE.BoxGeometry(0.2,0.2,0.2), cubeMaterialred);
-scene.add(camtargcube);
-
-
-// Player avatar (visual only)
-const bodyHeight = 1.0;
-const bodyRadius = 0.3;
-const headRadius = 0.25;
-const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
-const headMaterial = new THREE.MeshStandardMaterial({ color: 0xffff00 });
-const body = new THREE.Mesh(
-  new THREE.CapsuleGeometry(bodyRadius, bodyHeight, 4, 8),
-  bodyMaterial
-);
-
-const head = new THREE.Mesh(
-  new THREE.SphereGeometry(headRadius, 16, 16),
-  headMaterial
-);
-
-body.position.y = bodyHeight / 2;
-head.position.y = bodyHeight + headRadius;
-
-const avatar = new THREE.Group();
-avatar.add(body);
-avatar.add(head);
-scene.add(avatar);
-
-// Player compass (world axes)
-const playerAxes = new THREE.AxesHelper(2); // length in units
-scene.add(playerAxes);
-
-
-// WORLD OCTREE
-const worldOctree = new Octree();
-worldOctree.fromGraphNode(scene);
-
-// PLAYER CAPSULE (collision truth)
-const playerCapsule = new Capsule(
-  new THREE.Vector3(0, bodyRadius, 0),  // location of collider feet 
-  new THREE.Vector3(0, bodyHeight + bodyRadius, 0),  //  location of collider head 
-  bodyRadius
-);
-
-// Input
-const keys = {};
-let yaw = 0;
-let pitch = Math.PI / 4;
-let firstPerson = false;
-const UP_LOOK_THRESHOLD = -Math.PI / 24;
-
-let isRunning = false;
-
-window.addEventListener('keydown', (e) => {
-  keys[e.key.toLowerCase()] = true;
-  if (e.key.toLowerCase() === 'shift') isRunning = true;
-  if (e.key.toLowerCase() === 'v') firstPerson = !firstPerson;
-});
-
-window.addEventListener('keyup', (e) => {
-  keys[e.key.toLowerCase()] = false;
-  if (e.key.toLowerCase() === 'shift') isRunning = false;
-});
-
-document.body.addEventListener('click', () => document.body.requestPointerLock({unadjustedMovement: true}));
-document.addEventListener('mousemove', (e) => {
-  if (document.pointerLockElement !== document.body) return;
-  const sensitivity = 0.002;
-  yaw   -= e.movementX * sensitivity;
-  pitch += e.movementY * sensitivity;
-  pitch = THREE.MathUtils.clamp(
-    pitch,
-    -Math.PI / 2 + 0.1,
-     Math.PI / 2 - 0.1
-  );
-});
-
-// Movement & Physics
-const velocity = new THREE.Vector3();
-const direction = new THREE.Vector3();
-const GRAVITY = 30;
-const SPEED = 8;
-const JUMP = 10;
-
-let onGround = false;
-
-function updatePlayer(delta) {
-
-  direction.set(0,0,0);
-
-  if (keys['w']) direction.z -= 1;
-  if (keys['s']) direction.z += 1;
-  if (keys['a']) yaw += 0.07;
-  if (keys['d']) yaw -= 0.07;
-  // if (keys['a']) direction.x -= 1;
-  // if (keys['d']) direction.x += 1;
-  if (keys['i']) pitch -= 0.03;
-  if (keys['j']) yaw += 0.03;
-  if (keys['k']) pitch += 0.03;
-  if (keys['l']) yaw -= 0.03;
-  if (keys['i'] || keys['k']) {
-    pitch = THREE.MathUtils.clamp(
-      pitch,
-      -Math.PI / 2 + 0.1,
-      Math.PI / 2 - 0.1
+    // Ground and grid
+    const ground = new THREE.Mesh(
+      new THREE.PlaneGeometry(50, 50),
+      new THREE.MeshStandardMaterial({ color: 0x444444 })
     );
-  }
+    ground.rotation.x = -Math.PI / 2;
+    scene.add(ground);
+    const grid = new THREE.GridHelper(50, 50);
+    scene.add(grid);
 
-  const currentSpeed = SPEED * (isRunning ? 2 : 1);
-  direction.normalize();
-  // Make w/a/s/d relative to camera view rather than static/absolute map directions
-  direction.applyAxisAngle(new THREE.Vector3(0,1,0), yaw);
-  velocity.x = direction.x * currentSpeed;
-  velocity.z = direction.z * currentSpeed;
+    // Halo-style sky object
+    const haloGeometry = new THREE.TorusGeometry(15, 0.5, 8, 100);
+    const haloMaterial = new THREE.MeshBasicMaterial({
+      color: 0xffff00,
+      wireframe: true
+    });
+    const halo = new THREE.Mesh(haloGeometry, haloMaterial);
+    halo.position.set(0, 20, 0);
+    halo.rotation.x = Math.PI / 2;
+    scene.add(halo);
 
-  if (onGround) {
-    velocity.y = Math.max(0, velocity.y);
-    if (keys[' ']) velocity.y = JUMP;
-  } else {
-    velocity.y -= GRAVITY * delta;
-  }
+    // Solid cubes (colliders)
+    const cubeMaterialred = new THREE.MeshStandardMaterial({ color: 0xff0000 });
+    const cubeMaterialblue = new THREE.MeshStandardMaterial({ color: 0x0000ff80 });
 
-  // Move capsule
-  const deltaPos = velocity.clone().multiplyScalar(delta);
-  playerCapsule.translate(deltaPos);
+    const smallCube = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), cubeMaterialred);
+    smallCube.position.set(-5, 0.5, -5);
+    scene.add(smallCube);
 
-  // Collision
-  const result = worldOctree.capsuleIntersect(playerCapsule);
-  onGround = false;
+    const mediumCube = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2), cubeMaterialred);
+    mediumCube.position.set(5, 1, 6);
+    scene.add(mediumCube);
 
-  if (result) {
-    playerCapsule.translate(result.normal.multiplyScalar(result.depth));
-    onGround = result.normal.y > 0;
-  }
+    const mediumCube2 = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2), cubeMaterialred);
+    mediumCube2.position.set(6, 3, 6);
+    scene.add(mediumCube2);
 
-  // Sync visual avatar
-  avatar.position.copy(playerCapsule.start);
-  avatar.rotation.y = yaw;
-  playerAxes.position.copy(playerCapsule.start);
+    const mediumCube3 = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2), cubeMaterialred);
+    mediumCube3.position.set(7, 5, 6);
+    scene.add(mediumCube3);
 
-}
+    const mediumCube4 = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2), cubeMaterialred);
+    mediumCube4.position.set(8, 7, 6);
+    scene.add(mediumCube4);
 
-// Camera
-function updateCamera(){
-  // const isCameraInside = firstPerson || pitch < UP_LOOK_THRESHOLD;
-  const isCameraInside = false;
-  
-  let cameraTarget = avatar.position.clone();
-  if (isCameraInside) {
-    cameraTarget.x += 0.8 * Math.cos(yaw);
-    cameraTarget.z -= 0.8 * Math.sin(yaw);
-    camera.position.copy(avatar.position);
-  } else {
-    const BASE_CAMERA_DISTANCE = 6;
-    // Camera points slightly to the right and above avatar
-    cameraTarget.x += 0.8 * Math.cos(yaw);
-    cameraTarget.z -= 0.8 * Math.sin(yaw);
-    cameraTarget.y += 1.7;
-    camera.position.x = avatar.position.x - BASE_CAMERA_DISTANCE * Math.cos(yaw + Math.PI / 2) * Math.cos(pitch);
-    camera.position.y = avatar.position.y + BASE_CAMERA_DISTANCE * Math.sin(pitch);
-    camera.position.z = avatar.position.z + BASE_CAMERA_DISTANCE * Math.sin(yaw + Math.PI / 2) * Math.cos(pitch);
-  }
-  
-  camtargcube.position.set(cameraTarget.x, cameraTarget.y, cameraTarget.z);
-  camera.lookAt(cameraTarget);
-  
-  // const aimHeight = bodyHeight * 0.9;
+    const largeCube = new THREE.Mesh(new THREE.BoxGeometry(5, 5, 5), cubeMaterialblue);
+    largeCube.position.set(10, 7, 10);
+    scene.add(largeCube);
 
-  // cameraTarget.y += isCameraInside
-  //   ? bodyHeight + headRadius
-  //   : aimHeight;
+    const camtargcube = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.2), cubeMaterialred);
+    scene.add(camtargcube);
 
-  // const distance = isCameraInside ? MIN_CAMERA_DISTANCE : BASE_CAMERA_DISTANCE;
-  // const sideOffset = isCameraInside ? 0 : 1.2;
 
-  // const offset = new THREE.Vector3(
-  //   Math.sin(yaw) * Math.cos(pitch),
-  //   Math.sin(pitch),
-  //   Math.cos(yaw) * Math.cos(pitch)
-  // ).multiplyScalar(distance);
+    // Player avatar (visual only)
+    const bodyHeight = 1.0;
+    const bodyRadius = 0.3;
+    const headRadius = 0.25;
+    const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
+    const headMaterial = new THREE.MeshStandardMaterial({ color: 0xffff00 });
+    const body = new THREE.Mesh(
+      new THREE.CapsuleGeometry(bodyRadius, bodyHeight, 4, 8),
+      bodyMaterial
+    );
 
-  // offset.add(new THREE.Vector3(
-  //   Math.cos(yaw) * sideOffset,
-  //   0,
-  //  -Math.sin(yaw) * sideOffset
-  // ));
+    const head = new THREE.Mesh(
+      new THREE.SphereGeometry(headRadius, 16, 16),
+      headMaterial
+    );
 
-  // camera.position.copy(cameraTarget).add(offset);
-  // camera.lookAt(cameraTarget);
+    body.position.y = bodyHeight / 2;
+    head.position.y = bodyHeight + headRadius;
 
-  // avatar.visible = !isCameraInside;
-}
+    const avatar = new THREE.Group();
+    avatar.add(body);
+    avatar.add(head);
+    scene.add(avatar);
 
-function updateHUD() {
-  const pos = playerCapsule.start;
+    // Player compass (world axes)
+    const playerAxes = new THREE.AxesHelper(2); // length in units
+    scene.add(playerAxes);
 
-  document.getElementById("yawtext").textContent =
-    yaw.toFixed(3);
 
-  document.getElementById("posx").textContent =
-    pos.x.toFixed(2);
+    // WORLD OCTREE
+    const worldOctree = new Octree();
+    worldOctree.fromGraphNode(scene);
 
-  document.getElementById("posy").textContent =
-    pos.y.toFixed(2);
+    // PLAYER CAPSULE (collision truth)
+    const playerCapsule = new Capsule(
+      new THREE.Vector3(0, bodyRadius, 0),  // location of collider feet 
+      new THREE.Vector3(0, bodyHeight + bodyRadius, 0),  //  location of collider head 
+      bodyRadius
+    );
 
-  document.getElementById("posz").textContent =
-    pos.z.toFixed(2);
-}
+    // Input
+    const keys = {};
+    let yaw = 0;
+    let pitch = Math.PI / 4;
+    let firstPerson = false;
+    const UP_LOOK_THRESHOLD = -Math.PI / 24;
 
-// Animate
-let lastTime = performance.now();
+    let isRunning = false;
 
-function animate() {
-  requestAnimationFrame(animate);
+    window.addEventListener('keydown', (e) => {
+      keys[e.key.toLowerCase()] = true;
+      if (e.key.toLowerCase() === 'shift') isRunning = true;
+      if (e.key.toLowerCase() === 'v') firstPerson = !firstPerson;
+    });
 
-  const time = performance.now();
-  const delta = Math.min(0.03, (time - lastTime) / 1000);
-  lastTime = time;
+    window.addEventListener('keyup', (e) => {
+      keys[e.key.toLowerCase()] = false;
+      if (e.key.toLowerCase() === 'shift') isRunning = false;
+    });
 
-  updatePlayer(delta);
-  updateCamera();
-  renderer.render(scene, camera);
-  updateHUD();
-}
+    document.body.addEventListener('click', () => document.body.requestPointerLock({ unadjustedMovement: true }));
+    document.addEventListener('mousemove', (e) => {
+      if (document.pointerLockElement !== document.body) return;
+      const sensitivity = 0.002;
+      yaw -= e.movementX * sensitivity;
+      pitch += e.movementY * sensitivity;
+      pitch = THREE.MathUtils.clamp(
+        pitch,
+        -Math.PI / 2 + 0.1,
+        Math.PI / 2 - 0.1
+      );
+    });
 
-animate();
+    // Movement & Physics
+    const velocity = new THREE.Vector3();
+    const direction = new THREE.Vector3();
+    const GRAVITY = 30;
+    const SPEED = 8;
+    const JUMP = 10;
 
-// Resize
-window.addEventListener('resize', () => {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
-});
-</script>
+    let onGround = false;
+
+    function updatePlayer(delta) {
+
+      direction.set(0, 0, 0);
+
+      if (keys['w']) direction.z -= 1;
+      if (keys['s']) direction.z += 1;
+      if (keys['a']) yaw += 0.07;
+      if (keys['d']) yaw -= 0.07;
+      // if (keys['a']) direction.x -= 1;
+      // if (keys['d']) direction.x += 1;
+      if (keys['i']) pitch -= 0.03;
+      if (keys['j']) yaw += 0.03;
+      if (keys['k']) pitch += 0.03;
+      if (keys['l']) yaw -= 0.03;
+      if (keys['i'] || keys['k']) {
+        pitch = THREE.MathUtils.clamp(
+          pitch,
+          -Math.PI / 2 + 0.1,
+          Math.PI / 2 - 0.1
+        );
+      }
+
+      const currentSpeed = SPEED * (isRunning ? 2 : 1);
+      direction.normalize();
+      // Make w/a/s/d relative to camera view rather than static/absolute map directions
+      direction.applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
+      velocity.x = direction.x * currentSpeed;
+      velocity.z = direction.z * currentSpeed;
+
+      if (onGround) {
+        velocity.y = Math.max(0, velocity.y);
+        if (keys[' ']) velocity.y = JUMP;
+      } else {
+        velocity.y -= GRAVITY * delta;
+      }
+
+      // Move capsule
+      const deltaPos = velocity.clone().multiplyScalar(delta);
+      playerCapsule.translate(deltaPos);
+
+      // Collision
+      const result = worldOctree.capsuleIntersect(playerCapsule);
+      onGround = false;
+
+      if (result) {
+        playerCapsule.translate(result.normal.multiplyScalar(result.depth));
+        onGround = result.normal.y > 0;
+      }
+
+      // Sync visual avatar
+      avatar.position.copy(playerCapsule.start);
+      avatar.rotation.y = yaw;
+      playerAxes.position.copy(playerCapsule.start);
+
+    }
+
+    // Camera
+    function updateCamera() {
+      // const isCameraInside = firstPerson || pitch < UP_LOOK_THRESHOLD;
+      const isCameraInside = false;
+
+      let cameraTarget = avatar.position.clone();
+      if (isCameraInside) {
+        cameraTarget.x += 0.8 * Math.cos(yaw);
+        cameraTarget.z -= 0.8 * Math.sin(yaw);
+        camera.position.copy(avatar.position);
+      } else {
+        const BASE_CAMERA_DISTANCE = 6;
+        // Camera points slightly to the right and above avatar
+        cameraTarget.x += 0.8 * Math.cos(yaw);
+        cameraTarget.z -= 0.8 * Math.sin(yaw);
+        cameraTarget.y += 1.7;
+        camera.position.x = avatar.position.x - BASE_CAMERA_DISTANCE * Math.cos(yaw + Math.PI / 2) * Math.cos(pitch);
+        camera.position.y = avatar.position.y + BASE_CAMERA_DISTANCE * Math.sin(pitch);
+        camera.position.z = avatar.position.z + BASE_CAMERA_DISTANCE * Math.sin(yaw + Math.PI / 2) * Math.cos(pitch);
+      }
+
+      camtargcube.position.set(cameraTarget.x, cameraTarget.y, cameraTarget.z);
+      camera.lookAt(cameraTarget);
+
+      // const aimHeight = bodyHeight * 0.9;
+
+      // cameraTarget.y += isCameraInside
+      //   ? bodyHeight + headRadius
+      //   : aimHeight;
+
+      // const distance = isCameraInside ? MIN_CAMERA_DISTANCE : BASE_CAMERA_DISTANCE;
+      // const sideOffset = isCameraInside ? 0 : 1.2;
+
+      // const offset = new THREE.Vector3(
+      //   Math.sin(yaw) * Math.cos(pitch),
+      //   Math.sin(pitch),
+      //   Math.cos(yaw) * Math.cos(pitch)
+      // ).multiplyScalar(distance);
+
+      // offset.add(new THREE.Vector3(
+      //   Math.cos(yaw) * sideOffset,
+      //   0,
+      //  -Math.sin(yaw) * sideOffset
+      // ));
+
+      // camera.position.copy(cameraTarget).add(offset);
+      // camera.lookAt(cameraTarget);
+
+      // avatar.visible = !isCameraInside;
+    }
+
+    function updateHUD() {
+      const pos = playerCapsule.start;
+
+      document.getElementById("yawtext").textContent =
+        yaw.toFixed(3);
+
+      document.getElementById("posx").textContent =
+        pos.x.toFixed(2);
+
+      document.getElementById("posy").textContent =
+        pos.y.toFixed(2);
+
+      document.getElementById("posz").textContent =
+        pos.z.toFixed(2);
+    }
+
+    // Animate
+    let lastTime = performance.now();
+
+    function animate() {
+      requestAnimationFrame(animate);
+
+      const time = performance.now();
+      const delta = Math.min(0.03, (time - lastTime) / 1000);
+      lastTime = time;
+
+      updatePlayer(delta);
+      updateCamera();
+      renderer.render(scene, camera);
+      updateHUD();
+    }
+
+    animate();
+
+    // Resize
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+    const startScreen = document.getElementById("startScreen");
+    const startButton = document.getElementById("startButton");
+    const usernameInput = document.getElementById("usernameInput");
+
+    startButton.addEventListener("click", () => {
+      playerName = usernameInput.value.trim() || "Player";
+      startScreen.style.display = "none";
+      gameStarted = true;
+    });
+
+  </script>
 </body>
+
 </html>
