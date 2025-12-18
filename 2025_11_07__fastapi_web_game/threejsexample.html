@@ -58,7 +58,6 @@ import { Octree } from 'https://unpkg.com/three@0.160.0/examples/jsm/math/Octree
 // Scene & Renderer
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x1e1e1e);
-
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
@@ -72,14 +71,13 @@ scene.add(dirLight);
 // Camera
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 
-// Ground
+// Ground and grid
 const ground = new THREE.Mesh(
   new THREE.PlaneGeometry(50, 50),
   new THREE.MeshStandardMaterial({ color: 0x444444 })
 );
 ground.rotation.x = -Math.PI / 2;
 scene.add(ground);
-
 const grid = new THREE.GridHelper(50, 50);
 scene.add(grid);
 
@@ -125,58 +123,6 @@ scene.add(largeCube);
 const camtargcube = new THREE.Mesh(new THREE.BoxGeometry(0.2,0.2,0.2), cubeMaterialred);
 scene.add(camtargcube);
 
-// group to hold voxels
-const voxelGroup = new THREE.Group();
-scene.add(voxelGroup);
-
-//     ....
-//   ..    ..    ....
-//           ....
-
-for (let x = 0; x < 5; x++) {
-  for (let y = 3; y < 6; y++) {
-    for (let z = 0; z < 5; z++) {
-      const opac = x * 0.2 + y * 0.01 + z * 0.2;
-      const material = new THREE.MeshBasicMaterial({
-        color: new THREE.Color(),
-        transparent: true,
-        opacity: opac
-      });
-      const cube = new THREE.Mesh(new THREE.BoxGeometry(1,1,1), material);
-      cube.position.set(x, y, z);
-      voxelGroup.add(cube);
-    }
-  }
-}
-// const sizeX = 16, sizeY = 16, sizeZ = 16; // keep small for performance
-// const voxelGroup = new THREE.Group();
-// scene.add(voxelGroup);
-
-// for (let x = 8; x < sizeX; x++) {
-//   for (let y = 14; y < sizeY; y++) { // avoid division by zero
-//     for (let z = 8; z < sizeZ; z++) {
-//       const X = (x / sizeX) * Math.PI * 2;
-//       const Y = (y / sizeY) * Math.PI * 2;
-//       const Z = (z / sizeZ) * Math.PI * 2;
-//       const intensity = Math.sin(Z) * Math.sin(X) / Y;
-
-//       // map intensity to color and opacity
-//       const color = new THREE.Color().setHSL(0.6 - intensity*0.3, 1.0, 0.5);
-//       const opacity = Math.min(Math.abs(intensity), 1.0);
-
-//       if (opacity > 0.05) { // skip very transparent voxels
-//         const material = new THREE.MeshBasicMaterial({
-//           color: color,
-//           transparent: true,
-//           opacity: opacity
-//         });
-//         const cube = new THREE.Mesh(new THREE.BoxGeometry(1,1,1), material);
-//         cube.position.set(x - sizeX/2, y - sizeY/2, z - sizeZ/2);
-//         voxelGroup.add(cube);
-//       }
-//     }
-//   }
-// }
 
 // Player avatar (visual only)
 const bodyHeight = 1.0;
@@ -230,7 +176,6 @@ let isRunning = false;
 window.addEventListener('keydown', (e) => {
   keys[e.key.toLowerCase()] = true;
   if (e.key.toLowerCase() === 'shift') isRunning = true;
-
   if (e.key.toLowerCase() === 'v') firstPerson = !firstPerson;
 });
 
@@ -269,6 +214,17 @@ function updatePlayer(delta) {
   if (keys['s']) direction.z += 1;
   if (keys['a']) direction.x -= 1;
   if (keys['d']) direction.x += 1;
+  if (keys['i']) pitch -= 0.03;
+  if (keys['j']) yaw += 0.03;
+  if (keys['k']) pitch += 0.03;
+  if (keys['l']) yaw -= 0.03;
+  if (keys['i'] || keys['k']) {
+    pitch = THREE.MathUtils.clamp(
+      pitch,
+      -Math.PI / 2 + 0.1,
+      Math.PI / 2 - 0.1
+    );
+  }
 
   const currentSpeed = SPEED * (isRunning ? 2 : 1);
   direction.normalize();
