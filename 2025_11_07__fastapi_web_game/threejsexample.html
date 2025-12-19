@@ -219,7 +219,7 @@
 
             <label>
                 Mouse Sensitivity
-                <input id="sensInput" type="range" min="0.0005" max="0.01" step="0.0005" value="0.002">
+                <input id="sensInput" type="range" min="0.0001" max="0.03" step="0.0001" value="0.002">
             </label>
         </div>
 
@@ -278,6 +278,47 @@
         scene.add(ground);
         const grid = new THREE.GridHelper(50, 50);
         scene.add(grid);
+
+        function createPineTree() {
+            const tree = new THREE.Group();
+
+            // Trunk
+            const trunkGeometry = new THREE.CylinderGeometry(0.15, 0.2, 2, 8);
+            const trunkMaterial = new THREE.MeshStandardMaterial({ color: 0x8b5a2b });
+            const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
+            trunk.position.y = 1;
+            tree.add(trunk);
+
+            // Foliage layers
+            const foliageMaterial = new THREE.MeshStandardMaterial({ color: 0x0b6623 });
+
+            const cone1 = new THREE.Mesh(
+                new THREE.ConeGeometry(1.2, 2, 8),
+                foliageMaterial
+            );
+            cone1.position.y = 2.4;
+
+            const cone2 = new THREE.Mesh(
+                new THREE.ConeGeometry(1.0, 1.8, 8),
+                foliageMaterial
+            );
+            cone2.position.y = 3.4;
+
+            const cone3 = new THREE.Mesh(
+                new THREE.ConeGeometry(0.8, 1.5, 8),
+                foliageMaterial
+            );
+            cone3.position.y = 4.3;
+
+            tree.add(cone1, cone2, cone3);
+
+            return tree;
+        }
+
+        const pineTree = createPineTree();
+        pineTree.position.set(3, 0, -4);
+        scene.add(pineTree);
+
 
         // Halo-style sky object
         const haloGeometry = new THREE.TorusGeometry(15, 0.5, 8, 100);
