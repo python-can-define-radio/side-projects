@@ -8,7 +8,6 @@
     body {
       margin: 0;
       overflow: hidden;
-      cursor: none;
     }
 
     #reticule {
@@ -91,17 +90,86 @@
       background: #111;
     }
 
-    #startButton {
+    .menuButton {
       width: 100%;
       padding: 10px;
-      background: #2ecc71;
       border: none;
       cursor: pointer;
       font-size: 16px;
+      margin-top: 10px;
     }
 
-    #startButton:hover {
+    /* Start Game (green) */
+    .menuButton.start {
+      background: #2ecc71;
+    }
+
+    .menuButton.start:hover {
       background: #27ae60;
+    }
+
+    /* Settings (neutral) */
+    .menuButton.settings {
+      background: #3498db;
+    }
+
+    .menuButton.settings:hover {
+      background: #2980b9;
+    }
+
+
+    #settingsScreen {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.85);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+      color: white;
+      font-family: monospace;
+    }
+
+    #settingsPanel {
+      background: rgba(20, 20, 20, 0.95);
+      padding: 24px 32px;
+      border: 1px solid #555;
+      width: 320px;
+      text-align: center;
+    }
+
+    #settingsPanel label {
+      display: block;
+      margin: 16px 0;
+      text-align: left;
+    }
+
+    #settingsPanel input[type="range"] {
+      width: 100%;
+    }
+
+    #settingsPanel {
+      position: relative;
+    }
+
+    /* Red close X */
+    #closeSettings {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      width: 28px;
+      height: 28px;
+      background: #c0392b;
+      color: white;
+      border: none;
+      font-size: 18px;
+      font-weight: bold;
+      line-height: 28px;
+      cursor: pointer;
+    }
+
+    #closeSettings:hover {
+      background: #e74c3c;
     }
   </style>
 </head>
@@ -111,13 +179,16 @@
     <span></span>
     <span></span>
   </div>
-  <div style="position:fixed; top:10px; left:10px; color:white; font-family:monospace;">
+  <div id="hud" style="position:fixed; top:10px; left:10px; color:white; font-family:monospace;">
+    <div id="usernameHud" style="margin-bottom:6px; font-weight:bold;"></div>
+
     Yaw: <span id="yawtext"></span><br>
     Pos:
     <span style="color:#ed8711;">X:</span> <span id="posx"></span>
     <span style="color:#d2ef1b; margin-left:6px;">Y:</span> <span id="posy"></span>
     <span style="color:#4488ff; margin-left:6px;">Z:</span> <span id="posz"></span>
   </div>
+
   <div id="startScreen">
     <div id="startPanel">
       <h1>Start Game</h1>
@@ -135,10 +206,24 @@
         <small>(More avatars coming later)</small>
       </div>
 
-      <button id="startButton">Start Game</button>
+      <button id="startButton" class="menuButton start">Start Game</button>
+      <button id="settingsButton" class="menuButton settings">Settings</button>
+
     </div>
   </div>
+  <div id="settingsScreen" style="display:none;">
+    <div id="settingsPanel">
+      <button id="closeSettings" aria-label="Close settings">✕</button>
 
+      <h1>Settings</h1>
+
+      <label>
+        Mouse Sensitivity
+        <input id="sensInput" type="range" min="0.0005" max="0.01" step="0.0005" value="0.002">
+      </label>
+    </div>
+
+  </div>
 
   <script type="module">
     import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js?module';
@@ -146,8 +231,27 @@
     import { Octree } from 'https://unpkg.com/three@0.160.0/examples/jsm/math/Octree.js?module';
 
 
+    const GameState = { MENU: "menu", SETTINGS: "settings", PLAYING: "playing" };
+    const settingsScreen = document.getElementById("settingsScreen");
+    const settingsButton = document.getElementById("settingsButton");
+    const closeSettingsBtn = document.getElementById("closeSettings");
+    const sensInput = document.getElementById("sensInput");
+    const startScreen = document.getElementById("startScreen");
+    const startButton = document.getElementById("startButton");
+    const usernameInput = document.getElementById("usernameInput");
+    const yawtextel = document.getElementById("yawtext");
+    const posxel = document.getElementById("posx");
+    const posyel = document.getElementById("posy");
+    const poszel = document.getElementById("posz");
+    const usernameHud = document.getElementById("usernameHud");
+
+
     let gameStarted = false;
     let playerName = "Player";
+    let mouseSensitivity = 0.002;
+    let currentState = GameState.MENU;
+    let previousState = null;
+
 
     // Scene & Renderer
     const scene = new THREE.Scene();
@@ -267,30 +371,6 @@
 
     let isRunning = false;
 
-    window.addEventListener('keydown', (e) => {
-      keys[e.key.toLowerCase()] = true;
-      if (e.key.toLowerCase() === 'shift') isRunning = true;
-      if (e.key.toLowerCase() === 'v') firstPerson = !firstPerson;
-    });
-
-    window.addEventListener('keyup', (e) => {
-      keys[e.key.toLowerCase()] = false;
-      if (e.key.toLowerCase() === 'shift') isRunning = false;
-    });
-
-    document.body.addEventListener('click', () => document.body.requestPointerLock({ unadjustedMovement: true }));
-    document.addEventListener('mousemove', (e) => {
-      if (document.pointerLockElement !== document.body) return;
-      const sensitivity = 0.002;
-      yaw -= e.movementX * sensitivity;
-      pitch += e.movementY * sensitivity;
-      pitch = THREE.MathUtils.clamp(
-        pitch,
-        -Math.PI / 2 + 0.1,
-        Math.PI / 2 - 0.1
-      );
-    });
-
     // Movement & Physics
     const velocity = new THREE.Vector3();
     const direction = new THREE.Vector3();
@@ -409,18 +489,10 @@
 
     function updateHUD() {
       const pos = playerCapsule.start;
-
-      document.getElementById("yawtext").textContent =
-        yaw.toFixed(3);
-
-      document.getElementById("posx").textContent =
-        pos.x.toFixed(2);
-
-      document.getElementById("posy").textContent =
-        pos.y.toFixed(2);
-
-      document.getElementById("posz").textContent =
-        pos.z.toFixed(2);
+      yawtextel.textContent = yaw.toFixed(3);
+      posxel.textContent = pos.x.toFixed(2);
+      posyel.textContent = pos.y.toFixed(2);
+      poszel.textContent = pos.z.toFixed(2);
     }
 
     // Animate
@@ -428,7 +500,10 @@
 
     function animate() {
       requestAnimationFrame(animate);
-
+      if (currentState !== GameState.PLAYING) {
+        renderer.render(scene, camera);
+        return;
+      }
       const time = performance.now();
       const delta = Math.min(0.03, (time - lastTime) / 1000);
       lastTime = time;
@@ -440,6 +515,64 @@
     }
 
     animate();
+    function setState(state) {
+      previousState = currentState;
+      currentState = state;
+
+      startScreen.style.display =
+        state === GameState.MENU ? "flex" : "none";
+
+      settingsScreen.style.display =
+        state === GameState.SETTINGS ? "flex" : "none";
+
+      if (state === GameState.PLAYING) {
+        document.body.requestPointerLock({ unadjustedMovement: true });
+        document.body.style.cursor = "none";
+      } else {
+        document.exitPointerLock();
+        document.body.style.cursor = "default";
+      }
+    }
+
+    window.addEventListener('keydown', (e) => {
+      keys[e.key.toLowerCase()] = true;
+      if (e.key.toLowerCase() === 'shift') isRunning = true;
+      if (e.key.toLowerCase() === 'v') firstPerson = !firstPerson;
+      if (e.key === "Escape") {
+        e.preventDefault();
+
+        if (currentState === GameState.PLAYING) {
+          setState(GameState.SETTINGS);
+        } else if (currentState === GameState.SETTINGS) {
+          setState(previousState || GameState.MENU);
+        }
+      }
+    });
+
+    window.addEventListener('keyup', (e) => {
+      keys[e.key.toLowerCase()] = false;
+      if (e.key.toLowerCase() === 'shift') isRunning = false;
+    });
+
+    document.addEventListener("mousemove", (e) => {
+      if (
+        currentState !== GameState.PLAYING ||
+        document.pointerLockElement !== document.body
+      ) return;
+
+      yaw -= e.movementX * mouseSensitivity;
+      pitch += e.movementY * mouseSensitivity;
+
+      pitch = THREE.MathUtils.clamp(
+        pitch,
+        -Math.PI / 2 + 0.1,
+        Math.PI / 2 - 0.1
+      );
+    });
+
+    sensInput.addEventListener("input", e => {
+      mouseSensitivity = parseFloat(e.target.value);
+    });
 
     // Resize
     window.addEventListener('resize', () => {
@@ -447,14 +580,27 @@
       camera.updateProjectionMatrix();
       renderer.setSize(window.innerWidth, window.innerHeight);
     });
-    const startScreen = document.getElementById("startScreen");
-    const startButton = document.getElementById("startButton");
-    const usernameInput = document.getElementById("usernameInput");
+
+    document.body.addEventListener("click", () => {
+      if (currentState === GameState.PLAYING &&
+        document.pointerLockElement !== document.body) {
+        document.body.requestPointerLock({ unadjustedMovement: true });
+      }
+    });
 
     startButton.addEventListener("click", () => {
       playerName = usernameInput.value.trim() || "Player";
-      startScreen.style.display = "none";
+      usernameHud.textContent = `Player: ${playerName}`;
       gameStarted = true;
+      setState(GameState.PLAYING);
+    });
+
+    settingsButton.addEventListener("click", () => {
+      setState(GameState.SETTINGS);
+    });
+
+    closeSettingsBtn.addEventListener("click", () => {
+      setState(previousState || GameState.MENU);
     });
 
   </script>
