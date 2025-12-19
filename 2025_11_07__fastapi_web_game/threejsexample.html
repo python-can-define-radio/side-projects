@@ -175,6 +175,28 @@
 </head>
 
 <body>
+    <script type="x-shader/x-vertex" id="vertexshader">
+        attribute float size;
+        attribute vec3 customColor;
+        varying vec3 vColor;
+        void main() {
+            vColor = customColor;
+            vec4 mvPosition = modelViewMatrix * vec4( position, 1.0 );
+            gl_PointSize = size * ( 300.0 / -mvPosition.z );
+            gl_Position = projectionMatrix * mvPosition;
+        }
+    </script>
+
+    <script type="x-shader/x-fragment" id="fragmentshader">
+        uniform vec3 color;
+        uniform sampler2D pointTexture;
+        varying vec3 vColor;
+        void main() {
+            gl_FragColor = vec4( color * vColor, 1.0 );
+            gl_FragColor = gl_FragColor * texture2D( pointTexture, gl_PointCoord );
+        }
+    </script>
+
     <div id="reticule">
         <span></span>
         <span></span>
@@ -269,128 +291,196 @@
         // Camera
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 
-        // Ground and grid
-        const ground = new THREE.Mesh(
-            new THREE.PlaneGeometry(50, 50),
-            new THREE.MeshStandardMaterial({ color: 0x444444 })
-        );
-        ground.rotation.x = -Math.PI / 2;
-        scene.add(ground);
-        const grid = new THREE.GridHelper(50, 50);
-        scene.add(grid);
-
-        function createPineTree() {
-            const tree = new THREE.Group();
-
-            // Trunk
-            const trunkGeometry = new THREE.CylinderGeometry(0.15, 0.2, 2, 8);
-            const trunkMaterial = new THREE.MeshStandardMaterial({ color: 0x8b5a2b });
-            const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
-            trunk.position.y = 1;
-            tree.add(trunk);
-
-            // Foliage layers
-            const foliageMaterial = new THREE.MeshStandardMaterial({ color: 0x0b6623 });
-
-            const cone1 = new THREE.Mesh(
-                new THREE.ConeGeometry(1.2, 2, 8),
-                foliageMaterial
+        function createSceneObjects() {
+            // Ground and grid
+            const ground = new THREE.Mesh(
+                new THREE.PlaneGeometry(100, 100),
+                new THREE.MeshStandardMaterial({ color: 0x444444 })
             );
-            cone1.position.y = 2.4;
+            ground.rotation.x = -Math.PI / 2;
+            scene.add(ground);
+            const grid = new THREE.GridHelper(100, 100);
+            scene.add(grid);
 
-            const cone2 = new THREE.Mesh(
-                new THREE.ConeGeometry(1.0, 1.8, 8),
-                foliageMaterial
+            function createPineTree() {
+                const tree = new THREE.Group();
+
+                // Trunk
+                const trunkGeometry = new THREE.CylinderGeometry(0.15, 0.2, 2, 8);
+                const trunkMaterial = new THREE.MeshStandardMaterial({ color: 0x8b5a2b });
+                const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
+                trunk.position.y = 1;
+                tree.add(trunk);
+
+                // Foliage layers
+                const foliageMaterial = new THREE.MeshStandardMaterial({ color: 0x0b6623 });
+
+                const cone1 = new THREE.Mesh(
+                    new THREE.ConeGeometry(1.2, 2, 8),
+                    foliageMaterial
+                );
+                cone1.position.y = 2.4;
+
+                const cone2 = new THREE.Mesh(
+                    new THREE.ConeGeometry(1.0, 1.8, 8),
+                    foliageMaterial
+                );
+                cone2.position.y = 3.4;
+
+                const cone3 = new THREE.Mesh(
+                    new THREE.ConeGeometry(0.8, 1.5, 8),
+                    foliageMaterial
+                );
+                cone3.position.y = 4.3;
+
+                tree.add(cone1, cone2, cone3);
+
+                return tree;
+            }
+
+            const pineTree = createPineTree();
+            pineTree.position.set(3, 0, -4);
+            scene.add(pineTree);
+
+
+            function init_em_energy() {
+
+                const amount = 100000;
+
+                const positions = new Float32Array(amount * 3);
+                const colors = new Float32Array(amount * 3);
+                const sizes = new Float32Array(amount);
+
+                const vertex = new THREE.Vector3();
+                const color = new THREE.Color(0xffffff);
+
+                const radius = 100;
+                const innerRadius = 0; // 0.8 * radius;  // set the hollow inner boundary
+                const outerRadius = radius;        // outer boundary of the sphere
+
+                for (let i = 0; i < amount; i++) {
+
+                    // pick a random radius between inner and outer
+                    const r = Math.random() * (outerRadius - innerRadius) + innerRadius;
+
+                    // pick random angles
+                    const theta = Math.random() * 2 * Math.PI;   // azimuthal angle
+                    const phi = Math.acos(2 * Math.random() - 1); // polar angle (uniform distribution)
+
+                    // convert spherical → Cartesian
+                    vertex.x = r * Math.sin(phi) * Math.cos(theta);
+                    vertex.y = r * Math.sin(phi) * Math.sin(theta);
+                    vertex.z = r * Math.cos(phi);
+
+                    vertex.toArray(positions, i * 3);
+                    color.setHSL(0.5 + 0.1 * (i / amount), 0.7, 0.5);
+                    color.toArray(colors, i * 3);
+                    sizes[i] = 0.5;
+                }
+
+                const geometry = new THREE.BufferGeometry();
+                geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+                geometry.setAttribute('customColor', new THREE.BufferAttribute(colors, 3));
+                geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+
+                const material = new THREE.ShaderMaterial({
+
+                    uniforms: {
+                        color: { value: new THREE.Color(0xffffff) },
+                        pointTexture: { value: new THREE.TextureLoader().load('assets/whitecircle.png') }
+                    },
+                    vertexShader: document.getElementById('vertexshader').textContent,
+                    fragmentShader: document.getElementById('fragmentshader').textContent,
+
+                    blending: THREE.AdditiveBlending,
+                    depthTest: true,
+                    depthWrite: false,
+                    transparent: true
+
+                });
+
+                const em_energy = new THREE.Points(geometry, material);
+                scene.add(em_energy);
+                return em_energy;
+            }
+
+            const em_energy = init_em_energy();
+
+
+            // Halo-style sky object
+            const haloGeometry = new THREE.TorusGeometry(15, 0.5, 8, 100);
+            const haloMaterial = new THREE.MeshBasicMaterial({
+                color: 0xffff00,
+                wireframe: true
+            });
+            const halo = new THREE.Mesh(haloGeometry, haloMaterial);
+            halo.position.set(0, 20, 0);
+            halo.rotation.x = Math.PI / 2;
+            scene.add(halo);
+
+            // Solid cubes (colliders)
+            const cubeMaterialred = new THREE.MeshStandardMaterial({ color: 0xff0000 });
+            const cubeMaterialblue = new THREE.MeshStandardMaterial({ color: 0x0000ff80 });
+
+            const smallCube = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), cubeMaterialred);
+            smallCube.position.set(-5, 0.5, -5);
+            scene.add(smallCube);
+
+            const mediumCube = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2), cubeMaterialred);
+            mediumCube.position.set(5, 1, 6);
+            scene.add(mediumCube);
+
+            const mediumCube2 = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2), cubeMaterialred);
+            mediumCube2.position.set(6, 3, 6);
+            scene.add(mediumCube2);
+
+            const mediumCube3 = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2), cubeMaterialred);
+            mediumCube3.position.set(7, 5, 6);
+            scene.add(mediumCube3);
+
+            const mediumCube4 = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2), cubeMaterialred);
+            mediumCube4.position.set(8, 7, 6);
+            scene.add(mediumCube4);
+
+            const largeCube = new THREE.Mesh(new THREE.BoxGeometry(5, 5, 5), cubeMaterialblue);
+            largeCube.position.set(10, 7, 10);
+            scene.add(largeCube);
+
+            const camtargcube = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.2), cubeMaterialred);
+            scene.add(camtargcube);
+
+
+            // Player avatar (visual only)
+            const bodyHeight = 1.0;
+            const bodyRadius = 0.3;
+            const headRadius = 0.25;
+            const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
+            const headMaterial = new THREE.MeshStandardMaterial({ color: 0xffff00 });
+            const body = new THREE.Mesh(
+                new THREE.CapsuleGeometry(bodyRadius, bodyHeight, 4, 8),
+                bodyMaterial
             );
-            cone2.position.y = 3.4;
 
-            const cone3 = new THREE.Mesh(
-                new THREE.ConeGeometry(0.8, 1.5, 8),
-                foliageMaterial
+            const head = new THREE.Mesh(
+                new THREE.SphereGeometry(headRadius, 16, 16),
+                headMaterial
             );
-            cone3.position.y = 4.3;
 
-            tree.add(cone1, cone2, cone3);
+            body.position.y = bodyHeight / 2;
+            head.position.y = bodyHeight + headRadius;
 
-            return tree;
+            const playerAxes = new THREE.AxesHelper(2); // length in units
+
+            const avatar = new THREE.Group();
+            avatar.add(body);
+            avatar.add(head);
+            avatar.add(playerAxes);
+            scene.add(avatar);
+
+            return [bodyRadius, bodyHeight, avatar, camtargcube, em_energy];
         }
 
-        const pineTree = createPineTree();
-        pineTree.position.set(3, 0, -4);
-        scene.add(pineTree);
-
-
-        // Halo-style sky object
-        const haloGeometry = new THREE.TorusGeometry(15, 0.5, 8, 100);
-        const haloMaterial = new THREE.MeshBasicMaterial({
-            color: 0xffff00,
-            wireframe: true
-        });
-        const halo = new THREE.Mesh(haloGeometry, haloMaterial);
-        halo.position.set(0, 20, 0);
-        halo.rotation.x = Math.PI / 2;
-        scene.add(halo);
-
-        // Solid cubes (colliders)
-        const cubeMaterialred = new THREE.MeshStandardMaterial({ color: 0xff0000 });
-        const cubeMaterialblue = new THREE.MeshStandardMaterial({ color: 0x0000ff80 });
-
-        const smallCube = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), cubeMaterialred);
-        smallCube.position.set(-5, 0.5, -5);
-        scene.add(smallCube);
-
-        const mediumCube = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2), cubeMaterialred);
-        mediumCube.position.set(5, 1, 6);
-        scene.add(mediumCube);
-
-        const mediumCube2 = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2), cubeMaterialred);
-        mediumCube2.position.set(6, 3, 6);
-        scene.add(mediumCube2);
-
-        const mediumCube3 = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2), cubeMaterialred);
-        mediumCube3.position.set(7, 5, 6);
-        scene.add(mediumCube3);
-
-        const mediumCube4 = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2), cubeMaterialred);
-        mediumCube4.position.set(8, 7, 6);
-        scene.add(mediumCube4);
-
-        const largeCube = new THREE.Mesh(new THREE.BoxGeometry(5, 5, 5), cubeMaterialblue);
-        largeCube.position.set(10, 7, 10);
-        scene.add(largeCube);
-
-        const camtargcube = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.2), cubeMaterialred);
-        scene.add(camtargcube);
-
-
-        // Player avatar (visual only)
-        const bodyHeight = 1.0;
-        const bodyRadius = 0.3;
-        const headRadius = 0.25;
-        const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
-        const headMaterial = new THREE.MeshStandardMaterial({ color: 0xffff00 });
-        const body = new THREE.Mesh(
-            new THREE.CapsuleGeometry(bodyRadius, bodyHeight, 4, 8),
-            bodyMaterial
-        );
-
-        const head = new THREE.Mesh(
-            new THREE.SphereGeometry(headRadius, 16, 16),
-            headMaterial
-        );
-
-        body.position.y = bodyHeight / 2;
-        head.position.y = bodyHeight + headRadius;
-
-        const avatar = new THREE.Group();
-        avatar.add(body);
-        avatar.add(head);
-        scene.add(avatar);
-
-        // Player compass (world axes)
-        const playerAxes = new THREE.AxesHelper(2); // length in units
-        scene.add(playerAxes);
-
+        const [bodyRadius, bodyHeight, avatar, camtargcube, em_energy] = createSceneObjects();
 
         // WORLD OCTREE
         const worldOctree = new Octree();
@@ -473,8 +563,6 @@
             // Sync visual avatar
             avatar.position.copy(playerCapsule.start);
             avatar.rotation.y = yaw;
-            playerAxes.position.copy(playerCapsule.start);
-
         }
 
         // Camera
@@ -536,6 +624,59 @@
             poszel.textContent = pos.z.toFixed(2);
         }
 
+        function updateEMfield(time) {
+            const geometry = em_energy.geometry;
+            // const attributes = geometry.attributes;
+
+            // Assuming you already have a BufferGeometry with position + size attributes
+            const positions = geometry.attributes.position.array;
+            const sizes = geometry.attributes.size.array;
+
+            for (let i = 0; i < positions.length; i += 3) {
+                const x = positions[i];
+                const y = positions[i + 1];
+                const z = positions[i + 2];
+
+                // distance from origin
+                const dist = Math.sqrt(x * x + y * y + z * z);
+
+                // wave modulation: oscillates with distance and time
+                sizes[i / 3] = Math.max(0, 4.0 * Math.sin(0.1*dist - time * 0.002) - 2.4);
+            }
+
+            // mark attribute as updated
+            geometry.attributes.size.needsUpdate = true;
+
+
+
+            // // for (let i = 0; i < attributes.size.array.length; i++) {
+            // //     attributes.size.array[i] = 0.3 * Math.sin(0.1 * i + 0.001 * time);
+            // // }
+            // const vertex = new THREE.Vector3();
+
+            // const amount_fix_this = 100000;
+            // for (let i = 0; i < amount_fix_this; i++) {
+
+            //     // pick a random radius between inner and outer
+            //     const r = Math.random() * (outerRadius - innerRadius) + innerRadius;
+
+            //     // pick random angles
+            //     const theta = Math.random() * 2 * Math.PI;   // azimuthal angle
+            //     const phi = Math.acos(2 * Math.random() - 1); // polar angle (uniform distribution)
+
+            //     // convert spherical → Cartesian
+            //     vertex.x = r * Math.sin(phi) * Math.cos(theta);
+            //     vertex.y = r * Math.sin(phi) * Math.sin(theta);
+            //     vertex.z = r * Math.cos(phi);
+
+            //     vertex.toArray(attributes.position.array, i * 3);
+            // }
+
+            // attributes.size.needsUpdate = true;
+            // attributes.position.needsUpdate = true;
+        }
+
+
         // Animate
         let lastTime = performance.now();
 
@@ -551,8 +692,9 @@
 
             updatePlayer(delta);
             updateCamera();
-            renderer.render(scene, camera);
             updateHUD();
+            updateEMfield(time);
+            renderer.render(scene, camera);
         }
 
         animate();
