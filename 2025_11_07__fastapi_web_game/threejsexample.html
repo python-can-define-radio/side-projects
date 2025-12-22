@@ -202,12 +202,15 @@
     </div>
     <div id="hud" style="position:fixed; top:10px; left:10px; color:white; font-family:monospace;">
         <div id="usernameHud" style="margin-bottom:6px; font-weight:bold;"></div>
+        <div>FPS: <span id="fpsCounter">--</span></div>
         Yaw: <span id="yawtext"></span><br>
         Pos:
         <span style="color:#ed8711;">X:</span> <span id="posx"></span>
         <span style="color:#d2ef1b; margin-left:6px;">Y:</span> <span id="posy"></span>
         <span style="color:#4488ff; margin-left:6px;">Z:</span> <span id="posz"></span>
         <div id="pyodideStatus" style="margin-top:6px; color:#aaa;">Pyodide: loading…</div>
+
+
     </div>
 
     <div id="startScreen">
@@ -250,6 +253,14 @@
         </div>
 
     </div>
+    <script type="text/python" id="py-grid-script">
+        import numpy as np
+
+        gridtimesteps = 50
+        grid = np.full((50, 5, 50, gridtimesteps), 0, dtype=np.float32)
+        for grid_x_high in range(gridtimesteps):
+            grid[grid_x_high:grid_x_high+3, 2:5, 20:23, grid_x_high] = 2.3
+    </script>
 
     <script type="module">
         import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js?module';
@@ -273,7 +284,11 @@
         const usernameHud = document.getElementById("usernameHud");
         const pyodideStatusEl = document.getElementById("pyodideStatus");
         const savedStrafeSetting = localStorage.getItem("useStrafeInsteadOfTurn");
+        const fpsCounterEl = document.getElementById("fpsCounter");
 
+        let fpsFrameCount = 0;
+        let fpsLastTime = performance.now();
+        let fpsValue = 0;
         let gameStarted = false;
         let playerName = "Player";
         let mouseSensitivity = 0.002;
@@ -348,28 +363,28 @@
                 const positions = new Float32Array(amount * 3);
                 const colors = new Float32Array(amount * 3);
                 const sizes = new Float32Array(amount);
-                const vertex = new THREE.Vector3();
+
                 const color = new THREE.Color(0xffffff);
-                const radius = 50;
-                const innerRadius = 0; // 0.8 * radius;  // set the hollow inner boundary
-                const outerRadius = radius;        // outer boundary of the sphere
+
+                // SLAB dimensions (world units)
+                const SLAB_WIDTH = 50;   // X
+                const SLAB_HEIGHT = 5;   // Y (thin)
+                const SLAB_DEPTH = 50;   // Z
 
                 for (let i = 0; i < amount; i++) {
+                    // Uniform random distribution inside a box
+                    const x = Math.random() * SLAB_WIDTH;
+                    const y = Math.random() * SLAB_HEIGHT;
+                    const z = Math.random() * SLAB_DEPTH;
 
-                    // pick a random radius between inner and outer
-                    const r = Math.random() * (outerRadius - innerRadius) + innerRadius;
+                    const idx = i * 3;
+                    positions[idx] = x;
+                    positions[idx + 1] = y;
+                    positions[idx + 2] = z;
 
-                    // pick random angles
-                    const theta = Math.random() * 2 * Math.PI;   // azimuthal angle
-                    const phi = Math.acos(2 * Math.random() - 1); // polar angle (uniform distribution)
+                    color.setHSL(0.55, 0.7, 0.5);
+                    color.toArray(colors, idx);
 
-                    // convert spherical → Cartesian
-                    vertex.x = r * Math.sin(phi) * Math.cos(theta);
-                    vertex.y = r * Math.sin(phi) * Math.sin(theta);
-                    vertex.z = r * Math.cos(phi);
-                    vertex.toArray(positions, i * 3);
-                    color.setHSL(0.5 + 0.1 * (i / amount), 0.7, 0.5);
-                    color.toArray(colors, i * 3);
                     sizes[i] = 0.5;
                 }
 
@@ -379,14 +394,12 @@
                 geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
 
                 const material = new THREE.ShaderMaterial({
-
                     uniforms: {
                         color: { value: new THREE.Color(0xffffff) },
                         pointTexture: { value: new THREE.TextureLoader().load('assets/whitecircle.png') }
                     },
                     vertexShader: document.getElementById('vertexshader').textContent,
                     fragmentShader: document.getElementById('fragmentshader').textContent,
-
                     blending: THREE.AdditiveBlending,
                     depthTest: true,
                     depthWrite: false,
@@ -397,6 +410,7 @@
                 scene.add(em_energy);
                 return em_energy;
             }
+
 
             const em_energy = init_em_energy();
 
@@ -415,9 +429,13 @@
             const cubeMaterialred = new THREE.MeshStandardMaterial({ color: 0xff0000 });
             const cubeMaterialblue = new THREE.MeshStandardMaterial({ color: 0x0000ff80 });
 
-            const smallCube = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), cubeMaterialred);
-            smallCube.position.set(-5, 0.5, -5);
-            scene.add(smallCube);
+            const smallCube1 = new THREE.Mesh(new THREE.BoxGeometry(1, 0.3, 1), cubeMaterialred);
+            smallCube1.position.set(-4, 0.15, -5);
+            scene.add(smallCube1);
+
+            const smallCube2 = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), cubeMaterialred);
+            smallCube2.position.set(-5, 0.5, -5);
+            scene.add(smallCube2);
 
             const mediumCube = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2), cubeMaterialred);
             mediumCube.position.set(5, 1, 6);
@@ -435,8 +453,8 @@
             mediumCube4.position.set(8, 7, 6);
             scene.add(mediumCube4);
 
-            const largeCube = new THREE.Mesh(new THREE.BoxGeometry(5, 5, 5), cubeMaterialblue);
-            largeCube.position.set(10, 7, 10);
+            const largeCube = new THREE.Mesh(new THREE.BoxGeometry(5, 10, 5), cubeMaterialblue);
+            largeCube.position.set(10, 5, 10);
             scene.add(largeCube);
 
             const camtargcube = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.2), cubeMaterialred);
@@ -462,17 +480,17 @@
             head.position.y = bodyHeight + headRadius;
 
             const playerAxes = new THREE.AxesHelper(2); // length in units
+            scene.add(playerAxes);
 
             const avatar = new THREE.Group();
             avatar.add(body);
             avatar.add(head);
-            avatar.add(playerAxes);
             scene.add(avatar);
 
-            return [bodyRadius, bodyHeight, avatar, camtargcube, em_energy];
+            return [bodyRadius, bodyHeight, avatar, camtargcube, em_energy, playerAxes];
         }
 
-        const [bodyRadius, bodyHeight, avatar, camtargcube, em_energy] = createSceneObjects();
+        const [bodyRadius, bodyHeight, avatar, camtargcube, em_energy, playerAxes] = createSceneObjects();
 
         // WORLD OCTREE
         const worldOctree = new Octree();
@@ -505,7 +523,6 @@
 
         async function loadPyodideInBackground() {
             try {
-                // Load Pyodide loader script dynamically
                 const script = document.createElement("script");
                 script.src = "https://cdn.jsdelivr.net/pyodide/v0.25.1/full/pyodide.js";
                 script.async = true;
@@ -516,25 +533,26 @@
                     script.onerror = reject;
                 });
 
-                // Initialize Pyodide
                 window.pyodide = await loadPyodide();
+                await pyodide.loadPackage("numpy");
 
-                // Create the grid in Python
-                await pyodide.loadPackage("numpy")
-                await pyodide.runPythonAsync("import numpy as np; grid = np.full((10, 10, 10), 0.1, dtype=np.float32); grid[2:5, 1:15, 3:7] = 3.1");
-                // Convert Python grid -> JS typed array
+                // ⬇️ Execute Python from separate script block
+                const pyCode = document.getElementById("py-grid-script").textContent;
+                await pyodide.runPythonAsync(pyCode);
+
+                // Extract grid
                 const pyGrid = pyodide.globals.get("grid");
                 window.scalarGrid = pyGrid.toJs({ copy: true });
 
-                // Update HUD when done
                 pyodideStatusEl.textContent = "Pyodide loaded";
                 pyodideStatusEl.style.color = "#2ecc71";
             } catch (err) {
-                console.error("Pyodide failed to load:", err);
-                pyodideStatusEl.textContent = "Pyodide failed to load";
+                console.error(err);
+                pyodideStatusEl.textContent = "Pyodide failed";
                 pyodideStatusEl.style.color = "#e74c3c";
             }
         }
+
 
 
         function updatePlayer(delta) {
@@ -590,6 +608,7 @@
             // Sync visual avatar
             avatar.position.copy(playerCapsule.start);
             avatar.rotation.y = yaw;
+            playerAxes.position.copy(playerCapsule.start);
         }
 
         // Camera
@@ -636,15 +655,17 @@
                 const x = positions[i];
                 const y = positions[i + 1];
                 const z = positions[i + 2];
-                if (x < 0 || y < 0 || z < 0 || x > 9 || y > 9 || z > 9) {
+                const gsz = window.scalarGrid.length
+                if (x < 0 || y < 0 || z < 0 || x > gsz || y > gsz || z > gsz) {
                     sizes[i / 3] = 0;
                 } else {
                     const ix = Math.floor(x);
                     const iy = Math.floor(y);
                     const iz = Math.floor(z);
+                    const itime = Math.floor(time / 100) % 50
 
                     // Read scalar value from Pyodide grid
-                    const scalar = window.scalarGrid[ix][iy][iz];
+                    const scalar = window.scalarGrid[ix][iy][iz][itime];
 
                     // Apply it to particle size
                     sizes[i / 3] = scalar;
@@ -664,8 +685,19 @@
                 return;
             }
             const time = performance.now();
-            const delta = Math.min(0.03, (time - lastTime) / 1000);
+            const deltaMs = time - lastTime;
+            const delta = Math.min(0.03, deltaMs / 1000);
             lastTime = time;
+
+            // FPS calculation
+            fpsFrameCount++;
+            if (time - fpsLastTime >= 500) { // update twice per second
+                fpsValue = Math.round((fpsFrameCount * 1000) / (time - fpsLastTime));
+                fpsCounterEl.textContent = fpsValue;
+                fpsFrameCount = 0;
+                fpsLastTime = time;
+            }
+
 
             updatePlayer(delta);
             updateCamera();
