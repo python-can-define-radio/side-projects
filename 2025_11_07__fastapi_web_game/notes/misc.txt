@@ -151,4 +151,3 @@ add keyboard shortcut to turn off em transmitter
 smooth movement (walk up stairs without having to jump)
 - [will involve adjusting player capule collider, and maybe visual avatar; up to our preference]
 yaw measured in what? should it be degrees 360?
-- [ai prompt] whenever the yaw updates, it should stay within 0 to 2 pi. 

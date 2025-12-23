@@ -99,7 +99,6 @@
             margin-top: 10px;
         }
 
-        /* Start Game (green) */
         .menuButton.start {
             background: #2ecc71;
         }
@@ -108,7 +107,6 @@
             background: #27ae60;
         }
 
-        /* Settings (neutral) */
         .menuButton.settings {
             background: #3498db;
         }
@@ -151,7 +149,6 @@
             position: relative;
         }
 
-        /* Red close X */
         #closeSettings {
             position: absolute;
             top: 8px;
@@ -169,6 +166,51 @@
 
         #closeSettings:hover {
             background: #e74c3c;
+        }
+
+        #compassContainer {
+            position: fixed;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 300px;
+            height: 40px;
+            overflow: hidden;
+            pointer-events: none;
+            z-index: 1000;
+            font-family: monospace;
+        }
+
+        #compassStrip {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            display: flex;
+            gap: 28px;
+            transform: translateX(-50%);
+            transition: transform 0.05s linear;
+            color: white;
+            font-size: 20px;
+        }
+
+        #compassStrip span {
+            min-width: 28px;
+            text-align: center;
+            opacity: 0.5;
+        }
+
+        #compassStrip span.active {
+            opacity: 1;
+            text-shadow: 0 0 8px rgba(255, 255, 255, 0.9);
+        }
+
+        #compassMarker {
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 14px;
+            color: white;
         }
     </style>
 </head>
@@ -209,19 +251,18 @@
         <span style="color:#d2ef1b; margin-left:6px;">Y:</span> <span id="posy"></span>
         <span style="color:#4488ff; margin-left:6px;">Z:</span> <span id="posz"></span>
         <div id="pyodideStatus" style="margin-top:6px; color:#aaa;">Pyodide: loading…</div>
-
-
     </div>
-
+    <div id="compassContainer">
+        <div id="compassStrip"></div>
+        <div id="compassMarker">▲</div>
+    </div>
     <div id="startScreen">
         <div id="startPanel">
             <h1>Start Game</h1>
-
             <label>
                 Username
                 <input id="usernameInput" type="text" maxlength="16" placeholder="Player1">
             </label>
-
             <div class="avatarSelect">
                 <p>Avatar</p>
                 <div class="avatarPreview">
@@ -229,18 +270,14 @@
                 </div>
                 <small>(More avatars coming later)</small>
             </div>
-
             <button id="startButton" class="menuButton start">Start Game</button>
             <button id="settingsButton" class="menuButton settings">Settings</button>
-
         </div>
     </div>
     <div id="settingsScreen" style="display:none;">
         <div id="settingsPanel">
             <button id="closeSettings" aria-label="Close settings">✕</button>
-
             <h1>Settings</h1>
-
             <label>
                 Mouse Sensitivity
                 <input id="sensInput" type="range" min="0.0001" max="0.03" step="0.0001" value="0.002">
@@ -249,15 +286,12 @@
                 <input type="checkbox" id="strafeToggle">
                 Turn on strafing for A/D
             </label>
-
         </div>
-
     </div>
     <script type="text/python" id="py-grid-script">
         import numpy as np
-
         gridtimesteps = 50
-        grid = np.full((50, 5, 50, gridtimesteps), 0, dtype=np.float32)
+        grid = np.zeros((50, 5, 50, gridtimesteps), dtype=np.float32)
         for grid_x_high in range(gridtimesteps):
             grid[grid_x_high:grid_x_high+3, 2:5, 20:23, grid_x_high] = 2.3
     </script>
@@ -283,9 +317,12 @@
         const poszel = document.getElementById("posz");
         const usernameHud = document.getElementById("usernameHud");
         const pyodideStatusEl = document.getElementById("pyodideStatus");
-        const savedStrafeSetting = localStorage.getItem("useStrafeInsteadOfTurn");
         const fpsCounterEl = document.getElementById("fpsCounter");
+        const savedStrafeSetting = localStorage.getItem("useStrafeInsteadOfTurn");
+        const compassDirections = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+        const compassStrip = document.getElementById("compassStrip");
 
+        let lastCompassIndex = -1;
         let fpsFrameCount = 0;
         let fpsLastTime = performance.now();
         let fpsValue = 0;
@@ -297,7 +334,6 @@
         let useStrafeInsteadOfTurn = false; // default behavior
         let expectingPointerLock = false;
         let pointerLockActive = false;
-
 
         useStrafeInsteadOfTurn = savedStrafeSetting === "true";
         strafeToggle.checked = useStrafeInsteadOfTurn;
@@ -347,7 +383,6 @@
                 cone2.position.y = 3.4;
                 const cone3 = new THREE.Mesh(new THREE.ConeGeometry(0.8, 1.5, 8), foliageMaterial);
                 cone3.position.y = 4.3;
-
                 tree.add(cone1, cone2, cone3);
 
                 return tree;
@@ -356,7 +391,6 @@
             const pineTree = createPineTree();
             pineTree.position.set(3, 0, -4);
             scene.add(pineTree);
-
 
             function init_em_energy() {
                 const amount = 100000;
@@ -410,7 +444,6 @@
                 scene.add(em_energy);
                 return em_energy;
             }
-
 
             const em_energy = init_em_energy();
 
@@ -472,10 +505,7 @@
             );
 
             const head = new THREE.Mesh(
-                new THREE.SphereGeometry(headRadius, 16, 16),
-                headMaterial
-            );
-
+                new THREE.SphereGeometry(headRadius, 16, 16), headMaterial);
             body.position.y = bodyHeight / 2;
             head.position.y = bodyHeight + headRadius;
 
@@ -509,7 +539,6 @@
         let pitch = Math.PI / 4;
         let firstPerson = false;
         const UP_LOOK_THRESHOLD = -Math.PI / 24;
-
         let isRunning = false;
 
         // Movement & Physics
@@ -518,7 +547,6 @@
         const GRAVITY = 30;
         const SPEED = 8;
         const JUMP = 10;
-
         let onGround = false;
 
         async function loadPyodideInBackground() {
@@ -553,8 +581,6 @@
             }
         }
 
-
-
         function updatePlayer(delta) {
             direction.set(0, 0, 0);
             if (keys['w']) direction.z -= 1;
@@ -577,6 +603,7 @@
                     Math.PI / 2 - 0.1
                 );
             }
+            yaw = normalizeYaw(yaw);
 
             const currentSpeed = SPEED * (isRunning ? 2 : 1);
             direction.normalize();
@@ -611,6 +638,74 @@
             playerAxes.position.copy(playerCapsule.start);
         }
 
+
+        function normalizeYaw(yaw) {
+            const TWO_PI = Math.PI * 2;
+            return ((yaw % TWO_PI) + TWO_PI) % TWO_PI;
+        }
+
+
+        function yawToCompass(yaw) {
+            const directions = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+            const deg = THREE.MathUtils.radToDeg(yaw);
+            const index = Math.round(deg / 45) % 8;
+            return directions[index];
+        }
+
+
+        function getCompassDegreesFromCamera(camera) {
+            const forward = new THREE.Vector3();
+            camera.getWorldDirection(forward);
+
+            // Flatten to XZ plane
+            forward.y = 0;
+            forward.normalize();
+
+            // 0° = North (-Z), 90° = East (+X)
+            // Use atan2(-x, -z) to fix the direction so turning right increases degrees
+            let deg = THREE.MathUtils.radToDeg(Math.atan2(forward.x, -forward.z));
+
+            // Ensure degrees are in [0, 360)
+            return (deg + 360) % 360;
+        }
+
+
+        // Build repeated compass strip (9 copies: -4..4)
+        compassStrip.innerHTML = "";
+        for (let copy = -4; copy <= 4; copy++) {
+            for (let i = 0; i < compassDirections.length; i++) {
+                const span = document.createElement("span");
+                span.textContent = compassDirections[i];
+                span.dataset.index = i + copy * 8; // unique index for this copy
+                compassStrip.appendChild(span);
+            }
+        }
+
+        function updateCompass() {
+            // Convert yaw to degrees, 0 = North, increasing clockwise
+            let compassDeg = THREE.MathUtils.radToDeg(yaw);
+            compassDeg = (compassDeg + 360 + 90) % 360; // +90 to align 0 = North
+
+            const STEP = 28;
+            const FULL_WIDTH = compassDirections.length * STEP;
+
+            // Offset moves strip opposite to rotation
+            const offset = -(compassDeg / 360) * FULL_WIDTH;
+            compassStrip.style.transform = `translateX(calc(-50% + ${offset}px))`;
+
+            // Compute index of nearest direction
+            const dirIndex = Math.floor((compassDeg + 22.5) / 45) % 8;
+
+            // Clear previous highlights
+            [...compassStrip.children].forEach(s => s.classList.remove("active"));
+
+            // Highlight the center copy
+            const centerCopy = 4; // middle copy of repeated strip
+            const centerIndex = dirIndex + centerCopy * 8;
+            compassStrip.children[centerIndex]?.classList.add("active");
+        }
+
+
         // Camera
         function updateCamera() {
             const isCameraInside = false;
@@ -637,12 +732,15 @@
 
         function updateHUD() {
             const pos = playerCapsule.start;
-            yawtextel.textContent = yaw.toFixed(3);
+            const yawDeg = (360 - THREE.MathUtils.radToDeg(yaw)) % 360;
+            const yawRadNormalized = (2 * Math.PI - yaw) % (2 * Math.PI);
+            yawtextel.textContent = `${yawRadNormalized.toFixed(3)} rad | ${((yawRadNormalized * 180 / Math.PI).toFixed(1))}°`;
             posxel.textContent = pos.x.toFixed(2);
             posyel.textContent = pos.y.toFixed(2);
             poszel.textContent = pos.z.toFixed(2);
-        }
+            updateCompass();
 
+        }
 
         function updateEMfield(time) {
             if (!window.scalarGrid) return; // Pyodide not ready yet
@@ -671,7 +769,6 @@
                     sizes[i / 3] = scalar;
                 }
             }
-
             geometry.attributes.size.needsUpdate = true;
         }
 
@@ -697,7 +794,6 @@
                 fpsFrameCount = 0;
                 fpsLastTime = time;
             }
-
 
             updatePlayer(delta);
             updateCamera();
@@ -750,6 +846,7 @@
             ) return;
 
             yaw -= e.movementX * mouseSensitivity;
+            yaw = normalizeYaw(yaw);
             pitch += e.movementY * mouseSensitivity;
 
             pitch = THREE.MathUtils.clamp(
