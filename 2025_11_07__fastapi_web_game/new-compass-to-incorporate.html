@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Black Bar Demo</title>
+  <style>
+    body {
+      margin: 0px;
+    }
+    .label {
+  		display: inline-block;
+  		text-align: center;    /* centers the text inside the slot */
+	}
+    #barContainer {
+      position: relative;
+      width: fill;
+      height: 20px;
+    }
+	#barContainer::after {
+  		content: "";
+  		position: absolute;
+  		top: 0;
+  		left: 0;
+  		width: 100%;
+  		height: 100%;
+  		pointer-events: none; /* lets clicks pass through */
+  		background: linear-gradient(
+    		to right,
+    		white 35%,
+    		transparent 45%,
+    		transparent 55%,
+    		white 65%
+  		);
+	}
+
+    #bar {
+      position: absolute;
+      display: flex;
+      align-items: center; /* vertical centering */
+      height: 20px;
+    }
+    #triangle {
+      position: absolute;
+      top: 100%;          /* places it just below the barContainer’s bottom edge */
+      left: 50%;          /* center horizontally */
+      transform: translateX(-50%);
+      width: 0;
+      height: 0;
+      border-left: 10px solid transparent;
+      border-right: 10px solid transparent;
+      border-bottom: 15px solid red; /* small red triangle pointing up */
+    }
+
+
+  </style>
+</head>
+<body>
+  <h2>Black Bar Controlled by Slider</h2>
+  <input id="slider" type="range" min="0" max="360" step="0.1" value="0">
+  <p>Degrees: <span id="degValue">0°</span></p>
+
+  <div id="barContainer">
+    <div id="bar">
+  		<div class="label">N</div>
+  		<div class="label">NW</div>
+  		<div class="label">W</div>
+  		<div class="label">SW</div>
+  		<div class="label">S</div>
+  		<div class="label">SE</div>
+  		<div class="label">E</div>
+  		<div class="label">NE</div>
+  		<div class="label">N</div>
+  		<div class="label">NW</div>
+  		<div class="label">W</div>
+  		<div class="label">SW</div>
+  		<div class="label">S</div>
+  		<div class="label">SE</div>
+  		<div class="label">E</div>
+  		<div class="label">NE</div>
+  		<div class="label">N</div>
+  		<div class="label">NW</div>
+  		<div class="label">W</div>
+  		<div class="label">SW</div>
+  		<div class="label">S</div>
+  		<div class="label">SE</div>
+  		<div class="label">E</div>
+  		<div class="label">NE</div>
+	</div>
+    <div id="triangle"></div>
+  </div>
+  
+
+
+  <script>
+    const slider = document.getElementById("slider");
+    const bar = document.getElementById("bar");
+    const degValue = document.getElementById("degValue");
+    const labels = document.getElementsByClassName("label");
+    bar.style.width = `${5000}px`; // this must be arbitrarily wide so that the compass isn't squished
+
+    function updateCompass() {
+      const degrees = parseFloat(slider.value, 10);
+      degValue.textContent = degrees + "°";
+      const corrective_multiplier = 0.47;
+      const labelwidth = window.innerWidth * 0.0588;
+      const compwid = 8 * labelwidth;
+      const x = degrees * corrective_multiplier * window.innerWidth / 360 - compwid;
+      [...labels].map(z => z.style.width = `${labelwidth}px`);
+      bar.style.left = x + "px";
+    }
+    slider.addEventListener("input", updateCompass);
+    window.addEventListener("resize", updateCompass); 
+    updateCompass();
+  </script>
+</body>
+</html>
