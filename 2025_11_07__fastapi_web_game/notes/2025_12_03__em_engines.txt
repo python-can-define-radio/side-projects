@@ -1,0 +1,14 @@
+We'll probably just use the python FDTD module since it seems to work, but here are some options that Google Gemini recommended.
+
+Doa simulator GitHub repo
+
+Doa estimation music
+
+Opal: An open-source, GPU-accelerated ray-tracing propagation simulator for electromagnetic characterization, useful for modeling how radio waves travel through complex environments.
+
+openEMS: A free and open electromagnetic field solver that uses the Finite-Difference Time-Domain (FDTD) method to simulate electromagnetic fields.
+
+PumaEM: An open-source Method of Moments (MoM) implementation for electromagnetics, accelerated with the Multilevel Fast Multipole Method, suitable for antenna simulation.
+
+
+Also PyLayers, ref from Opal
