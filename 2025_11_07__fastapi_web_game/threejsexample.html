@@ -168,49 +168,64 @@
             background: #e74c3c;
         }
 
-        #compassContainer {
+        .label {
+            display: inline-block;
+            text-align: center;
+            color: white;
+            opacity: 0.85;
+            letter-spacing: 0.05em;
+        }
+
+        #barContainer {
             position: fixed;
             top: 10px;
             left: 50%;
             transform: translateX(-50%);
-            width: 300px;
-            height: 40px;
+            width: 100%;
+            height: 20px;
+            color: white;
+            font-size: 1.7em;
             overflow: hidden;
             pointer-events: none;
-            z-index: 1000;
-            font-family: monospace;
+
+            /* Fade edges */
+            -webkit-mask-image: linear-gradient(to right,
+                    transparent 40%,
+                    black 48%,
+                    black 52%,
+                    transparent 60%);
+            mask-image: linear-gradient(to right,
+                    transparent 40%,
+                    black 48%,
+                    black 52%,
+                    transparent 60%);
         }
 
-        #compassStrip {
+        #bar {
             position: absolute;
-            top: 0;
-            left: 50%;
             display: flex;
-            gap: 28px;
-            transform: translateX(-50%);
-            transition: transform 0.05s linear;
-            color: white;
-            font-size: 20px;
+            align-items: center;
+            /* vertical centering */
+            height: 20px;
         }
 
-        #compassStrip span {
-            min-width: 28px;
-            text-align: center;
-            opacity: 0.5;
-        }
-
-        #compassStrip span.active {
-            opacity: 1;
-            text-shadow: 0 0 8px rgba(255, 255, 255, 0.9);
-        }
-
-        #compassMarker {
+        #triangle {
             position: absolute;
-            bottom: 0;
+            top: 100%;
+            /* places it just below the barContainer’s bottom edge */
             left: 50%;
+            /* center horizontally */
             transform: translateX(-50%);
-            font-size: 14px;
-            color: white;
+            width: 0;
+            height: 0;
+            border-left: 10px solid transparent;
+            border-right: 10px solid transparent;
+            border-bottom: 15px solid red;
+            /* small red triangle pointing up */
+        }
+
+        #hud {
+            margin-top: 20px;
         }
     </style>
 </head>
@@ -252,9 +267,34 @@
         <span style="color:#4488ff; margin-left:6px;">Z:</span> <span id="posz"></span>
         <div id="pyodideStatus" style="margin-top:6px; color:#aaa;">Pyodide: loading…</div>
     </div>
-    <div id="compassContainer">
-        <div id="compassStrip"></div>
-        <div id="compassMarker">▲</div>
+    <div id="barContainer">
+        <div id="bar">
+            <div class="label">N</div>
+            <div class="label">NE</div>
+            <div class="label">E</div>
+            <div class="label">SE</div>
+            <div class="label">S</div>
+            <div class="label">SW</div>
+            <div class="label">W</div>
+            <div class="label">NW</div>
+            <div class="label">N</div>
+            <div class="label">NE</div>
+            <div class="label">E</div>
+            <div class="label">SE</div>
+            <div class="label">S</div>
+            <div class="label">SW</div>
+            <div class="label">W</div>
+            <div class="label">NW</div>
+            <div class="label">N</div>
+            <div class="label">NE</div>
+            <div class="label">E</div>
+            <div class="label">SE</div>
+            <div class="label">S</div>
+            <div class="label">SW</div>
+            <div class="label">W</div>
+            <div class="label">NW</div>
+        </div>
+        <div id="triangle"></div>
     </div>
     <div id="startScreen">
         <div id="startPanel">
@@ -321,6 +361,8 @@
         const savedStrafeSetting = localStorage.getItem("useStrafeInsteadOfTurn");
         const compassDirections = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
         const compassStrip = document.getElementById("compassStrip");
+        const bar = document.getElementById("bar");
+        const labels = document.getElementsByClassName("label");
 
         let lastCompassIndex = -1;
         let fpsFrameCount = 0;
@@ -337,6 +379,7 @@
 
         useStrafeInsteadOfTurn = savedStrafeSetting === "true";
         strafeToggle.checked = useStrafeInsteadOfTurn;
+        bar.style.width = `${5000}px`; // this must be arbitrarily wide so that the compass isn't squished
 
         // Scene & Renderer
         const scene = new THREE.Scene();
@@ -645,65 +688,17 @@
         }
 
 
-        function yawToCompass(yaw) {
-            const directions = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
-            const deg = THREE.MathUtils.radToDeg(yaw);
-            const index = Math.round(deg / 45) % 8;
-            return directions[index];
-        }
-
-
-        function getCompassDegreesFromCamera(camera) {
-            const forward = new THREE.Vector3();
-            camera.getWorldDirection(forward);
-
-            // Flatten to XZ plane
-            forward.y = 0;
-            forward.normalize();
-
-            // 0° = North (-Z), 90° = East (+X)
-            // Use atan2(-x, -z) to fix the direction so turning right increases degrees
-            let deg = THREE.MathUtils.radToDeg(Math.atan2(forward.x, -forward.z));
-
-            // Ensure degrees are in [0, 360)
-            return (deg + 360) % 360;
-        }
-
-
-        // Build repeated compass strip (9 copies: -4..4)
-        compassStrip.innerHTML = "";
-        for (let copy = -4; copy <= 4; copy++) {
-            for (let i = 0; i < compassDirections.length; i++) {
-                const span = document.createElement("span");
-                span.textContent = compassDirections[i];
-                span.dataset.index = i + copy * 8; // unique index for this copy
-                compassStrip.appendChild(span);
-            }
-        }
-
         function updateCompass() {
-            // Convert yaw to degrees, 0 = North, increasing clockwise
-            let compassDeg = THREE.MathUtils.radToDeg(yaw);
-            compassDeg = (compassDeg + 360 + 90) % 360; // +90 to align 0 = North
-
-            const STEP = 28;
-            const FULL_WIDTH = compassDirections.length * STEP;
-
-            // Offset moves strip opposite to rotation
-            const offset = -(compassDeg / 360) * FULL_WIDTH;
-            compassStrip.style.transform = `translateX(calc(-50% + ${offset}px))`;
-
-            // Compute index of nearest direction
-            const dirIndex = Math.floor((compassDeg + 22.5) / 45) % 8;
-
-            // Clear previous highlights
-            [...compassStrip.children].forEach(s => s.classList.remove("active"));
-
-            // Highlight the center copy
-            const centerCopy = 4; // middle copy of repeated strip
-            const centerIndex = dirIndex + centerCopy * 8;
-            compassStrip.children[centerIndex]?.classList.add("active");
+            const degrees = THREE.MathUtils.radToDeg(yaw);
+            const corrective_multiplier = 0.47;
+            const labelwidth = window.innerWidth * 0.0588;
+            const compwid = 8 * labelwidth;
+            const x = degrees * corrective_multiplier * window.innerWidth / 360 - compwid;
+            [...labels].map(z => z.style.width = `${labelwidth}px`);
+            bar.style.left = x + "px";
         }
+        window.addEventListener("resize", updateCompass);
+        updateCompass();
 
 
         // Camera
