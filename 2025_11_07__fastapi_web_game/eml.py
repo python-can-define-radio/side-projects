@@ -599,8 +599,16 @@ async def loadgrid(filename: str):
         for xidx, char in zip(xindexes, line):
             if char == "m":
                 grid[yidx, xidx, 0] = fdtd.AbsorbingObject(**G.materials["metal"])
-            if char == "p":
+            elif char == "p":
                 grid[yidx, xidx, 0] = fdtd.PointSource(period = 60, amplitude=4, pulse=True, cycle=1) # type: ignore
+            elif char.upper() == "L":
+                ## Very not-ideal, but just throwing it together for the moment:
+                ## putting a single "L" will create a multi-unit-long line.
+                grid[yidx:yidx+20, xidx, 0] = fdtd.LineSource(period = 60, amplitude=4, pulse=True, cycle=1) # type: ignore
+            elif char == " ":
+                pass
+            else:
+                raise NotImplementedError(f"Invalid character in map: {char}")
     return grid
 
 
