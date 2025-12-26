@@ -432,10 +432,22 @@
             }
 
             function maketreegroup() {
-                createPineTree(3, 0, -4);
-                createPineTree(15, 0, -12);
-                createPineTree(15, 0, -22);
-                createPineTree(20, 0, -15);
+                createPineTree(10, 0, -11);
+                createPineTree(10, 0, -12);
+                createPineTree(10, 0, -13);
+                createPineTree(10, 0, -14);
+                createPineTree(10, 0, -15);
+                createPineTree(10, 0, -16);
+                createPineTree(10, 0, -17);
+                createPineTree(10, 0, -18);
+                createPineTree(10, 0, -19);
+                createPineTree(10, 0, -20);
+                createPineTree(10, 0, -21);
+                createPineTree(10, 0, -22);
+                createPineTree(10, 0, -23);
+                createPineTree(10, 0, -24);
+                createPineTree(10, 0, -25);
+                createPineTree(10, 0, -26);
             }
 
             function init_em_energy() {
@@ -506,10 +518,12 @@
 
             // Solid cubes (colliders)
             const cubeMaterialred = new THREE.MeshStandardMaterial({ color: 0xff0000 });
-            const cubeMaterialblue = new THREE.MeshStandardMaterial({ color: 0x0000ff80 });
+            const cubeMaterialgreen = new THREE.MeshStandardMaterial({ color: 0xff80 });
+            const cubeMaterialblue  = new THREE.MeshStandardMaterial({ color: 0xff });
+            const cubeMaterialgold  = new THREE.MeshStandardMaterial({ color: 0xffff00 });
 
-            const largeCube = new THREE.Mesh(new THREE.BoxGeometry(5, 10, 5), cubeMaterialblue);
-            largeCube.position.set(10, 5, 10);
+            const largeCube = new THREE.Mesh(new THREE.BoxGeometry(5, 20, 5), cubeMaterialgold);
+            largeCube.position.set(20, 10, 10);
             scene.add(largeCube);
 
             const camtargcube = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.2), cubeMaterialred);
@@ -578,10 +592,9 @@
             }
 
             maketreegroup()
-            makestairs(scene, -3, 0, -3, "W", 10, 2, cubeMaterialred)
-            makestairs(scene, -6, 0, 6.5, "E", 33, 2, cubeMaterialred)
-            makestairs(scene, -1, 0, -10, "N", 10, 3, cubeMaterialblue)
-            makestairs(scene, -1, 0, -22, "S", 10, 3, cubeMaterialblue)
+            makestairs(scene, -12, 0, 6, "E", 67, 3, cubeMaterialred)
+            makestairs(scene, .5, 0, -18.5, "E", 17, 3, cubeMaterialgreen)
+            makestairs(scene, 19.5, 0, -18.5, "W", 17, 3, cubeMaterialgreen)
 
             // Player avatar (visual only)
             const bodyHeight = 1.0;
