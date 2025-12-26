@@ -147,7 +147,28 @@ Three JS particle example that we used as of 2025 Dec 19: https://threejs.dev/ex
 }
 
 
-add keyboard shortcut to turn off em transmitter
-smooth movement (walk up stairs without having to jump)
-- [will involve adjusting player capule collider, and maybe visual avatar; up to our preference]
-yaw measured in what? should it be degrees 360?
+Build Mode
+    Building 1:
+    - Enable player to place blocks, constrained to a grid spacing of 1x1x1
+    - Placement should be based on the direction the player is facing
+    - Ideally do a ray-trace (right word?) from camera through the reticule (red-cube) to the ground, probably with a distance limit of two units away
+
+    Building 2:
+    - Save (and load) whatever you've built -- current 3d block positions -- to a file. 
+    - Not sure what the file structure will look like; perhaps a sequence of 2d-slice-layers? If AI has any ideas, that's fine.
+    - Able to upload/download saved map files
+
+    Building 3:
+    - Choosing different materials -- aluminum, etc
+
+    Building 4:
+    - Able to place a transmitter
+    - add keyboard shortcut to turn off em transmitter/remove all em dots
+
+General:
+    - Pause menu shows settings/controls
+    - Add an NPC to the map. Action key near NPC makes a dialog appear.
+
+Physics:
+    1:
+    - Have a key for "run simulation"

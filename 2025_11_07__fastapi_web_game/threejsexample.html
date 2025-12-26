@@ -408,7 +408,7 @@
             const grid = new THREE.GridHelper(100, 100);
             scene.add(grid);
 
-            function createPineTree() {
+            function createPineTree(x, y, z) {
                 const tree = new THREE.Group();
 
                 // Trunk
@@ -427,13 +427,16 @@
                 const cone3 = new THREE.Mesh(new THREE.ConeGeometry(0.8, 1.5, 8), foliageMaterial);
                 cone3.position.y = 4.3;
                 tree.add(cone1, cone2, cone3);
-
-                return tree;
+                tree.position.set(x, y, z);
+                scene.add(tree);
             }
 
-            const pineTree = createPineTree();
-            pineTree.position.set(3, 0, -4);
-            scene.add(pineTree);
+            function maketreegroup() {
+                createPineTree(3, 0, -4);
+                createPineTree(15, 0, -12);
+                createPineTree(15, 0, -22);
+                createPineTree(20, 0, -15);
+            }
 
             function init_em_energy() {
                 const amount = 100000;
@@ -505,30 +508,6 @@
             const cubeMaterialred = new THREE.MeshStandardMaterial({ color: 0xff0000 });
             const cubeMaterialblue = new THREE.MeshStandardMaterial({ color: 0x0000ff80 });
 
-            const smallCube1 = new THREE.Mesh(new THREE.BoxGeometry(1, 0.3, 1), cubeMaterialred);
-            smallCube1.position.set(-4, 0.15, -5);
-            scene.add(smallCube1);
-
-            const smallCube2 = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), cubeMaterialred);
-            smallCube2.position.set(-5, 0.5, -5);
-            scene.add(smallCube2);
-
-            const mediumCube = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2), cubeMaterialred);
-            mediumCube.position.set(5, 1, 6);
-            scene.add(mediumCube);
-
-            const mediumCube2 = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2), cubeMaterialred);
-            mediumCube2.position.set(6, 3, 6);
-            scene.add(mediumCube2);
-
-            const mediumCube3 = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2), cubeMaterialred);
-            mediumCube3.position.set(7, 5, 6);
-            scene.add(mediumCube3);
-
-            const mediumCube4 = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2), cubeMaterialred);
-            mediumCube4.position.set(8, 7, 6);
-            scene.add(mediumCube4);
-
             const largeCube = new THREE.Mesh(new THREE.BoxGeometry(5, 10, 5), cubeMaterialblue);
             largeCube.position.set(10, 5, 10);
             scene.add(largeCube);
@@ -536,10 +515,78 @@
             const camtargcube = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.2), cubeMaterialred);
             scene.add(camtargcube);
 
+            function makestairs(
+                scene,
+                startX, startY, startZ,
+                direction,
+                numStairs,
+                width,
+                material
+            ) {
+                const RISE = 0.3;
+                const RUN = 0.5;
+                const PLATFORM_MULTIPLIER = 4;
+
+                const directions = {
+                    N: { x: 0, z: -1 },
+                    S: { x: 0, z: 1 },
+                    E: { x: 1, z: 0 },
+                    W: { x: -1, z: 0 }
+                };
+
+                if (!directions[direction]) {
+                    throw new Error("Direction must be 'N', 'S', 'E', or 'W'");
+                }
+
+                const { x: dx, z: dz } = directions[direction];
+
+                for (let i = 0; i < numStairs; i++) {
+                    const isLast = i === numStairs - 1;
+
+                    const height = RISE;
+                    const depth = isLast ? RUN * PLATFORM_MULTIPLIER : RUN;
+
+                    let stepWidthX, stepDepthZ;
+
+                    if (direction === "N" || direction === "S") {
+                        stepWidthX = width;
+                        stepDepthZ = depth;
+                    } else {
+                        stepWidthX = depth;
+                        stepDepthZ = width;
+                    }
+
+                    const geometry = new THREE.BoxGeometry(
+                        stepWidthX,
+                        height,
+                        stepDepthZ
+                    );
+
+                    const step = new THREE.Mesh(geometry, material);
+
+                    // Offset so deeper platform extends forward
+                    const depthOffset = isLast ? (depth - RUN) / 2 : 0;
+
+                    step.position.set(
+                        startX + dx * (RUN * i + depthOffset),
+                        startY + RISE * i + height / 2,
+                        startZ + dz * (RUN * i + depthOffset)
+                    );
+
+                    scene.add(step);
+                }
+            }
+
+            maketreegroup()
+            makestairs(scene, -3, 0, -3, "W", 10, 2, cubeMaterialred)
+            makestairs(scene, -6, 0, 6.5, "E", 33, 2, cubeMaterialred)
+            makestairs(scene, -1, 0, -10, "N", 10, 3, cubeMaterialblue)
+            makestairs(scene, -1, 0, -22, "S", 10, 3, cubeMaterialblue)
+
             // Player avatar (visual only)
             const bodyHeight = 1.0;
-            const bodyRadius = 0.3;
-            const headRadius = 0.25;
+            const bodyRadius = .35;
+            const headRadius = 0.3;
             const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
             const headMaterial = new THREE.MeshStandardMaterial({ color: 0xffff00 });
             const body = new THREE.Mesh(
