@@ -166,8 +166,8 @@ Build Mode
     - add keyboard shortcut to turn off em transmitter/remove all em dots
 
 General:
-    - Pause menu shows settings/controls
     - Add an NPC to the map. Action key near NPC makes a dialog appear.
+    - added controls tab but tabs should probably be on the left instead of the top so the autowindowresize doesnt move them.
 
 Physics:
     1:

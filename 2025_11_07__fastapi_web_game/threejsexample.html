@@ -135,6 +135,20 @@
             text-align: center;
         }
 
+        #settingsPanel,
+        #startPanel {
+            background: rgba(20, 20, 20, 0.95);
+            padding: 24px 32px;
+            border: 1px solid #555;
+            width: 360px;
+            /* fixed width */
+            height: 400px;
+            /* fixed height */
+            overflow: auto;
+            /* scroll if content exceeds height */
+            text-align: center;
+        }
+
         #settingsPanel label {
             display: block;
             margin: 16px 0;
@@ -227,6 +241,40 @@
         #hud {
             margin-top: 20px;
         }
+
+        .tabs {
+            display: flex;
+            margin-bottom: 16px;
+            border-bottom: 1px solid #555;
+        }
+
+        .tabButton {
+            flex: 1;
+            padding: 8px;
+            background: #111;
+            border: none;
+            color: white;
+            cursor: pointer;
+            font-family: monospace;
+        }
+
+        .tabButton.active {
+            background: #3498db;
+        }
+
+        .tabContent {
+            display: none;
+            text-align: left;
+        }
+
+        .tabContent.active {
+            display: block;
+        }
+
+        .controlsList div {
+            margin: 6px 0;
+            font-family: monospace;
+        }
     </style>
 </head>
 
@@ -317,16 +365,40 @@
     <div id="settingsScreen" style="display:none;">
         <div id="settingsPanel">
             <button id="closeSettings" aria-label="Close settings">✕</button>
-            <h1>Settings</h1>
-            <label>
-                Mouse Sensitivity
-                <input id="sensInput" type="range" min="0.0001" max="0.03" step="0.0001" value="0.002">
-            </label>
-            <label>
-                <input type="checkbox" id="strafeToggle">
-                Turn on strafing for A/D
-            </label>
+            <h1>Menu</h1>
+
+            <div class="tabs">
+                <button class="tabButton active" data-tab="settingsTab">Settings</button>
+                <button class="tabButton" data-tab="controlsTab">Controls</button>
+            </div>
+
+            <div class="tabContent active" id="settingsTab">
+                <label>
+                    Mouse Sensitivity
+                    <input id="sensInput" type="range" min="0.0001" max="0.03" step="0.0001" value="0.002">
+                </label>
+
+                <label>
+                    <input type="checkbox" id="strafeToggle">
+                    Turn on strafing for A/D
+                </label>
+            </div>
+
+            <div class="tabContent" id="controlsTab">
+                <div class="controlsList">
+                    <div><b>W</b>       — Move forward</div>
+                    <div><b>S</b>       — Move backward</div>
+                    <div><b>A</b>       — Strafe left / Turn left</div>
+                    <div><b>D</b>       — Strafe right / Turn right</div>
+                    <div><b>Mouse</b>   — Look around</div>
+                    <div><b>Space</b>   — Jump</div>
+                    <div><b>Shift</b>   — Run</div>
+                    <div><b>V</b>       — Toggle camera mode</div>
+                    <div><b>Esc</b>     — Open menu</div>
+                </div>
+            </div>
         </div>
+
     </div>
     <script type="text/python" id="py-grid-script">
         import numpy as np
@@ -358,11 +430,11 @@
         const usernameHud = document.getElementById("usernameHud");
         const pyodideStatusEl = document.getElementById("pyodideStatus");
         const fpsCounterEl = document.getElementById("fpsCounter");
-        const savedStrafeSetting = localStorage.getItem("useStrafeInsteadOfTurn");
-        const compassDirections = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
-        const compassStrip = document.getElementById("compassStrip");
         const bar = document.getElementById("bar");
+        const tabButtons = document.querySelectorAll(".tabButton");
+        const tabContents = document.querySelectorAll(".tabContent");
         const labels = document.getElementsByClassName("label");
+        const savedStrafeSetting = localStorage.getItem("useStrafeInsteadOfTurn");
 
         let lastCompassIndex = -1;
         let fpsFrameCount = 0;
@@ -374,8 +446,17 @@
         let currentState = GameState.MENU;
         let previousState = null;
         let useStrafeInsteadOfTurn = false; // default behavior
-        let expectingPointerLock = false;
         let pointerLockActive = false;
+
+        tabButtons.forEach(btn => {
+            btn.addEventListener("click", () => {
+                tabButtons.forEach(b => b.classList.remove("active"));
+                tabContents.forEach(c => c.classList.remove("active"));
+
+                btn.classList.add("active");
+                document.getElementById(btn.dataset.tab).classList.add("active");
+            });
+        });
 
         useStrafeInsteadOfTurn = savedStrafeSetting === "true";
         strafeToggle.checked = useStrafeInsteadOfTurn;
@@ -519,8 +600,8 @@
             // Solid cubes (colliders)
             const cubeMaterialred = new THREE.MeshStandardMaterial({ color: 0xff0000 });
             const cubeMaterialgreen = new THREE.MeshStandardMaterial({ color: 0xff80 });
-            const cubeMaterialblue  = new THREE.MeshStandardMaterial({ color: 0xff });
-            const cubeMaterialgold  = new THREE.MeshStandardMaterial({ color: 0xffff00 });
+            const cubeMaterialblue = new THREE.MeshStandardMaterial({ color: 0xff });
+            const cubeMaterialgold = new THREE.MeshStandardMaterial({ color: 0xffff00 });
 
             const largeCube = new THREE.Mesh(new THREE.BoxGeometry(5, 20, 5), cubeMaterialgold);
             largeCube.position.set(20, 10, 10);
