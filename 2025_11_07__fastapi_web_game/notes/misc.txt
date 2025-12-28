@@ -1,17 +1,10 @@
 Three JS particle example that we used as of 2025 Dec 19: https://threejs.dev/examples/webgl_custom_attributes_points.html
 
-
-
 #################################
 ## Design ideas from MS Copilot
 #################################
-{
+
     In particular, the virtue piece seemed interesting.
-
-
-
-
-
 
     Today
     You said
@@ -26,8 +19,6 @@ Three JS particle example that we used as of 2025 Dec 19: https://threejs.dev/ex
 
         Scriptural prohibitions against magic (e.g., Deuteronomy 18:10–12) often lead some Christians to reject any depiction of magic, viewing it as inherently linked to occultism or rebellion against God
 
-        .
-
         This group tends to avoid fantasy works like Harry Potter or games with spellcasting, fearing they normalize or glamorize forbidden practices.
 
     📚 Symbolic and Literary Acceptance
@@ -36,15 +27,11 @@ Three JS particle example that we used as of 2025 Dec 19: https://threejs.dev/ex
 
         Magic in stories like The Lord of the Rings or The Chronicles of Narnia is often seen as symbolic of divine power or moral truth, not as a literal endorsement of sorcery
 
-        .
-
         These Christians argue that context and intent matter: if magic serves a moral or allegorical purpose, it can be acceptable.
 
     🧠 Discernment-Based Approach
 
         Some advocate for a case-by-case evaluation, emphasizing spiritual discernment over blanket bans
-
-        .
 
         They ask: Does the magic reflect God’s order or subvert it? Is it portrayed as good, evil, or neutral? Does it encourage curiosity about the occult?
 
@@ -55,8 +42,6 @@ Three JS particle example that we used as of 2025 Dec 19: https://threejs.dev/ex
         Christian fantasy writers often wrestle with how to construct magical systems that align with their faith.
 
         Some use miracles, divine gifts, or natural laws as substitutes for traditional magic
-
-        .
 
         Others embrace magic but ensure it’s morally grounded, avoiding glorification of dark powers or ambiguous ethics.
 
@@ -144,7 +129,6 @@ Three JS particle example that we used as of 2025 Dec 19: https://threejs.dev/ex
         Keep moral clarity: Make sure good and evil are clearly defined, and power is used responsibly.
 
     If you’d like, I can help you brainstorm a custom magic system or naming conventions that feel safe and imaginative. Want to explore that next?
-}
 
 
 Build Mode
@@ -167,7 +151,6 @@ Build Mode
 
 General:
     - Add an NPC to the map. Action key near NPC makes a dialog appear.
-    - added controls tab but tabs should probably be on the left instead of the top so the autowindowresize doesnt move them.
 
 Physics:
     1:

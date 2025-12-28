@@ -4,278 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Three.js – Capsule + Octree FPS</title>
-    <style>
-        body {
-            margin: 0;
-            overflow: hidden;
-        }
-
-        #reticule {
-            position: fixed;
-            left: 50%;
-            top: 50%;
-            width: 16px;
-            height: 16px;
-            margin-left: -8px;
-            margin-top: -8px;
-            pointer-events: none;
-        }
-
-        #reticule span {
-            position: absolute;
-            background: white;
-        }
-
-        #reticule span:nth-child(1) {
-            left: 7px;
-            top: 0;
-            width: 2px;
-            height: 16px;
-        }
-
-        #reticule span:nth-child(2) {
-            top: 7px;
-            left: 0;
-            width: 16px;
-            height: 2px;
-        }
-
-        #startScreen {
-            position: fixed;
-            inset: 0;
-            background: radial-gradient(circle at center, #222, #000);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 9999;
-            color: white;
-            font-family: monospace;
-        }
-
-        #startPanel {
-            background: rgba(20, 20, 20, 0.95);
-            padding: 24px 32px;
-            border: 1px solid #555;
-            width: 320px;
-            text-align: center;
-        }
-
-        #startPanel h1 {
-            margin-bottom: 20px;
-        }
-
-        #startPanel label {
-            display: block;
-            margin-bottom: 16px;
-            text-align: left;
-        }
-
-        #startPanel input {
-            width: 100%;
-            padding: 6px;
-            margin-top: 4px;
-            background: #111;
-            border: 1px solid #555;
-            color: white;
-        }
-
-        .avatarSelect {
-            margin-bottom: 20px;
-        }
-
-        .avatarPreview {
-            border: 1px solid #555;
-            padding: 12px;
-            margin: 8px 0;
-            background: #111;
-        }
-
-        .menuButton {
-            width: 100%;
-            padding: 10px;
-            border: none;
-            cursor: pointer;
-            font-size: 16px;
-            margin-top: 10px;
-        }
-
-        .menuButton.start {
-            background: #2ecc71;
-        }
-
-        .menuButton.start:hover {
-            background: #27ae60;
-        }
-
-        .menuButton.settings {
-            background: #3498db;
-        }
-
-        .menuButton.settings:hover {
-            background: #2980b9;
-        }
-
-        #settingsScreen {
-            position: fixed;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.85);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 10000;
-            color: white;
-            font-family: monospace;
-        }
-
-        #settingsPanel {
-            background: rgba(20, 20, 20, 0.95);
-            padding: 24px 32px;
-            border: 1px solid #555;
-            width: 320px;
-            text-align: center;
-        }
-
-        #settingsPanel,
-        #startPanel {
-            background: rgba(20, 20, 20, 0.95);
-            padding: 24px 32px;
-            border: 1px solid #555;
-            width: 360px;
-            /* fixed width */
-            height: 400px;
-            /* fixed height */
-            overflow: auto;
-            /* scroll if content exceeds height */
-            text-align: center;
-        }
-
-        #settingsPanel label {
-            display: block;
-            margin: 16px 0;
-            text-align: left;
-        }
-
-        #settingsPanel input[type="range"] {
-            width: 100%;
-        }
-
-        #settingsPanel {
-            position: relative;
-        }
-
-        #closeSettings {
-            position: absolute;
-            top: 8px;
-            right: 8px;
-            width: 28px;
-            height: 28px;
-            background: #c0392b;
-            color: white;
-            border: none;
-            font-size: 18px;
-            font-weight: bold;
-            line-height: 28px;
-            cursor: pointer;
-        }
-
-        #closeSettings:hover {
-            background: #e74c3c;
-        }
-
-        .label {
-            display: inline-block;
-            text-align: center;
-            color: white;
-            opacity: 0.85;
-            letter-spacing: 0.05em;
-        }
-
-        #barContainer {
-            position: fixed;
-            top: 10px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 100%;
-            height: 20px;
-            color: white;
-            font-size: 1.7em;
-            overflow: hidden;
-            pointer-events: none;
-
-            /* Fade edges */
-            -webkit-mask-image: linear-gradient(to right,
-                    transparent 40%,
-                    black 48%,
-                    black 52%,
-                    transparent 60%);
-            mask-image: linear-gradient(to right,
-                    transparent 40%,
-                    black 48%,
-                    black 52%,
-                    transparent 60%);
-        }
-
-        #bar {
-            position: absolute;
-            display: flex;
-            align-items: center;
-            /* vertical centering */
-            height: 20px;
-        }
-
-        #triangle {
-            position: absolute;
-            top: 100%;
-            /* places it just below the barContainer’s bottom edge */
-            left: 50%;
-            /* center horizontally */
-            transform: translateX(-50%);
-            width: 0;
-            height: 0;
-            border-left: 10px solid transparent;
-            border-right: 10px solid transparent;
-            border-bottom: 15px solid red;
-            /* small red triangle pointing up */
-        }
-
-        #hud {
-            margin-top: 20px;
-        }
-
-        .tabs {
-            display: flex;
-            margin-bottom: 16px;
-            border-bottom: 1px solid #555;
-        }
-
-        .tabButton {
-            flex: 1;
-            padding: 8px;
-            background: #111;
-            border: none;
-            color: white;
-            cursor: pointer;
-            font-family: monospace;
-        }
-
-        .tabButton.active {
-            background: #3498db;
-        }
-
-        .tabContent {
-            display: none;
-            text-align: left;
-        }
-
-        .tabContent.active {
-            display: block;
-        }
-
-        .controlsList div {
-            margin: 6px 0;
-            font-family: monospace;
-        }
-    </style>
+    <link rel="stylesheet" href=__insert_game_name_here__.css>
 </head>
 
 <body>
@@ -386,15 +115,15 @@
 
             <div class="tabContent" id="controlsTab">
                 <div class="controlsList">
-                    <div><b>W</b>       — Move forward</div>
-                    <div><b>S</b>       — Move backward</div>
-                    <div><b>A</b>       — Strafe left / Turn left</div>
-                    <div><b>D</b>       — Strafe right / Turn right</div>
-                    <div><b>Mouse</b>   — Look around</div>
-                    <div><b>Space</b>   — Jump</div>
-                    <div><b>Shift</b>   — Run</div>
-                    <div><b>V</b>       — Toggle camera mode</div>
-                    <div><b>Esc</b>     — Open menu</div>
+                    <div><b>W</b> — Move forward</div>
+                    <div><b>S</b> — Move backward</div>
+                    <div><b>A</b> — Strafe left / Turn left</div>
+                    <div><b>D</b> — Strafe right / Turn right</div>
+                    <div><b>Mouse</b> — Look around</div>
+                    <div><b>Space</b> — Jump</div>
+                    <div><b>Shift</b> — Run</div>
+                    <div><b>V</b> — Toggle camera mode</div>
+                    <div><b>Esc</b> — Open menu</div>
                 </div>
             </div>
         </div>
@@ -462,20 +191,17 @@
         strafeToggle.checked = useStrafeInsteadOfTurn;
         bar.style.width = `${5000}px`; // this must be arbitrarily wide so that the compass isn't squished
 
-        // Scene & Renderer
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x1e1e1e);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        // Lighting (needed for solid meshes)
         scene.add(new THREE.AmbientLight(0xffffff, 0.4));
         const dirLight = new THREE.DirectionalLight(0xffffff, 1);
         dirLight.position.set(5, 10, 5);
         scene.add(dirLight);
 
-        // Camera
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 
         function createSceneObjects() {
@@ -491,15 +217,11 @@
 
             function createPineTree(x, y, z) {
                 const tree = new THREE.Group();
-
-                // Trunk
                 const trunkGeometry = new THREE.CylinderGeometry(0.15, 0.2, 2, 8);
                 const trunkMaterial = new THREE.MeshStandardMaterial({ color: 0x8b5a2b });
                 const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
                 trunk.position.y = 1;
                 tree.add(trunk);
-
-                // Foliage layers
                 const foliageMaterial = new THREE.MeshStandardMaterial({ color: 0x0b6623 });
                 const cone1 = new THREE.Mesh(new THREE.ConeGeometry(1.2, 2, 8), foliageMaterial);
                 cone1.position.y = 2.4;
@@ -536,9 +258,7 @@
                 const positions = new Float32Array(amount * 3);
                 const colors = new Float32Array(amount * 3);
                 const sizes = new Float32Array(amount);
-
                 const color = new THREE.Color(0xffffff);
-
                 // SLAB dimensions (world units)
                 const SLAB_WIDTH = 50;   // X
                 const SLAB_HEIGHT = 5;   // Y (thin)
@@ -549,15 +269,12 @@
                     const x = Math.random() * SLAB_WIDTH;
                     const y = Math.random() * SLAB_HEIGHT;
                     const z = Math.random() * SLAB_DEPTH;
-
                     const idx = i * 3;
                     positions[idx] = x;
                     positions[idx + 1] = y;
                     positions[idx + 2] = z;
-
                     color.setHSL(0.55, 0.7, 0.5);
                     color.toArray(colors, idx);
-
                     sizes[i] = 0.5;
                 }
 
@@ -585,19 +302,12 @@
             }
 
             const em_energy = init_em_energy();
-
-            // Halo-style sky object
             const haloGeometry = new THREE.TorusGeometry(15, 0.5, 8, 100);
-            const haloMaterial = new THREE.MeshBasicMaterial({
-                color: 0xffff00,
-                wireframe: true
-            });
+            const haloMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00, wireframe: true });
             const halo = new THREE.Mesh(haloGeometry, haloMaterial);
             halo.position.set(0, 20, 0);
             halo.rotation.x = Math.PI / 2;
             scene.add(halo);
-
-            // Solid cubes (colliders)
             const cubeMaterialred = new THREE.MeshStandardMaterial({ color: 0xff0000 });
             const cubeMaterialgreen = new THREE.MeshStandardMaterial({ color: 0xff80 });
             const cubeMaterialblue = new THREE.MeshStandardMaterial({ color: 0xff });
@@ -621,7 +331,6 @@
                 const RISE = 0.3;
                 const RUN = 0.5;
                 const PLATFORM_MULTIPLIER = 4;
-
                 const directions = {
                     N: { x: 0, z: -1 },
                     S: { x: 0, z: 1 },
@@ -637,7 +346,6 @@
 
                 for (let i = 0; i < numStairs; i++) {
                     const isLast = i === numStairs - 1;
-
                     const height = RISE;
                     const depth = isLast ? RUN * PLATFORM_MULTIPLIER : RUN;
 
@@ -651,23 +359,14 @@
                         stepDepthZ = width;
                     }
 
-                    const geometry = new THREE.BoxGeometry(
-                        stepWidthX,
-                        height,
-                        stepDepthZ
-                    );
-
+                    const geometry = new THREE.BoxGeometry(stepWidthX, height, stepDepthZ);
                     const step = new THREE.Mesh(geometry, material);
-
-                    // Offset so deeper platform extends forward
                     const depthOffset = isLast ? (depth - RUN) / 2 : 0;
-
                     step.position.set(
                         startX + dx * (RUN * i + depthOffset),
                         startY + RISE * i + height / 2,
                         startZ + dz * (RUN * i + depthOffset)
                     );
-
                     scene.add(step);
                 }
             }
@@ -692,10 +391,8 @@
                 new THREE.SphereGeometry(headRadius, 16, 16), headMaterial);
             body.position.y = bodyHeight / 2;
             head.position.y = bodyHeight + headRadius;
-
             const playerAxes = new THREE.AxesHelper(2); // length in units
             scene.add(playerAxes);
-
             const avatar = new THREE.Group();
             avatar.add(body);
             avatar.add(head);
@@ -705,12 +402,8 @@
         }
 
         const [bodyRadius, bodyHeight, avatar, camtargcube, em_energy, playerAxes] = createSceneObjects();
-
-        // WORLD OCTREE
         const worldOctree = new Octree();
         worldOctree.fromGraphNode(scene);
-
-        // PLAYER CAPSULE (collision truth)
         const playerCapsule = new Capsule(
             new THREE.Vector3(0, bodyRadius, 0),    // location of collider feet 
             new THREE.Vector3(0, bodyHeight + bodyRadius, 0),    //    location of collider head 
@@ -765,6 +458,7 @@
             }
         }
 
+
         function updatePlayer(delta) {
             direction.set(0, 0, 0);
             if (keys['w']) direction.z -= 1;
@@ -781,14 +475,10 @@
             if (keys['k']) pitch += 0.03;
             if (keys['l']) yaw -= 0.03;
             if (keys['i'] || keys['k']) {
-                pitch = THREE.MathUtils.clamp(
-                    pitch,
-                    -Math.PI / 2 + 0.1,
-                    Math.PI / 2 - 0.1
-                );
+                pitch = THREE.MathUtils.clamp(pitch, -Math.PI / 2 + 0.1, Math.PI / 2 - 0.1);
             }
-            yaw = normalizeYaw(yaw);
 
+            yaw = normalizeYaw(yaw);
             const currentSpeed = SPEED * (isRunning ? 2 : 1);
             direction.normalize();
             // Make w/a/s/d relative to camera view rather than static/absolute map directions
@@ -803,11 +493,9 @@
                 velocity.y -= GRAVITY * delta;
             }
 
-            // Move capsule
             const deltaPos = velocity.clone().multiplyScalar(delta);
             playerCapsule.translate(deltaPos);
 
-            // Collision
             const result = worldOctree.capsuleIntersect(playerCapsule);
             onGround = false;
 
@@ -816,7 +504,6 @@
                 onGround = result.normal.y > 0;
             }
 
-            // Sync visual avatar
             avatar.position.copy(playerCapsule.start);
             avatar.rotation.y = yaw;
             playerAxes.position.copy(playerCapsule.start);
@@ -842,7 +529,6 @@
         updateCompass();
 
 
-        // Camera
         function updateCamera() {
             const isCameraInside = false;
 
@@ -854,7 +540,6 @@
                 camera.position.copy(avatar.position);
             } else {
                 const BASE_CAMERA_DISTANCE = 6;
-                // Camera points slightly to the right and above avatar
                 cameraTarget.x += 0.8 * Math.cos(yaw);
                 cameraTarget.z -= 0.8 * Math.sin(yaw);
                 cameraTarget.y += 1.7;
@@ -875,7 +560,6 @@
             posyel.textContent = pos.y.toFixed(2);
             poszel.textContent = pos.z.toFixed(2);
             updateCompass();
-
         }
 
         function updateEMfield(time) {
@@ -908,7 +592,6 @@
             geometry.attributes.size.needsUpdate = true;
         }
 
-        // Animate
         let lastTime = performance.now();
 
         function animate() {
@@ -944,13 +627,10 @@
         function setState(state) {
             previousState = currentState;
             currentState = state;
-
             startScreen.style.display =
                 state === GameState.MENU ? "flex" : "none";
-
             settingsScreen.style.display =
                 state === GameState.SETTINGS ? "flex" : "none";
-
             if (state === GameState.PLAYING) {
                 document.body.requestPointerLock({ unadjustedMovement: true });
                 document.body.style.cursor = "none";
@@ -976,34 +656,24 @@
         });
 
         document.addEventListener("mousemove", (e) => {
-            if (
-                currentState !== GameState.PLAYING ||
-                document.pointerLockElement !== document.body
+            if (currentState !== GameState.PLAYING || document.pointerLockElement !== document.body
             ) return;
-
             yaw -= e.movementX * mouseSensitivity;
             yaw = normalizeYaw(yaw);
             pitch += e.movementY * mouseSensitivity;
-
-            pitch = THREE.MathUtils.clamp(
-                pitch,
-                -Math.PI / 2 + 0.1,
-                Math.PI / 2 - 0.1
-            );
+            pitch = THREE.MathUtils.clamp(pitch, -Math.PI / 2 + 0.1, Math.PI / 2 - 0.1);
         });
 
         sensInput.addEventListener("input", e => {
             mouseSensitivity = parseFloat(e.target.value);
         });
 
-        // Resize
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         });
 
-        // Turn on strafing
         strafeToggle.addEventListener("change", e => {
             useStrafeInsteadOfTurn = e.target.checked;
             localStorage.setItem("useStrafeInsteadOfTurn", useStrafeInsteadOfTurn);
@@ -1031,16 +701,12 @@
             setState(previousState || GameState.MENU);
         });
 
-
         document.addEventListener("pointerlockchange", () => {
             const locked = document.pointerLockElement === document.body;
             pointerLockActive = locked;
-
-            // Only react if we were already playing AND lock was lost
             if (
                 currentState === GameState.PLAYING && !locked
             ) {
-                // Delay one frame to avoid click race conditions
                 requestAnimationFrame(() => {
                     if (currentState === GameState.PLAYING && !pointerLockActive
                     ) {
