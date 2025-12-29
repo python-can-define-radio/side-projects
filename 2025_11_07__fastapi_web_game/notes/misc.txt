@@ -155,3 +155,16 @@ General:
 Physics:
     1:
     - Have a key for "run simulation"
+
+
+29dec2025
+three geometries:
+ - See (using Three JS, not truly simulating light physics... lol)
+ - Touch
+ - EM
+
+I think we need a single function that creates items in the world (same for remove)
+That function will
+ - Update the visual stuff (meshes?)
+ - Update the octree
+ - Update the EM simulation grid
