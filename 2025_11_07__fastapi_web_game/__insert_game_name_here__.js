@@ -24,6 +24,11 @@ const tabButtons = document.querySelectorAll(".tabButton");
 const tabContents = document.querySelectorAll(".tabContent");
 const labels = document.getElementsByClassName("label");
 const savedStrafeSetting = localStorage.getItem("useStrafeInsteadOfTurn");
+const raycaster = new THREE.Raycaster();
+const placementRange = 8.0; // max distance from player
+const placeableSurfaces = [];
+const placedBlocks = [];
+
 
 let lastCompassIndex = -1;
 let fpsFrameCount = 0;
@@ -64,15 +69,95 @@ scene.add(dirLight);
 
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 
+
+function getPlacementTargetHybrid() {
+    // Step 1: ray from camera through reticule
+    raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+    const hits = raycaster.intersectObjects(placeableSurfaces, false);
+    if (hits.length === 0) return null;
+
+    const hit = hits[0];
+
+    // Step 2: check distance from avatar
+    const avatarPos = playerCapsule.start.clone();
+    const dist = hit.point.distanceTo(avatarPos);
+
+    if (dist > placementRange) {
+        console.log("Too far from player:", dist.toFixed(2));
+        return null;
+    }
+    else { console.log("that is acceptable (within distance)") }
+
+    console.log("Placement hit at:", hit.point, "distance from avatar:", dist.toFixed(2));
+    return hit;
+}
+
+
+function snapToGrid(position, normal) {
+    const snapped = position.clone()
+        .add(normal.multiplyScalar(0.5)) // move outward from surface
+        .floor()
+        .addScalar(0.5); // center of block
+
+    // Always place at minimum ground height if below
+    if (snapped.y < 0.5) snapped.y = 0.5; // floor + half block
+
+    return snapped;
+}
+
+
+function placeBlock(position) {
+    const block = new THREE.Mesh(
+        new THREE.BoxGeometry(1, 1, 1),
+        new THREE.MeshStandardMaterial({ color: 0x8888ff })
+    );
+
+    block.position.copy(position);
+    scene.add(block);
+
+    placedBlocks.push(block);
+    placeableSurfaces.push(block);
+
+    worldOctree.fromGraphNode(block); // just add this block
+}
+
+
+function rebuildOctree() {
+    worldOctree.clear(); // completely remove old data
+    if (ground) worldOctree.fromGraphNode(ground);
+    placedBlocks.forEach(block => worldOctree.fromGraphNode(block));
+}
+
+
+
+function removeBlock(block) {
+    // Remove from scene & arrays
+    scene.remove(block);
+
+    const i1 = placedBlocks.indexOf(block);
+    if (i1 !== -1) placedBlocks.splice(i1, 1);
+
+    const i2 = placeableSurfaces.indexOf(block);
+    if (i2 !== -1) placeableSurfaces.splice(i2, 1);
+
+    // Rebuild octree so the removed block is no longer collidable
+    rebuildOctree();
+}
+
+
 function createSceneObjects() {
     // Ground and grid
     const ground = new THREE.Mesh(
-        new THREE.PlaneGeometry(100, 100),
-        new THREE.MeshStandardMaterial({ color: 0x444444 })
+        new THREE.PlaneGeometry(400, 400),
+        new THREE.MeshStandardMaterial({
+            color: 0x444444,
+            side: THREE.DoubleSide
+        })
     );
     ground.rotation.x = -Math.PI / 2;
     scene.add(ground);
-    const grid = new THREE.GridHelper(100, 100);
+    placeableSurfaces.push(ground);
+    const grid = new THREE.GridHelper(400, 400);
     scene.add(grid);
 
     function createPineTree(x, y, z) {
@@ -80,15 +165,15 @@ function createSceneObjects() {
         const trunkGeometry = new THREE.CylinderGeometry(0.15, 0.2, 2, 8);
         const trunkMaterial = new THREE.MeshStandardMaterial({ color: 0x8b5a2b });
         const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
-        trunk.position.y = 1;
+        trunk.position.y = 5;
         tree.add(trunk);
         const foliageMaterial = new THREE.MeshStandardMaterial({ color: 0x0b6623 });
         const cone1 = new THREE.Mesh(new THREE.ConeGeometry(1.2, 2, 8), foliageMaterial);
-        cone1.position.y = 2.4;
+        cone1.position.y = 10;
         const cone2 = new THREE.Mesh(new THREE.ConeGeometry(1.0, 1.8, 8), foliageMaterial);
-        cone2.position.y = 3.4;
+        cone2.position.y = 15;
         const cone3 = new THREE.Mesh(new THREE.ConeGeometry(0.8, 1.5, 8), foliageMaterial);
-        cone3.position.y = 4.3;
+        cone3.position.y = 20;
         tree.add(cone1, cone2, cone3);
         tree.position.set(x, y, z);
         scene.add(tree);
@@ -112,6 +197,7 @@ function createSceneObjects() {
         createPineTree(10, 0, -25);
         createPineTree(10, 0, -26);
     }
+
 
     function init_em_energy() {
         const amount = 100000;
@@ -162,10 +248,10 @@ function createSceneObjects() {
     }
 
     const em_energy = init_em_energy();
-    const haloGeometry = new THREE.TorusGeometry(15, 0.5, 8, 100);
+    const haloGeometry = new THREE.TorusGeometry(25, 1, 8, 100);
     const haloMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00, wireframe: true });
     const halo = new THREE.Mesh(haloGeometry, haloMaterial);
-    halo.position.set(0, 20, 0);
+    halo.position.set(0, 40, 0);
     halo.rotation.x = Math.PI / 2;
     scene.add(halo);
     const cubeMaterialred = new THREE.MeshStandardMaterial({ color: 0xff0000 });
@@ -188,8 +274,8 @@ function createSceneObjects() {
         width,
         material
     ) {
-        const RISE = 0.3;
-        const RUN = 0.5;
+        const RISE = 0.6;
+        const RUN = 1.0;
         const PLATFORM_MULTIPLIER = 4;
         const directions = {
             N: { x: 0, z: -1 },
@@ -233,13 +319,13 @@ function createSceneObjects() {
 
     maketreegroup()
     makestairs(scene, -12, 0, 6, "E", 67, 3, cubeMaterialred)
-    makestairs(scene, .5, 0, -18.5, "E", 17, 3, cubeMaterialgreen)
-    makestairs(scene, 19.5, 0, -18.5, "W", 17, 3, cubeMaterialgreen)
+    // makestairs(scene, .5, 0, -18.5, "E", 17, 3, cubeMaterialgreen)
+    // makestairs(scene, 19.5, 0, -18.5, "W", 17, 3, cubeMaterialgreen)
 
     // Player avatar (visual only)
-    const bodyHeight = 1.0;
-    const bodyRadius = .35;
-    const headRadius = 0.3;
+    const bodyHeight = 4.0;
+    const bodyRadius = 1.3;
+    const headRadius = 1.2;
     const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
     const headMaterial = new THREE.MeshStandardMaterial({ color: 0xffff00 });
     const body = new THREE.Mesh(
@@ -258,11 +344,12 @@ function createSceneObjects() {
     avatar.add(head);
     scene.add(avatar);
 
-    return [bodyRadius, bodyHeight, avatar, camtargcube, em_energy, playerAxes];
+    return [bodyRadius, bodyHeight, avatar, camtargcube, em_energy, playerAxes, ground];
 }
 
-const [bodyRadius, bodyHeight, avatar, camtargcube, em_energy, playerAxes] = createSceneObjects();
+const [bodyRadius, bodyHeight, avatar, camtargcube, em_energy, playerAxes, ground] = createSceneObjects();
 const worldOctree = new Octree();
+worldOctree.fromGraphNode(ground); // add ground initially
 worldOctree.fromGraphNode(scene);
 const playerCapsule = new Capsule(
     new THREE.Vector3(0, bodyRadius, 0),    // location of collider feet 
@@ -283,7 +370,7 @@ const velocity = new THREE.Vector3();
 const direction = new THREE.Vector3();
 const GRAVITY = 30;
 const SPEED = 8;
-const JUMP = 10;
+const JUMP = 30;
 let onGround = false;
 
 async function loadPyodideInBackground() {
@@ -362,6 +449,15 @@ function updatePlayer(delta) {
     if (result) {
         playerCapsule.translate(result.normal.multiplyScalar(result.depth));
         onGround = result.normal.y > 0;
+
+        // Snap small offsets on X/Z to nearest 0.01 to reduce jitter
+        playerCapsule.start.x = Math.round(playerCapsule.start.x * 100) / 100;
+        playerCapsule.start.z = Math.round(playerCapsule.start.z * 100) / 100;
+    }
+
+    if (result) {
+        playerCapsule.translate(result.normal.multiplyScalar(result.depth));
+        onGround = result.normal.y > 0;
     }
 
     avatar.position.copy(playerCapsule.start);
@@ -399,7 +495,7 @@ function updateCamera() {
         cameraTarget.z -= 0.8 * Math.sin(yaw);
         camera.position.copy(avatar.position);
     } else {
-        const BASE_CAMERA_DISTANCE = 6;
+        const BASE_CAMERA_DISTANCE = 18;
         cameraTarget.x += 0.8 * Math.cos(yaw);
         cameraTarget.z -= 0.8 * Math.sin(yaw);
         cameraTarget.y += 1.7;
@@ -575,3 +671,38 @@ document.addEventListener("pointerlockchange", () => {
         });
     }
 });
+
+window.addEventListener("mousedown", (e) => {
+    if (currentState !== GameState.PLAYING) return;
+    if (document.pointerLockElement !== document.body) return;
+
+    const hit = getPlacementTargetHybrid();
+    if (!hit) return;
+
+    // LEFT CLICK → place
+    if (e.button === 0) {
+        const placePos = snapToGrid(
+            hit.point,
+            hit.face.normal.clone()
+        );
+        placeBlock(placePos);
+    }
+
+    // RIGHT CLICK → remove
+    if (e.button === 2) {
+        const obj = hit.object;
+        if (placedBlocks.includes(obj)) {
+            scene.remove(obj);
+            
+            const i1 = placedBlocks.indexOf(obj);
+            if (i1 !== -1) placedBlocks.splice(i1, 1);
+            
+            const i2 = placeableSurfaces.indexOf(obj);
+            if (i2 !== -1) placeableSurfaces.splice(i2, 1);
+        }
+        removeBlock(obj)
+    }
+});
+
+window.addEventListener("contextmenu", e => e.preventDefault());
+
