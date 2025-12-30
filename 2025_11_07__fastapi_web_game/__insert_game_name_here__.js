@@ -263,7 +263,7 @@ function createSceneObjects() {
     largeCube.position.set(20, 10, 10);
     scene.add(largeCube);
 
-    const camtargcube = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.2), cubeMaterialred);
+    const camtargcube = new THREE.Mesh(new THREE.BoxGeometry(.7, .7, .7), cubeMaterialred);
     scene.add(camtargcube);
 
     function makestairs(
@@ -369,8 +369,8 @@ let isRunning = false;
 const velocity = new THREE.Vector3();
 const direction = new THREE.Vector3();
 const GRAVITY = 30;
-const SPEED = 8;
-const JUMP = 30;
+const SPEED = 12;
+const JUMP = 20;
 let onGround = false;
 
 async function loadPyodideInBackground() {
@@ -495,10 +495,10 @@ function updateCamera() {
         cameraTarget.z -= 0.8 * Math.sin(yaw);
         camera.position.copy(avatar.position);
     } else {
-        const BASE_CAMERA_DISTANCE = 18;
-        cameraTarget.x += 0.8 * Math.cos(yaw);
-        cameraTarget.z -= 0.8 * Math.sin(yaw);
-        cameraTarget.y += 1.7;
+        const BASE_CAMERA_DISTANCE = 30;
+        cameraTarget.x += 2 * Math.cos(yaw);
+        cameraTarget.z -= 2 * Math.sin(yaw);
+        cameraTarget.y += 5;
         camera.position.x = avatar.position.x - BASE_CAMERA_DISTANCE * Math.cos(yaw + Math.PI / 2) * Math.cos(pitch);
         camera.position.y = avatar.position.y + BASE_CAMERA_DISTANCE * Math.sin(pitch);
         camera.position.z = avatar.position.z + BASE_CAMERA_DISTANCE * Math.sin(yaw + Math.PI / 2) * Math.cos(pitch);
