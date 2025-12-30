@@ -1,0 +1,8 @@
+1. Decide engine: 
+  a. https://github.com/fenomas/noa  or
+  b.  https://www.reddit.com/r/VoxelGameDev/comments/wny62d/opensource_web_voxel_engine/
+      that engine on github: https://github.com/skishore/wave
+  I think we're leaning towards the skishore one.
+2. Either start migrating to new engine, or fix collision with staircases in current game.
+
+  
