@@ -133,9 +133,16 @@ Three JS particle example that we used as of 2025 Dec 19: https://threejs.dev/ex
 
 Build Mode
     Building 1:
-    - Enable player to place blocks, constrained to a grid spacing of 1x1x1
-    - Placement should be based on the direction the player is facing
-    - Ideally do a ray-trace (right word?) from camera through the reticule (red-cube) to the ground, probably with a distance limit of two units away
+    - Able to change to not holding a block (nothing equipped) activate/deactivate build mode
+    - "Equippable" inventory (quick access) and "full" inventory (slower access, but more full interface for choosing)
+      -- requested UX: 
+        Equipped: nothing. ... 
+        Equipped: Aluminum block.  Press Q
+        Equipped: Wood block.  Press Q
+        Equipped: nothing.
+        { Consider visible inventory somewhere on screen }
+    - Able to place a transmitter (equippable item)
+        - add keyboard shortcut to turn off em transmitter/remove all em dots (action button e) right click removes back to inventory
 
     Building 2:
     - Save (and load) whatever you've built -- current 3d block positions -- to a file. 
@@ -143,11 +150,8 @@ Build Mode
     - Able to upload/download saved map files
 
     Building 3:
-    - Choosing different materials -- aluminum, etc
-
-    Building 4:
-    - Able to place a transmitter
-    - add keyboard shortcut to turn off em transmitter/remove all em dots
+    
+    
 
 General:
     - Add an NPC to the map. Action key near NPC makes a dialog appear.

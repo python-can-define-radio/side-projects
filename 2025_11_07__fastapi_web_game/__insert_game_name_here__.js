@@ -25,7 +25,7 @@ const tabContents = document.querySelectorAll(".tabContent");
 const labels = document.getElementsByClassName("label");
 const savedStrafeSetting = localStorage.getItem("useStrafeInsteadOfTurn");
 const raycaster = new THREE.Raycaster();
-const placementRange = 8.0; // max distance from player
+const placementRange = 10.0; // max distance from player
 const placeableSurfaces = [];
 const placedBlocks = [];
 
@@ -131,6 +131,7 @@ function rebuildOctree() {
 
 
 function removeBlock(block) {
+    if (block === ground) return;
     // Remove from scene & arrays
     scene.remove(block);
 
@@ -206,9 +207,9 @@ function createSceneObjects() {
         const sizes = new Float32Array(amount);
         const color = new THREE.Color(0xffffff);
         // SLAB dimensions (world units)
-        const SLAB_WIDTH = 50;   // X
-        const SLAB_HEIGHT = 5;   // Y (thin)
-        const SLAB_DEPTH = 50;   // Z
+        const SLAB_WIDTH = 100;   // X
+        const SLAB_HEIGHT = 2;   // Y (thin)
+        const SLAB_DEPTH = 100;   // Z
 
         for (let i = 0; i < amount; i++) {
             // Uniform random distribution inside a box
@@ -260,7 +261,7 @@ function createSceneObjects() {
     const cubeMaterialgold = new THREE.MeshStandardMaterial({ color: 0xffff00 });
 
     const largeCube = new THREE.Mesh(new THREE.BoxGeometry(5, 20, 5), cubeMaterialgold);
-    largeCube.position.set(20, 10, 10);
+    largeCube.position.set(70, 10, 10);
     scene.add(largeCube);
 
     const camtargcube = new THREE.Mesh(new THREE.BoxGeometry(.7, .7, .7), cubeMaterialred);
@@ -519,33 +520,39 @@ function updateHUD() {
 }
 
 function updateEMfield(time) {
-    if (!window.scalarGrid) return; // Pyodide not ready yet
+    // try {
+        if (!window.scalarGrid) return; // Pyodide not ready yet
+        const geometry = em_energy.geometry;
+        const positions = geometry.attributes.position.array;
+        const sizes = geometry.attributes.size.array;
 
-    const geometry = em_energy.geometry;
-    const positions = geometry.attributes.position.array;
-    const sizes = geometry.attributes.size.array;
+        for (let i = 0; i < positions.length; i += 3) {
+            const x = positions[i];
+            const y = positions[i + 1];
+            const z = positions[i + 2];
+            const gs_time = window.scalarGrid.length;
+            const gs_x = window.scalarGrid[0].length;
+            const gs_y = window.scalarGrid[0][0].length;
+            const gs_z = window.scalarGrid[0][0][0].length;
+            if (x < 0 || y < 0 || z < 0 || x > gs_x || y > gs_y || z > gs_z) {
+                sizes[i / 3] = 0;
+            } else {
+                const ix = Math.floor(x);
+                const iy = Math.floor(y);
+                const iz = Math.floor(z);
+                const itime = Math.floor(time / 50) % gs_time;
 
-    for (let i = 0; i < positions.length; i += 3) {
-        const x = positions[i];
-        const y = positions[i + 1];
-        const z = positions[i + 2];
-        const gsz = window.scalarGrid.length
-        if (x < 0 || y < 0 || z < 0 || x > gsz || y > gsz || z > gsz) {
-            sizes[i / 3] = 0;
-        } else {
-            const ix = Math.floor(x);
-            const iy = Math.floor(y);
-            const iz = Math.floor(z);
-            const itime = Math.floor(time / 100) % 50
-
-            // Read scalar value from Pyodide grid
-            const scalar = window.scalarGrid[ix][iy][iz][itime];
-
-            // Apply it to particle size
-            sizes[i / 3] = scalar;
+                // Read scalar value from Pyodide grid
+                const scalar = Math.max(0, -6 + 70 * Math.log(1 + Math.abs(scalarGrid[itime][ix][iy][iz])));
+                // Apply it to particle size
+                sizes[i / 3] = scalar;
+            }
         }
-    }
-    geometry.attributes.size.needsUpdate = true;
+        geometry.attributes.size.needsUpdate = true;
+    // } catch (e) {
+    //     console.log("error:");
+    //     console.log(e);
+    // }
 }
 
 let lastTime = performance.now();
@@ -577,7 +584,7 @@ function animate() {
     renderer.render(scene, camera);
 }
 
-loadPyodideInBackground();
+setTimeout(loadPyodideInBackground, 5000);
 animate();
 
 function setState(state) {
