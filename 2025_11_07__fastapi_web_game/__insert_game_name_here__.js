@@ -890,14 +890,14 @@ window.addEventListener("mousedown", (e) => {
             hit.point,
             hit.face.normal.clone()
         );
-        for (let countx = 0; countx < 200; countx++) {
-            for (let countz = 0; countz < 500; countz++) {
+        // for (let countx = 0; countx < 200; countx++) {
+            // for (let countz = 0; countz < 500; countz++) {
                 placeBlock(placePos);
-                placePos.z += 2;
-            }
-            placePos.z -= 1000;
-            placePos.x += 2;
-        }
+                // placePos.z += 2;
+            // }
+            // placePos.z -= 1000;
+            // placePos.x += 2;
+        // }
     }
 
     // RIGHT CLICK → remove
