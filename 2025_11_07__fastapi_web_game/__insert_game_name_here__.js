@@ -28,8 +28,10 @@ const raycaster = new THREE.Raycaster();
 const placementRange = 10.0; // max distance from player
 const placeableSurfaces = [];
 const placedBlocks = [];
+const MIN_CAMERA_DISTANCE = 1; // first-person close to head
+const MAX_CAMERA_DISTANCE = 30; // normal third-person
 
-
+let cameraDistance = 30;      // starting third-person distance
 let lastCompassIndex = -1;
 let fpsFrameCount = 0;
 let fpsLastTime = performance.now();
@@ -69,6 +71,49 @@ scene.add(dirLight);
 
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 
+const faceHighlight = new THREE.Mesh(
+    new THREE.PlaneGeometry(1.01, 1.01),
+    new THREE.MeshBasicMaterial({
+        color: 0xffff00,
+        transparent: true,
+        opacity: 0.35,
+        side: THREE.DoubleSide,
+        depthWrite: false
+    })
+);
+
+faceHighlight.visible = false;
+scene.add(faceHighlight);
+
+
+function updateFaceHighlight() {
+    const hit = getPlacementTargetHybrid();
+    if (!hit || !hit.face) {
+        faceHighlight.visible = false;
+        return;
+    }
+
+    const normal = hit.face.normal.clone();
+
+    // Transform normal to world space
+    normal.transformDirection(hit.object.matrixWorld);
+
+    // Snap position to 1x1 grid along the face
+    const snappedPos = snapToFace(hit);
+    faceHighlight.position.copy(snappedPos);
+
+    // Orient plane so its local +Z points along the face normal
+    const targetNormal = normal.clone().normalize();
+    const currentNormal = new THREE.Vector3(0, 0, 1); // plane default normal
+    const quaternion = new THREE.Quaternion().setFromUnitVectors(currentNormal, targetNormal);
+    faceHighlight.quaternion.copy(quaternion);
+
+    // Always scale 1x1
+    faceHighlight.scale.set(1, 1, 1);
+
+    faceHighlight.visible = true;
+}
+
 
 function getPlacementTargetHybrid() {
     // Step 1: ray from camera through reticule
@@ -91,6 +136,37 @@ function getPlacementTargetHybrid() {
     console.log("Placement hit at:", hit.point, "distance from avatar:", dist.toFixed(2));
     return hit;
 }
+
+
+function snapToFace(hit) {
+    const pos = hit.point.clone();
+    const normal = hit.face.normal.clone();
+
+    // Check if the object is the ground (or a non-cube plane)
+    const isPlane = hit.object === ground; // or use some tag for all planes
+
+    if (isPlane) {
+        // Snap to 1x1 grid on X/Z only, keep Y fixed to surface
+        const facePos = new THREE.Vector3(
+            Math.floor(pos.x) + 0.5,
+            pos.y + 0.01,  // tiny offset to avoid z-fighting
+            Math.floor(pos.z) + 0.5
+        );
+        return facePos;
+    }
+
+    // --- Cube logic for blocks ---
+    const cubeCenter = pos.clone().floor().addScalar(0.5);
+
+    if (normal.x > 0) cubeCenter.x -= 1;
+    if (normal.y > 0) cubeCenter.y -= 1;
+    if (normal.z > 0) cubeCenter.z -= 1;
+
+    const facePos = cubeCenter.addScaledVector(normal, 0.5);
+    facePos.addScaledVector(normal, 0.01); // small offset
+    return facePos;
+}
+
 
 
 function snapToGrid(position, normal) {
@@ -374,6 +450,16 @@ const SPEED = 12;
 const JUMP = 20;
 let onGround = false;
 
+
+async function loadPythonFile(path) {
+    const response = await fetch(path);
+    if (!response.ok) {
+        throw new Error(`Failed to load Python file: ${path}`);
+    }
+    return await response.text();
+}
+
+
 async function loadPyodideInBackground() {
     try {
         const script = document.createElement("script");
@@ -389,11 +475,10 @@ async function loadPyodideInBackground() {
         window.pyodide = await loadPyodide();
         await pyodide.loadPackage("numpy");
 
-        // ⬇️ Execute Python from separate script block
-        const pyCode = document.getElementById("py-grid-script").textContent;
+        // 🔥 Load external Python file
+        const pyCode = await loadPythonFile("__insert_game_name_here__.py");
         await pyodide.runPythonAsync(pyCode);
 
-        // Extract grid
         const pyGrid = pyodide.globals.get("grid");
         window.scalarGrid = pyGrid.toJs({ copy: true });
 
@@ -407,13 +492,14 @@ async function loadPyodideInBackground() {
 }
 
 
+
 function updatePlayer(delta) {
     direction.set(0, 0, 0);
-    if (keys['w']) direction.z -= 1;
-    if (keys['s']) direction.z += 1;
+    if (keys['w']) direction.z += 1;
+    if (keys['s']) direction.z -= 1;
     if (useStrafeInsteadOfTurn) {
-        if (keys['a']) direction.x -= 1;
-        if (keys['d']) direction.x += 1;
+        if (keys['a']) direction.x += 1;
+        if (keys['d']) direction.x -= 1;
     } else {
         if (keys['a']) yaw += 0.07;
         if (keys['d']) yaw -= 0.07;
@@ -487,26 +573,43 @@ updateCompass();
 
 
 function updateCamera() {
-    const isCameraInside = false;
+    const cameraTarget = avatar.position.clone();
+    cameraTarget.y += bodyHeight + 3;
 
-    let cameraTarget = avatar.position.clone();
+    const dist = cameraDistance || 30;
 
-    if (isCameraInside) {
-        cameraTarget.x += 0.8 * Math.cos(yaw);
-        cameraTarget.z -= 0.8 * Math.sin(yaw);
-        camera.position.copy(avatar.position);
-    } else {
-        const BASE_CAMERA_DISTANCE = 30;
-        cameraTarget.x += 2 * Math.cos(yaw);
-        cameraTarget.z -= 2 * Math.sin(yaw);
-        cameraTarget.y += 5;
-        camera.position.x = avatar.position.x - BASE_CAMERA_DISTANCE * Math.cos(yaw + Math.PI / 2) * Math.cos(pitch);
-        camera.position.y = avatar.position.y + BASE_CAMERA_DISTANCE * Math.sin(pitch);
-        camera.position.z = avatar.position.z + BASE_CAMERA_DISTANCE * Math.sin(yaw + Math.PI / 2) * Math.cos(pitch);
-    }
-    camtargcube.position.set(cameraTarget.x, cameraTarget.y, cameraTarget.z);
+    camera.position.x = cameraTarget.x - dist * Math.sin(yaw) * Math.cos(pitch);
+    camera.position.y = cameraTarget.y + dist * Math.sin(pitch);
+    camera.position.z = cameraTarget.z - dist * Math.cos(yaw) * Math.cos(pitch);
+
     camera.lookAt(cameraTarget);
+
+    // Fade avatar smoothly
+    const fadeStart = 5; // start fading when closer than this
+    const fadeEnd = 1;   // fully invisible at this distance
+    let opacity = 1;
+    if (dist <= fadeStart) {
+        opacity = THREE.MathUtils.clamp((dist - fadeEnd) / (fadeStart - fadeEnd), 0, 1);
+    }
+
+    // Traverse all meshes in avatar and force opacity
+    avatar.traverse((child) => {
+        if (child.isMesh) {
+            // Ensure a **unique material instance** for each mesh
+            if (!child.material._originalMaterial) {
+                child.material = child.material.clone();
+                child.material._originalMaterial = true;
+            }
+
+            child.material.transparent = true;
+            child.material.opacity = opacity;
+
+            // Optional: disable depthWrite for complete fade
+            // child.material.depthWrite = opacity > 0 ? true : false;
+        }
+    });
 }
+
 
 function updateHUD() {
     const pos = playerCapsule.start;
@@ -521,34 +624,34 @@ function updateHUD() {
 
 function updateEMfield(time) {
     // try {
-        if (!window.scalarGrid) return; // Pyodide not ready yet
-        const geometry = em_energy.geometry;
-        const positions = geometry.attributes.position.array;
-        const sizes = geometry.attributes.size.array;
+    if (!window.scalarGrid) return; // Pyodide not ready yet
+    const geometry = em_energy.geometry;
+    const positions = geometry.attributes.position.array;
+    const sizes = geometry.attributes.size.array;
 
-        for (let i = 0; i < positions.length; i += 3) {
-            const x = positions[i];
-            const y = positions[i + 1];
-            const z = positions[i + 2];
-            const gs_time = window.scalarGrid.length;
-            const gs_x = window.scalarGrid[0].length;
-            const gs_y = window.scalarGrid[0][0].length;
-            const gs_z = window.scalarGrid[0][0][0].length;
-            if (x < 0 || y < 0 || z < 0 || x > gs_x || y > gs_y || z > gs_z) {
-                sizes[i / 3] = 0;
-            } else {
-                const ix = Math.floor(x);
-                const iy = Math.floor(y);
-                const iz = Math.floor(z);
-                const itime = Math.floor(time / 50) % gs_time;
+    for (let i = 0; i < positions.length; i += 3) {
+        const x = positions[i];
+        const y = positions[i + 1];
+        const z = positions[i + 2];
+        const gs_time = window.scalarGrid.length;
+        const gs_x = window.scalarGrid[0].length;
+        const gs_y = window.scalarGrid[0][0].length;
+        const gs_z = window.scalarGrid[0][0][0].length;
+        if (x < 0 || y < 0 || z < 0 || x > gs_x || y > gs_y || z > gs_z) {
+            sizes[i / 3] = 0;
+        } else {
+            const ix = Math.floor(x);
+            const iy = Math.floor(y);
+            const iz = Math.floor(z);
+            const itime = Math.floor(time / 50) % gs_time;
 
-                // Read scalar value from Pyodide grid
-                const scalar = Math.max(0, -6 + 70 * Math.log(1 + Math.abs(scalarGrid[itime][ix][iy][iz])));
-                // Apply it to particle size
-                sizes[i / 3] = scalar;
-            }
+            // Read scalar value from Pyodide grid
+            const scalar = Math.max(0, -6 + 70 * Math.log(1 + Math.abs(scalarGrid[itime][ix][iy][iz])));
+            // Apply it to particle size
+            sizes[i / 3] = scalar;
         }
-        geometry.attributes.size.needsUpdate = true;
+    }
+    geometry.attributes.size.needsUpdate = true;
     // } catch (e) {
     //     console.log("error:");
     //     console.log(e);
@@ -579,6 +682,7 @@ function animate() {
 
     updatePlayer(delta);
     updateCamera();
+    updateFaceHighlight();
     updateHUD();
     updateEMfield(time);
     renderer.render(scene, camera);
@@ -625,6 +729,14 @@ document.addEventListener("mousemove", (e) => {
     yaw = normalizeYaw(yaw);
     pitch += e.movementY * mouseSensitivity;
     pitch = THREE.MathUtils.clamp(pitch, -Math.PI / 2 + 0.1, Math.PI / 2 - 0.1);
+});
+
+window.addEventListener("wheel", (e) => {
+    if (currentState !== GameState.PLAYING) return;
+
+    // Invert scroll if you want "scroll up to zoom in"
+    cameraDistance += e.deltaY * 0.05;
+    cameraDistance = THREE.MathUtils.clamp(cameraDistance, MIN_CAMERA_DISTANCE, MAX_CAMERA_DISTANCE);
 });
 
 sensInput.addEventListener("input", e => {
@@ -700,10 +812,10 @@ window.addEventListener("mousedown", (e) => {
         const obj = hit.object;
         if (placedBlocks.includes(obj)) {
             scene.remove(obj);
-            
+
             const i1 = placedBlocks.indexOf(obj);
             if (i1 !== -1) placedBlocks.splice(i1, 1);
-            
+
             const i2 = placeableSurfaces.indexOf(obj);
             if (i2 !== -1) placeableSurfaces.splice(i2, 1);
         }

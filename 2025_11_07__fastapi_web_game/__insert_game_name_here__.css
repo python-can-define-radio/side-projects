@@ -7,12 +7,14 @@ body {
     position: fixed;
     left: 50%;
     top: 50%;
-    width: 16px;
-    height: 16px;
-    margin-left: -8px;
-    margin-top: -8px;
+    width: 8px;          /* half size */
+    height: 8px;         /* half size */
+    margin-left: -4px;
+    margin-top: -4px;
     pointer-events: none;
+    opacity: 0.8;        /* 20% transparent */
 }
+
 
 #reticule span {
     position: absolute;
@@ -20,17 +22,17 @@ body {
 }
 
 #reticule span:nth-child(1) {
-    left: 7px;
+    left: 3.5px;
     top: 0;
-    width: 2px;
-    height: 16px;
+    width: 1px;
+    height: 8px;
 }
 
 #reticule span:nth-child(2) {
-    top: 7px;
+    top: 3.5px;
     left: 0;
-    width: 16px;
-    height: 2px;
+    width: 8px;
+    height: 1px;
 }
 
 #startScreen {

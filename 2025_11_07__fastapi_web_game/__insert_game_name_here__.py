@@ -1,19 +1,12 @@
 import numpy as np
 
 
-import numpy as np
-
-def wave_propagate_point_source(
-    timesteps: int, xsize: int, ysize: int, zsize: int, walls=None
-) -> np.ndarray:
+def wave_propagate_point_source(timesteps: int, xsize: int, ysize: int, zsize: int) -> np.ndarray:
     """
     Return a 4D numpy array of shape (timesteps, xsize, ysize, zsize).
     Simulate a simple wave propagation from a point source at the center.
-    Walls are a list of (x, y, z) tuples that perfectly reflect the wave.
+    Written by MS Copilot
     """
-    if walls is None:
-        walls = []
-
     # Initialize the 4D array
     wave = np.zeros((timesteps, xsize, ysize, zsize), dtype=np.float32)
 
@@ -41,13 +34,6 @@ def wave_propagate_point_source(
         # Wave equation update
         wave[t+1] = 2 * wave[t] - wave[t-1] + coeff * laplacian
 
-        # Apply wall reflections
-        for (wx, wy, wz) in walls:
-            if 0 <= wx < xsize and 0 <= wy < ysize and 0 <= wz < zsize:
-                # Invert amplitude at wall location to simulate reflection
-                wave[t+1, wx, wy, wz] = -wave[t+1, wx, wy, wz]
-
     return wave
-
 
 grid = wave_propagate_point_source(500, 100, 2, 100)
