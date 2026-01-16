@@ -8,6 +8,7 @@ const settingsScreen = document.getElementById("settingsScreen");
 const settingsButton = document.getElementById("settingsButton");
 const closeSettingsBtn = document.getElementById("closeSettings");
 const sensInput = document.getElementById("sensInput");
+const camerafarInput = document.getElementById("camerafarInput");
 const strafeToggle = document.getElementById("strafeToggle");
 const startScreen = document.getElementById("startScreen");
 const startButton = document.getElementById("startButton");
@@ -31,7 +32,7 @@ const placedBlocks = [];
 const MIN_CAMERA_DISTANCE = 1; // first-person close to head
 const MAX_CAMERA_DISTANCE = 30; // normal third-person
 
-let cameraDistance = 30;      // starting third-person distance
+let cameraDistance = 4;      // starting third-person distance
 let lastCompassIndex = -1;
 let fpsFrameCount = 0;
 let fpsLastTime = performance.now();
@@ -69,7 +70,7 @@ const dirLight = new THREE.DirectionalLight(0xffffff, 1);
 dirLight.position.set(5, 10, 5);
 scene.add(dirLight);
 
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 300);
 
 const faceHighlight = new THREE.Mesh(
     new THREE.PlaneGeometry(1.01, 1.01),
@@ -115,6 +116,11 @@ function updateFaceHighlight() {
 }
 
 
+/**
+ * Attempts to find a valid placement target by casting a ray from the camera
+ * through the reticule and checking intersection with placeable surfaces.
+ * @returns {THREE.Intersection|null} The closest valid intersection hit, or null if none found
+ */
 function getPlacementTargetHybrid() {
     // Step 1: ray from camera through reticule
     raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
@@ -130,8 +136,9 @@ function getPlacementTargetHybrid() {
     if (dist > placementRange) {
         console.log("Too far from player:", dist.toFixed(2));
         return null;
+    } else {
+        console.log("that is acceptable (within distance)");
     }
-    else { console.log("that is acceptable (within distance)") }
 
     console.log("Placement hit at:", hit.point, "distance from avatar:", dist.toFixed(2));
     return hit;
@@ -182,19 +189,81 @@ function snapToGrid(position, normal) {
 }
 
 
+class InstancedPool {
+    /**
+     * @param {THREE.Scene} scene - The scene to add the instanced mesh into
+     * @param {THREE.BufferGeometry} geometry - Geometry for each instance
+     * @param {THREE.Material} material - Material for each instance
+     * @param {number} count - Maximum number of instances
+     */
+    constructor(scene, geometry, material, count) {
+        this.mesh = new THREE.InstancedMesh(geometry, material, count);
+        scene.add(this.mesh);
+
+        this.capacity = count;
+        this.freeIndices = Array.from({ length: count }, (_, i) => i);
+        this.active = new Map(); // key = "x,y,z" string, value = index
+        this.dummy = new THREE.Object3D();
+    }
+
+    /**
+     * Add a cube at the given coordinates.
+     * @param {number} x
+     * @param {number} y
+     * @param {number} z
+     * @returns {string|null} id - The coordinate key for later removal, or null if pool is full
+     */
+    add(x, y, z) {
+        if (this.freeIndices.length === 0) return null;
+
+        const index = this.freeIndices.pop();
+        this.dummy.position.set(x, y, z);
+        this.dummy.rotation.set(0, 0, 0);
+        this.dummy.scale.set(1, 1, 1);
+        this.dummy.updateMatrix();
+
+        this.mesh.setMatrixAt(index, this.dummy.matrix);
+        this.mesh.instanceMatrix.needsUpdate = true;
+
+        const id = `${x},${y},${z}`; // use coordinates as the id
+        this.active.set(id, index);
+        return id;
+    }
+
+    /**
+     * Remove a cube at the given coordinates.
+     * @param {number} x
+     * @param {number} y
+     * @param {number} z
+     * @returns {boolean} true if removed, false if not found
+     */
+    remove(x, y, z) {
+        const id = `${x},${y},${z}`;
+        if (!this.active.has(id)) return false;
+
+        const index = this.active.get(id);
+        this.active.delete(id);
+        this.freeIndices.push(index);
+
+        // Hide it by scaling to zero
+        this.dummy.position.set(0, 0, 0);
+        this.dummy.scale.set(0, 0, 0);
+        this.dummy.updateMatrix();
+        this.mesh.setMatrixAt(index, this.dummy.matrix);
+        this.mesh.instanceMatrix.needsUpdate = true;
+
+        return true;
+    }
+}
+
+
 function placeBlock(position) {
-    const block = new THREE.Mesh(
-        new THREE.BoxGeometry(1, 1, 1),
-        new THREE.MeshStandardMaterial({ color: 0x8888ff })
-    );
+    pool.add(position.x, position.y, position.z);
 
-    block.position.copy(position);
-    scene.add(block);
+    // placedBlocks.push(block);
+    // placeableSurfaces.push(block);
 
-    placedBlocks.push(block);
-    placeableSurfaces.push(block);
-
-    worldOctree.fromGraphNode(block); // just add this block
+    // worldOctree.fromGraphNode(block); // just add this block
 }
 
 
@@ -203,7 +272,6 @@ function rebuildOctree() {
     if (ground) worldOctree.fromGraphNode(ground);
     placedBlocks.forEach(block => worldOctree.fromGraphNode(block));
 }
-
 
 
 function removeBlock(block) {
@@ -400,9 +468,10 @@ function createSceneObjects() {
     // makestairs(scene, 19.5, 0, -18.5, "W", 17, 3, cubeMaterialgreen)
 
     // Player avatar (visual only)
-    const bodyHeight = 4.0;
-    const bodyRadius = 1.3;
-    const headRadius = 1.2;
+    const avscale = 0.2;
+    const bodyHeight = 4.0 * avscale;
+    const bodyRadius = 1.3 * avscale;
+    const headRadius = 1.2 * avscale;
     const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
     const headMaterial = new THREE.MeshStandardMaterial({ color: 0xffff00 });
     const body = new THREE.Mesh(
@@ -414,7 +483,7 @@ function createSceneObjects() {
         new THREE.SphereGeometry(headRadius, 16, 16), headMaterial);
     body.position.y = bodyHeight / 2;
     head.position.y = bodyHeight + headRadius;
-    const playerAxes = new THREE.AxesHelper(2); // length in units
+    const playerAxes = new THREE.AxesHelper(1); // length in units
     scene.add(playerAxes);
     const avatar = new THREE.Group();
     avatar.add(body);
@@ -425,6 +494,15 @@ function createSceneObjects() {
 }
 
 const [bodyRadius, bodyHeight, avatar, camtargcube, em_energy, playerAxes, ground] = createSceneObjects();
+
+const pool = new InstancedPool(
+    scene,
+    new THREE.BoxGeometry(1, 1, 1),
+    new THREE.MeshNormalMaterial(),
+    100000
+);
+pool.mesh.frustumCulled = false;
+
 const worldOctree = new Octree();
 worldOctree.fromGraphNode(ground); // add ground initially
 worldOctree.fromGraphNode(scene);
@@ -461,6 +539,9 @@ async function loadPythonFile(path) {
 
 
 async function loadPyodideInBackground() {
+    pyodideStatusEl.textContent = "Pyodide SKIPPEDEDEDDD";    
+    return;  // 2026 jan 16: disabled this
+    
     try {
         const script = document.createElement("script");
         script.src = "https://cdn.jsdelivr.net/pyodide/v0.25.1/full/pyodide.js";
@@ -520,9 +601,9 @@ function updatePlayer(delta) {
     velocity.x = direction.x * currentSpeed;
     velocity.z = direction.z * currentSpeed;
 
+    if (keys[' ']) velocity.y = JUMP;
     if (onGround) {
         velocity.y = Math.max(0, velocity.y);
-        if (keys[' ']) velocity.y = JUMP;
     } else {
         velocity.y -= GRAVITY * delta;
     }
@@ -574,7 +655,7 @@ updateCompass();
 
 function updateCamera() {
     const cameraTarget = avatar.position.clone();
-    cameraTarget.y += bodyHeight + 3;
+    cameraTarget.y += bodyHeight * 1.8;
 
     const dist = cameraDistance || 30;
 
@@ -585,7 +666,7 @@ function updateCamera() {
     camera.lookAt(cameraTarget);
 
     // Fade avatar smoothly
-    const fadeStart = 5; // start fading when closer than this
+    const fadeStart = 2; // start fading when closer than this
     const fadeEnd = 1;   // fully invisible at this distance
     let opacity = 1;
     if (dist <= fadeStart) {
@@ -735,13 +816,18 @@ window.addEventListener("wheel", (e) => {
     if (currentState !== GameState.PLAYING) return;
 
     // Invert scroll if you want "scroll up to zoom in"
-    cameraDistance += e.deltaY * 0.05;
+    cameraDistance += e.deltaY * 0.01;
     cameraDistance = THREE.MathUtils.clamp(cameraDistance, MIN_CAMERA_DISTANCE, MAX_CAMERA_DISTANCE);
 });
 
 sensInput.addEventListener("input", e => {
     mouseSensitivity = parseFloat(e.target.value);
 });
+
+camerafarInput.addEventListener("input", e => {
+    camera.far = parseFloat(e.target.value);
+    camera.updateProjectionMatrix();
+}); 
 
 window.addEventListener('resize', () => {
     camera.aspect = window.innerWidth / window.innerHeight;
@@ -804,7 +890,14 @@ window.addEventListener("mousedown", (e) => {
             hit.point,
             hit.face.normal.clone()
         );
-        placeBlock(placePos);
+        for (let countx = 0; countx < 200; countx++) {
+            for (let countz = 0; countz < 500; countz++) {
+                placeBlock(placePos);
+                placePos.z += 2;
+            }
+            placePos.z -= 1000;
+            placePos.x += 2;
+        }
     }
 
     // RIGHT CLICK → remove
