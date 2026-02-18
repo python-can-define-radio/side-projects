@@ -419,7 +419,7 @@ function createSceneObjects() {
         width,
         material
     ) {
-        const RISE = 0.6;
+        const RISE = 0.5;
         const RUN = 1.0;
         const PLATFORM_MULTIPLIER = 4;
         const directions = {
