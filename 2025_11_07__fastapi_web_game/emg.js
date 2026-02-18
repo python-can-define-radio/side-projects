@@ -557,7 +557,7 @@ async function loadPyodideInBackground() {
         await pyodide.loadPackage("numpy");
 
         // 🔥 Load external Python file
-        const pyCode = await loadPythonFile("__insert_game_name_here__.py");
+        const pyCode = await loadPythonFile("emg.py");
         await pyodide.runPythonAsync(pyCode);
 
         const pyGrid = pyodide.globals.get("grid");
