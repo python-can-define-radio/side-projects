@@ -585,11 +585,11 @@ function updatePlayer(delta) {
         if (keys['a']) yaw += 0.07;
         if (keys['d']) yaw -= 0.07;
     }
-    if (keys['i']) pitch -= 0.03;
-    if (keys['j']) yaw += 0.03;
-    if (keys['k']) pitch += 0.03;
-    if (keys['l']) yaw -= 0.03;
-    if (keys['i'] || keys['k']) {
+    if (keys['arrowup']) pitch -= 0.03;
+    if (keys['arrowleft']) yaw += 0.03;
+    if (keys['arrowdown']) pitch += 0.03;
+    if (keys['arrowright']) yaw -= 0.03;
+    if (keys['arrowup'] || keys['arrowdown']) {
         pitch = THREE.MathUtils.clamp(pitch, -Math.PI / 2 + 0.1, Math.PI / 2 - 0.1);
     }
 
