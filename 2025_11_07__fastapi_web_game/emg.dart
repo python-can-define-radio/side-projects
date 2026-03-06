@@ -1,6 +1,5 @@
-///
 /// Beginning to migrate JS code to Dart.
-///
+library;
 
 import 'dart:js_interop';
 import 'package:web/web.dart';
@@ -21,13 +20,13 @@ class HTML {
 }
 
 class Player {
-  int x = 0;
-  int y = 0;
-  int vx = 0;
-  int vy = 0;
-  void updatePos() {
-    this.x += this.vx;
-    this.y += this.vy;
+  double x = 0;
+  double y = 0;
+  double vx = 0;
+  double vy = 0;
+  void updatePos(num tdelta) {
+    this.x += this.vx * tdelta;
+    this.y += this.vy * tdelta;
   }
 }
 
@@ -46,10 +45,11 @@ void main() async {
   
   final p = Player();
   docbody.onKeyDown.listen((event) {
-    if (event.key == 'ArrowUp') { p.vy = -1; }
-    else if (event.key == 'ArrowDown') { p.vy = 1; }
-    else if (event.key == 'ArrowLeft') { p.vx = -1; }
-    else if (event.key == 'ArrowRight') { p.vx = 1; }
+    double speed = 0.2;
+    if (event.key == 'ArrowUp') { p.vy = -speed; }
+    else if (event.key == 'ArrowDown') { p.vy = speed; }
+    else if (event.key == 'ArrowLeft') { p.vx = -speed; }
+    else if (event.key == 'ArrowRight') { p.vx = speed; }
     else { print("${event.key} down"); }
   });
   
@@ -61,13 +61,15 @@ void main() async {
     else { print("${event.key} up"); }
   });
 
-  void animate(num ms) {
+  num tlast = 0;
+  void animate(num timems) {
+    final tdelta = timems - tlast;
+    tlast = timems;
     status.innerText = "x: ${p.x}, y: ${p.y}";
-    p.updatePos();
+    p.updatePos(tdelta);
     ctx.clearRect(0, 0, canv.width, canv.height);
     ctx.fillRect(p.x, p.y, 10, 10);
     dartRAF(animate);
   }
   dartRAF(animate);
 }
-
