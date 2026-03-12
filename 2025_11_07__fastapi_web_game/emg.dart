@@ -24,50 +24,49 @@ class Player {
   double y = 0;
   double vx = 0;
   double vy = 0;
-  void updatePos(num tdelta) {
+  void update(num tdelta) {
     this.x += this.vx * tdelta;
     this.y += this.vy * tdelta;
+  }
+  void handleOnKeyDown(KeyboardEvent event) {
+    double speed = 0.2;
+    if (event.key == 'ArrowUp') { vy = -speed; }
+    else if (event.key == 'ArrowDown') { vy = speed; }
+    else if (event.key == 'ArrowLeft') { vx = -speed; }
+    else if (event.key == 'ArrowRight') { vx = speed; }
+    else { print("${event.key} down"); }
+  }
+  void handleOnKeyUp(KeyboardEvent event) {
+    if (event.key == 'ArrowUp') { vy = 0; }
+    else if (event.key == 'ArrowDown') { vy = 0; }
+    else if (event.key == 'ArrowLeft') { vx = 0; }
+    else if (event.key == 'ArrowRight') { vx = 0; }
+    else { print("${event.key} up"); }
   }
 }
 
 
 void main() async {
   final docbody = document.body!;
-  final status = HTML.div()..style.color = "#f0f";
-  final container = HTML.div()
-    ..style.backgroundColor = "#fff"
-    ..style.width = "300px";
-  final canv = HTML.canvas();
-  final ctx = canv.getContext('2d') as CanvasRenderingContext2D;
+  final status = HTML.div()..style.color = "#fff";
   docbody.appendChild(status);
-  container.appendChild(canv);
-  docbody.appendChild(container);
+  final canv = HTML.canvas();
+  docbody.appendChild(canv);
+  final ctx = canv.getContext('2d') as CanvasRenderingContext2D;
   
   final p = Player();
-  docbody.onKeyDown.listen((event) {
-    double speed = 0.2;
-    if (event.key == 'ArrowUp') { p.vy = -speed; }
-    else if (event.key == 'ArrowDown') { p.vy = speed; }
-    else if (event.key == 'ArrowLeft') { p.vx = -speed; }
-    else if (event.key == 'ArrowRight') { p.vx = speed; }
-    else { print("${event.key} down"); }
-  });
-  
-  docbody.onKeyUp.listen((event) {
-    if (event.key == 'ArrowUp') { p.vy = 0; }
-    else if (event.key == 'ArrowDown') { p.vy = 0; }
-    else if (event.key == 'ArrowLeft') { p.vx = 0; }
-    else if (event.key == 'ArrowRight') { p.vx = 0; }
-    else { print("${event.key} up"); }
-  });
+  docbody.onKeyDown.listen(p.handleOnKeyDown);
+  docbody.onKeyUp.listen(p.handleOnKeyUp);
 
   num tlast = 0;
   void animate(num timems) {
     final tdelta = timems - tlast;
     tlast = timems;
     status.innerText = "x: ${p.x}, y: ${p.y}";
-    p.updatePos(tdelta);
-    ctx.clearRect(0, 0, canv.width, canv.height);
+    p.update(tdelta);
+    ctx.fillStyle = "#fff".toJS; 
+    ctx.fillRect(0, 0, canv.width, canv.height);
+    ctx.fillStyle = "#000".toJS; 
     ctx.fillRect(p.x, p.y, 10, 10);
     dartRAF(animate);
   }
