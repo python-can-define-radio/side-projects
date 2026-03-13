@@ -9,8 +9,15 @@ import 'dart:math';
 
 /// Methods for creating HTML elems
 class HTML {
-  static HTMLDivElement div() => document.createElement('div') as HTMLDivElement;
+  static HTMLButtonElement button() => document.createElement('button') as HTMLButtonElement;
+  static HTMLInputElement checkbox()  {
+    final el = document.createElement('input') as HTMLInputElement;
+    el.setAttribute("type", "checkbox");
+    return el;
+  }
   static HTMLCanvasElement canvas() => document.createElement('canvas') as HTMLCanvasElement;
+  static HTMLDivElement div() => document.createElement('div') as HTMLDivElement;
+  static HTMLSpanElement span() => document.createElement('span') as HTMLSpanElement;
 }
 
 class Transmitter {
@@ -18,12 +25,7 @@ class Transmitter {
   final _txmity = 200.0;
   bool active = false;
   /// In the case of a GPS spoofer, this is the currently transmitted (spoofed) x
-  double? get txmitx {
-    if (active) {
-      return _txmitx;
-    }
-    return null;
-  }
+  double? get txmitx => active ? _txmitx : null;
   /// In the case of a GPS spoofer, this is the currently transmitted (spoofed) y
   double? get txmity {
     if (active) {
@@ -88,8 +90,23 @@ class WorldD {
 class HUD {
   /// Currently this `div` just contains the status.
   final div = HTML.div()..style.color = "#f00";
+  late final HTMLSpanElement _status;
+  late final HTMLInputElement _txOn;
+  HUD(Transmitter txer) {
+    _status = HTML.span();
+    final txLabel = HTML.span()..innerText = "Spoof GPS: ";
+    _txOn = HTML.checkbox()
+      ..addEventListener("click", ((InputEvent e) {
+        // txLabel.innerText += "asds";
+        // We left off here 2026 March 13
+      }).toJS);
+    div.appendChild(_status);
+    div.appendChild(txLabel);
+    div.appendChild(_txOn);
+  }
   void update(Player p1, Drone d1) {
-    div.innerText = "px: ${p1.x.toStringAsFixed(2)}, py: ${p1.y.toStringAsFixed(2)}, dx: ${d1.x.toStringAsFixed(2)}, dy: ${d1.y.toStringAsFixed(2)}";
+    pint(double u) => (u + 70000).toInt().toString().padLeft(5, "0");
+    _status.innerText = "player pos: ${pint(p1.x)} m, ${pint(p1.y)} m, \n drone pos: ${pint(d1.x)} m, ${pint(d1.y)} m\n";
   }
 }
 
@@ -169,7 +186,6 @@ void runEachFrame(void Function(double) frameUpdate) {
 
 /*
 Proposal:
-- Add incoming enemy 'drone' which approaches from a random edge of the screen with a random velocity
 - HUD shows detected drone with lat, lon, and height.
   - has a button for 'jam gps'
 - height decreases
@@ -181,7 +197,7 @@ void main() async {
   final wd = WorldD();
   final p1 = Player();
   final txer = Transmitter();
-  final hud = HUD();
+  final hud = HUD(txer);
   final ctx = wd.canv.getContext('2d') as CanvasRenderingContext2D;
   final d1 = Drone(wd.canv.width, wd.canv.height);
 
@@ -191,8 +207,7 @@ void main() async {
     ..onKeyDown.listen(p1.handleOnKeyDown)
     ..onKeyUp.listen(p1.handleOnKeyUp)
     ..onKeyDown.listen(txer.handleOnKeyDown)
-    ..onKeyUp.listen(txer.handleOnKeyUp)
-    ;
+    ..onKeyUp.listen(txer.handleOnKeyUp);
 
   runEachFrame((double deltams) {
     p1.update(deltams);
