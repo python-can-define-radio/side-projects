@@ -6,6 +6,8 @@ import 'package:web/web.dart';
 import 'dart:math';
 
 
+const canvWidth = 600;
+const canvHeight = 400;
 
 /// Methods for creating HTML elems
 class HTML {
@@ -20,157 +22,132 @@ class HTML {
   static HTMLSpanElement span() => document.createElement('span') as HTMLSpanElement;
 }
 
-class Transmitter {
-  final _txmitx = 320.0;
-  final _txmity = 200.0;
-  bool active = false;
-  /// In the case of a GPS spoofer, this is the currently transmitted (spoofed) x
-  double? get txmitx => active ? _txmitx : null;
-  /// In the case of a GPS spoofer, this is the currently transmitted (spoofed) y
-  double? get txmity {
-    if (active) {
-      return _txmity;
-    }
-    return null;
+class Pos {
+  double _x;
+  double _y;
+  Pos(this._x, this._y);
+  void move(({double vx, double vy}) v, Duration t) {
+    _x += v.vx * t.inMilliseconds;
+    _y += v.vy * t.inMilliseconds;
   }
-  void handleOnKeyDown(KeyboardEvent event) {
-    if (event.key == 'ArrowUp') { active = true; }
-  }
-  void handleOnKeyUp(KeyboardEvent event) {
-    if (event.key == 'ArrowUp') { active = false;}
-  }
+  /// return a read-only copy of this position
+  PosReadOnly get ro => PosReadOnly(_x, _y);
+}
+
+class PosReadOnly {
+  final double x;
+  final double y;
+  PosReadOnly(this.x, this.y);
+  /// Return number with 70000 added to look more like a grid coordinate
+  String _padbig(double u) => (u + 70000).toInt().toString();
+  String get pretty => "${_padbig(x)}, ${_padbig(y)}";
+}
+
+/// Distance per second
+class Vel {
+  double x;
+  double y;
+  Vel(this.x, this.y);
+  ({double vx, double vy}) get asRecord => (vx: x, vy: y);
 }
 
 class Player {
-  double x = 300;
-  double y = 200;
-  double vx = 0;
-  double vy = 0;
-  // final _speed = 0.2;
-  void update(double tdelta) {
-    x += vx * tdelta;
-    y += vy * tdelta;
+  /// initial position is arbitrary
+  final _pos = Pos(500, 1050);
+  final _vel = Vel(0, 0);
+  final _speed = 0.2;
+  void addEventListeners() {
+    document.body!
+      ..onKeyDown.listen(_handleOnKeyDown)
+      ..onKeyUp.listen(_handleOnKeyUp);
   }
-  void handleOnKeyDown(KeyboardEvent event) {
-    // if (event.key == 'ArrowUp') { vy = -_speed; }
-    // else if (event.key == 'ArrowDown') { vy = _speed; }
-    // else if (event.key == 'ArrowLeft') { vx = -_speed; }
-    // else if (event.key == 'ArrowRight') { vx = _speed; }
-    // else { print("${event.key} down"); }
+  void _handleOnKeyDown(KeyboardEvent event) {
+    if (event.key == 'ArrowUp') { _vel.y = -_speed; }
+    else if (event.key == 'ArrowDown') { _vel.y = _speed; }
+    else if (event.key == 'ArrowLeft') { _vel.x = -_speed; }
+    else if (event.key == 'ArrowRight') { _vel.x = _speed; }
+    else { print("${event.key} down"); }
   }
-  void handleOnKeyUp(KeyboardEvent event) {
-    // if (event.key == 'ArrowUp') { vy = 0; }
-    // else if (event.key == 'ArrowDown') { vy = 0; }
-    // else if (event.key == 'ArrowLeft') { vx = 0; }
-    // else if (event.key == 'ArrowRight') { vx = 0; }
-    // else { print("${event.key} up"); }
+  void _handleOnKeyUp(KeyboardEvent event) {
+    if (event.key == 'ArrowUp') { _vel.y = 0; }
+    else if (event.key == 'ArrowDown') { _vel.y = 0; }
+    else if (event.key == 'ArrowLeft') { _vel.x = 0; }
+    else if (event.key == 'ArrowRight') { _vel.x = 0; }
+    else { print("${event.key} up"); }
+  }
+  void update(Duration tdelta) {
+    _pos.move(_vel.asRecord, tdelta);
   }
   void draw(CanvasRenderingContext2D ctx) {
     ctx.fillStyle = "#000".toJS; 
-    ctx.fillRect(x, y, 30, 30);
+    ctx.fillRect(canvWidth / 2, canvHeight / 2, 30, 30);
   }
+  PosReadOnly get posro => _pos.ro;
 }
 
-/// World Draw-er (the class that handles drawing the world).
-/// Just hiding some of the canvas details.
-class WorldD {
+void fillRectRel(num x, num y, num w, num h, CanvasRenderingContext2D ctx, PosReadOnly relpos) {
+  ctx.fillRect(x - relpos.x + canvWidth/2, y - relpos.y + canvHeight/2, w, h);
+}
+void moveToRel(num x, num y, CanvasRenderingContext2D ctx, PosReadOnly relpos){
+  ctx.moveTo(x - relpos.x + canvWidth/2, y - relpos.y + canvHeight/2);
+}
+void lineToRel(num x, num y, CanvasRenderingContext2D ctx, PosReadOnly relpos){
+  ctx.lineTo(x - relpos.x + canvWidth/2, y - relpos.y + canvHeight/2);
+}
+
+/// Canvas Manager.
+class CanvM {
   final _bgcolor = "#fcc";
-  final canv = HTML.canvas();
-  WorldD() {
-    canv
-      ..width = 600
-      ..height = 400;
+  final _canv = HTML.canvas();
+  late final CanvasRenderingContext2D ctx;
+  CanvM() {
+    _canv
+      ..width = canvWidth
+      ..height = canvHeight;
+    ctx = _canv.getContext('2d') as CanvasRenderingContext2D;
   }
-  void draw(CanvasRenderingContext2D ctx) {
+  void drawBackground() {
     ctx.fillStyle = _bgcolor.toJS; 
-    ctx.fillRect(0, 0, canv.width, canv.height);
+    ctx.fillRect(0, 0, _canv.width, _canv.height);
+  }
+  /// Mutate the document body to append this class's HTML elem
+  void bodyAppend() {
+    document.body!.appendChild(_canv);
   }
 }
 
 class HUD {
   /// Currently this `div` just contains the status.
-  final div = HTML.div()..style.color = "#f00";
+  final _div = HTML.div()..style.color = "#f00";
   late final HTMLSpanElement _status;
-  late final HTMLInputElement _txOn;
-  HUD(Transmitter txer) {
+  HUD() {
     _status = HTML.span();
-    final txLabel = HTML.span()..innerText = "Spoof GPS: ";
-    _txOn = HTML.checkbox()
-      ..addEventListener("click", ((InputEvent e) {
-        // txLabel.innerText += "asds";
-        // We left off here 2026 March 13
-      }).toJS);
-    div.appendChild(_status);
-    div.appendChild(txLabel);
-    div.appendChild(_txOn);
+    _div.appendChild(_status);
   }
-  void update(Player p1, Drone d1) {
-    pint(double u) => (u + 70000).toInt().toString().padLeft(5, "0");
-    _status.innerText = "player pos: ${pint(p1.x)} m, ${pint(p1.y)} m, \n drone pos: ${pint(d1.x)} m, ${pint(d1.y)} m\n";
+  /// Mutate the document body to append this class's HTML elem
+  void bodyAppend() {
+    document.body!.appendChild(_div);
+  }
+  void update(PosReadOnly p1p, PosReadOnly t1p) {
+    _status.innerText = "player pos: ${p1p.pretty}\n Transmitting radio pos: ${t1p.pretty}\n";
   }
 }
 
+class TxRadio {
+  final _pos = Pos(400, 370);
 
-class Drone {
-  double x = 0;
-  double y = 0;
-  double vx = 0;
-  double vy = 0;
-  double speed = 0;
-
-  final _random = Random();
-
-  /// Set the drone's x,y,vx,vy randomly near the edge of the screen.
-  void _randomize(double width, double height) {
-    /// 0=top,1=right,2=bottom,3=left
-    int side = _random.nextInt(4);
-
-    switch (side) {
-      case 0: /// top
-        x = _random.nextDouble() * width;
-        y = -20;
-        break;
-
-      case 1: /// right
-        x = width + 10;
-        y = _random.nextDouble() * height;
-        break;
-
-      case 2: /// bottom
-        x = _random.nextDouble() * width;
-        y = height + 10;
-        break;
-
-      case 3: /// left
-        x = -10;
-        y = _random.nextDouble() * height;
-        break;
-    }
-    speed = _random.nextDouble() * .25;
+  void update(Duration tdelta) {
+    // Eventually might turn on/off or move
   }
-  Drone(int width, int height) {
-    _randomize(width.toDouble(), height.toDouble());
-  }
-  void update(double tdelta, double? fakedx, double? fakedy) {
-    final perceivedx = fakedx ?? x;
-    final perceivedy = fakedy ?? y;
-    _setVelocityToward(perceivedx, perceivedy, 300, 200, speed);
-    x += vx * tdelta;
-    y += vy * tdelta;
-  }
-  void draw(CanvasRenderingContext2D ctx) {
+  void draw(CanvasRenderingContext2D ctx, PosReadOnly playerPos) {
     ctx.fillStyle = "#00f".toJS; 
-    ctx.fillRect(x, y, 10, 10);
+    fillRectRel(_pos.ro.x, _pos.ro.y, 10, 10, ctx, playerPos);
   }
-  void _setVelocityToward(double perceivedx, double perceivedy, double targetX, double targetY, double speed) {
-    double angle = atan2(targetY - perceivedy, targetX - perceivedx);
-    vx = cos(angle) * speed;
-    vy = sin(angle) * speed;
-  }
+  PosReadOnly get posro => _pos.ro;
 }
 
 /// Repeatedly call requestAnimationFrame; pass the time delta as an argument to `frameUpdate`
-void runEachFrame(void Function(double) frameUpdate) {
+void runEachFrame(void Function(Duration) frameUpdate) {
   void dartRAF(void Function(double) callback) {
     window.requestAnimationFrame(callback.toJS);
   }
@@ -178,43 +155,101 @@ void runEachFrame(void Function(double) frameUpdate) {
   void animate(double timems) {
     final deltams = timems - tlast;
     tlast = timems;
-    frameUpdate(deltams);
+    frameUpdate(Duration(milliseconds: deltams.toInt()));
     dartRAF(animate);
   }
   dartRAF(animate);
 }
 
 /*
-Proposal:
-- HUD shows detected drone with lat, lon, and height.
-  - has a button for 'jam gps'
-- height decreases
-- different types of drones that are controlled in different ways
-- realistic drone movement based on acceleration / momentum instead of being able to instantly change direction
+
+
+1. player stays in center of map -- movement moves the world, not the player
+
+Player is direction finding a transmitter.
+Initially, dfing is based on line-of-sight only. (Later: add reflections, path loss, etc)
+
+- Draw a ray from the player to the transmitter.
+
+- if line of sight exists.
+  - How to determine line of sight?
+
+- elevation
 */
 
+class Tree {
+  final _pos = Pos(350, 270);
+
+  void draw(CanvasRenderingContext2D ctx, PosReadOnly playerPos) {
+    ctx.fillStyle = "#000".toJS; 
+    fillRectRel(_pos.ro.x + 6, _pos.ro.y + 10, 3, 30, ctx, playerPos);
+    ctx.fillStyle = "#0f0".toJS; 
+    fillRectRel(_pos.ro.x, _pos.ro.y, 16, 10, ctx, playerPos);
+  }
+}
+
+class LOB {
+  final PosReadOnly source;
+  final PosReadOnly target;
+  LOB(this.source, this.target);
+}
+
+class LOBDisplayer {
+  final List<LOB> lobs = [];
+  void update(PosReadOnly playerPos, EMPhys em) {
+    var t = em.available.elementAtOrNull(0);
+    if (t != null) {
+      lobs.add(LOB(playerPos, t));
+    }
+  }
+  void draw(CanvasRenderingContext2D ctx, PosReadOnly playerPos) {
+    for (var lob in lobs) {
+      ctx.beginPath();
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = "orange".toJS;
+      moveToRel(lob.source.x, lob.source.y, ctx, playerPos);
+      lineToRel(lob.target.x, lob.target.y, ctx, playerPos);
+      ctx.stroke();
+    }
+  }
+}
+
+
+class EMPhys {
+  final _random = Random();
+  final List<PosReadOnly> available = [];
+  void update(PosReadOnly playerPos, PosReadOnly targetPos) {
+    available.clear();
+    if (_random.nextInt(20) == 0) {
+      available.add(targetPos);
+    }
+  }
+}
+
 void main() async {
-  final wd = WorldD();
+  final cm = CanvM();
+  final hud = HUD();
   final p1 = Player();
-  final txer = Transmitter();
-  final hud = HUD(txer);
-  final ctx = wd.canv.getContext('2d') as CanvasRenderingContext2D;
-  final d1 = Drone(wd.canv.width, wd.canv.height);
+  final t1 = TxRadio();
+  final tr1 = Tree();
+  final lobd = LOBDisplayer();
+  final em = EMPhys();
 
-  document.body!
-    ..appendChild(hud.div)
-    ..appendChild(wd.canv)
-    ..onKeyDown.listen(p1.handleOnKeyDown)
-    ..onKeyUp.listen(p1.handleOnKeyUp)
-    ..onKeyDown.listen(txer.handleOnKeyDown)
-    ..onKeyUp.listen(txer.handleOnKeyUp);
+  hud.bodyAppend();
+  cm.bodyAppend();
+  
+  p1.addEventListeners();
 
-  runEachFrame((double deltams) {
-    p1.update(deltams);
-    d1.update(deltams, txer.txmitx, txer.txmity);
-    hud.update(p1, d1);
-    wd.draw(ctx);
-    p1.draw(ctx);
-    d1.draw(ctx);
+  runEachFrame((Duration tdelta) {
+    p1.update(tdelta);
+    t1.update(tdelta);
+    hud.update(p1.posro, t1.posro);
+    em.update(p1.posro, t1.posro);
+    lobd.update(p1.posro, em);
+    cm.drawBackground();
+    p1.draw(cm.ctx);
+    t1.draw(cm.ctx, p1.posro);
+    tr1.draw(cm.ctx, p1.posro);
+    lobd.draw(cm.ctx, p1.posro);
   });
 }
