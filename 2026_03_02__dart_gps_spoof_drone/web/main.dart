@@ -94,7 +94,7 @@ class HUD {
   late final HTMLInputElement _txOn;
   HUD(Transmitter txer) {
     _status = HTML.span();
-    final txLabel = HTML.span()..innerText = "Spoof GPS: ";
+    final txLabel = HTML.span()..innerText = "Spoof GPS (note, checkbox doesn't work; use up arrow on keyboard): ";
     _txOn = HTML.checkbox()
       ..addEventListener("click", ((InputEvent e) {
         // txLabel.innerText += "asds";
