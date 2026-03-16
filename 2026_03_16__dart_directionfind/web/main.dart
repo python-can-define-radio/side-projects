@@ -9,6 +9,12 @@ import 'dart:math';
 const canvWidth = 600;
 const canvHeight = 400;
 
+
+
+/// Distance per second.
+typedef Vel = ({double vx, double vy});
+
+
 /// Methods for creating HTML elems
 class HTML {
   static HTMLButtonElement button() => document.createElement('button') as HTMLButtonElement;
@@ -26,11 +32,11 @@ class Pos {
   double _x;
   double _y;
   Pos(this._x, this._y);
-  void move(({double vx, double vy}) v, Duration t) {
+  void move(Vel v, Duration t) {
     _x += v.vx * t.inMilliseconds;
     _y += v.vy * t.inMilliseconds;
   }
-  /// return a read-only copy of this position
+  /// A read-only copy of this position
   PosReadOnly get ro => PosReadOnly(_x, _y);
 }
 
@@ -43,18 +49,11 @@ class PosReadOnly {
   String get pretty => "${_padbig(x)}, ${_padbig(y)}";
 }
 
-/// Distance per second
-class Vel {
-  double x;
-  double y;
-  Vel(this.x, this.y);
-  ({double vx, double vy}) get asRecord => (vx: x, vy: y);
-}
-
 class Player {
   /// initial position is arbitrary
   final _pos = Pos(500, 1050);
-  final _vel = Vel(0, 0);
+  double _vx = 0;
+  double _vy = 0;
   final _speed = 0.2;
   void addEventListeners() {
     document.body!
@@ -62,21 +61,21 @@ class Player {
       ..onKeyUp.listen(_handleOnKeyUp);
   }
   void _handleOnKeyDown(KeyboardEvent event) {
-    if (event.key == 'ArrowUp') { _vel.y = -_speed; }
-    else if (event.key == 'ArrowDown') { _vel.y = _speed; }
-    else if (event.key == 'ArrowLeft') { _vel.x = -_speed; }
-    else if (event.key == 'ArrowRight') { _vel.x = _speed; }
+    if (event.key == 'ArrowUp') { _vy = -_speed; }
+    else if (event.key == 'ArrowDown') { _vy = _speed; }
+    else if (event.key == 'ArrowLeft') { _vx = -_speed; }
+    else if (event.key == 'ArrowRight') { _vx = _speed; }
     else { print("${event.key} down"); }
   }
   void _handleOnKeyUp(KeyboardEvent event) {
-    if (event.key == 'ArrowUp') { _vel.y = 0; }
-    else if (event.key == 'ArrowDown') { _vel.y = 0; }
-    else if (event.key == 'ArrowLeft') { _vel.x = 0; }
-    else if (event.key == 'ArrowRight') { _vel.x = 0; }
+    if (event.key == 'ArrowUp') { _vy = 0; }
+    else if (event.key == 'ArrowDown') { _vy = 0; }
+    else if (event.key == 'ArrowLeft') { _vx = 0; }
+    else if (event.key == 'ArrowRight') { _vx = 0; }
     else { print("${event.key} up"); }
   }
   void update(Duration tdelta) {
-    _pos.move(_vel.asRecord, tdelta);
+    _pos.move((vx: _vx, vy: _vy), tdelta);
   }
   void draw(CanvasRenderingContext2D ctx) {
     ctx.fillStyle = "#000".toJS; 
