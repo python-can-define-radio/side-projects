@@ -9,8 +9,6 @@ import 'dart:math';
 const canvWidth = 600;
 const canvHeight = 400;
 
-
-
 /// Distance per second.
 typedef Vel = ({double vx, double vy});
 
@@ -176,9 +174,11 @@ Initially, dfing is based on line-of-sight only. (Later: add reflections, path l
 - elevation
 */
 
-class Tree {
-  final _pos = Pos(350, 270);
-
+class SimpleObject {
+  late final Pos _pos;
+  SimpleObject(double x, double y) {
+    _pos = Pos(x, y);
+  }
   void draw(CanvasRenderingContext2D ctx, PosReadOnly playerPos) {
     ctx.fillStyle = "#000".toJS; 
     fillRectRel(_pos.ro.x + 6, _pos.ro.y + 10, 3, 30, ctx, playerPos);
@@ -187,22 +187,16 @@ class Tree {
   }
 }
 
-class LOB {
-  final PosReadOnly source;
-  final PosReadOnly target;
-  LOB(this.source, this.target);
-}
+typedef LOB = ({PosReadOnly source, PosReadOnly target});
 
-class LOBDisplayer {
-  final List<LOB> lobs = [];
-  void update(PosReadOnly playerPos, EMPhys em) {
-    var t = em.available.elementAtOrNull(0);
-    if (t != null) {
-      lobs.add(LOB(playerPos, t));
-    }
+/// Collection of LOBs
+class LOBCol {
+  final List<LOB> _lobs = [];
+  void addlobs(List<LOB> newlobs) {
+    _lobs.addAll(newlobs);
   }
   void draw(CanvasRenderingContext2D ctx, PosReadOnly playerPos) {
-    for (var lob in lobs) {
+    for (var lob in _lobs) {
       ctx.beginPath();
       ctx.lineWidth = 3;
       ctx.strokeStyle = "orange".toJS;
@@ -214,13 +208,23 @@ class LOBDisplayer {
 }
 
 
-class EMPhys {
+/// Simulator. A class that simulates LOBs.
+/// Has no local state except a random number generator.
+class Sim {
   final _random = Random();
-  final List<PosReadOnly> available = [];
-  void update(PosReadOnly playerPos, PosReadOnly targetPos) {
-    available.clear();
-    if (_random.nextInt(20) == 0) {
-      available.add(targetPos);
+  List<LOB> simulateLOBs(PosReadOnly playerPos, PosReadOnly txpos) {
+    if (_random.nextInt(20) != 0) {
+      return [];
+    }
+    return [(source: playerPos, target: txpos)];
+  }
+}
+
+class ObjCol {
+  final _objs = [SimpleObject(400, 1000), SimpleObject(450, 1200)];
+  void draw(CanvasRenderingContext2D ctx, PosReadOnly playerPos) {
+    for (final obj in _objs) {
+      obj.draw(ctx, playerPos);
     }
   }
 }
@@ -230,9 +234,9 @@ void main() async {
   final hud = HUD();
   final p1 = Player();
   final t1 = TxRadio();
-  final tr1 = Tree();
-  final lobd = LOBDisplayer();
-  final em = EMPhys();
+  final sim = Sim();
+  final oc = ObjCol();
+  final lobc = LOBCol();
 
   hud.bodyAppend();
   cm.bodyAppend();
@@ -243,12 +247,11 @@ void main() async {
     p1.update(tdelta);
     t1.update(tdelta);
     hud.update(p1.posro, t1.posro);
-    em.update(p1.posro, t1.posro);
-    lobd.update(p1.posro, em);
+    lobc.addlobs(sim.simulateLOBs(p1.posro, t1.posro));
     cm.drawBackground();
     p1.draw(cm.ctx);
     t1.draw(cm.ctx, p1.posro);
-    tr1.draw(cm.ctx, p1.posro);
-    lobd.draw(cm.ctx, p1.posro);
+    oc.draw(cm.ctx, p1.posro);
+    lobc.draw(cm.ctx, p1.posro);
   });
 }
