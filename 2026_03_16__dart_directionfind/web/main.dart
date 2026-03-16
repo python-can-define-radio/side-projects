@@ -76,8 +76,10 @@ class Player {
     _pos.move((vx: _vx, vy: _vy), tdelta);
   }
   void draw(CanvasRenderingContext2D ctx) {
+    const s = 15;
+    const s2 = s * 2;
     ctx.fillStyle = "#000".toJS; 
-    ctx.fillRect(canvWidth / 2, canvHeight / 2, 30, 30);
+    ctx.fillRect(canvWidth / 2 - s, canvHeight / 2 - s, s2, s2);
   }
   PosReadOnly get posro => _pos.ro;
 }
@@ -125,8 +127,8 @@ class HUD {
   void bodyAppend() {
     document.body!.appendChild(_div);
   }
-  void update(PosReadOnly p1p, PosReadOnly t1p) {
-    _status.innerText = "player pos: ${p1p.pretty}\n Transmitting radio pos: ${t1p.pretty}\n";
+  void update(PosReadOnly p, PosReadOnly t) {
+    _status.innerText = "player pos: ${p.pretty}\n Transmitting radio pos: ${t.pretty}\n";
   }
 }
 
@@ -187,7 +189,7 @@ class SimpleObject {
   }
 }
 
-typedef LOB = ({PosReadOnly source, PosReadOnly target});
+typedef LOB = ({PosReadOnly source, Azimuth azimuth});
 
 /// Collection of LOBs
 class LOBCol {
@@ -196,27 +198,54 @@ class LOBCol {
     _lobs.addAll(newlobs);
   }
   void draw(CanvasRenderingContext2D ctx, PosReadOnly playerPos) {
+    const loblength = 10000; // arbitrarily long so that the lob appears to be an unending ray
     for (var lob in _lobs) {
+      final endx = lob.source.x + loblength*lob.azimuth.cosresult;
+      final endy = lob.source.y + loblength*lob.azimuth.sinresult;
       ctx.beginPath();
-      ctx.lineWidth = 3;
+      ctx.lineWidth = 2;
       ctx.strokeStyle = "orange".toJS;
       moveToRel(lob.source.x, lob.source.y, ctx, playerPos);
-      lineToRel(lob.target.x, lob.target.y, ctx, playerPos);
+      lineToRel(endx, endy, ctx, playerPos);
       ctx.stroke();
     }
   }
 }
 
+class Azimuth {
+  late final double sinresult;
+  late final double cosresult;
+  Azimuth.fromPositions(PosReadOnly p, PosReadOnly t) {
+    final xd = t.x - p.x;
+    final yd = t.y - p.y;
+    final hyp = sqrt(xd*xd + yd*yd);
+    sinresult = yd / hyp;
+    cosresult = xd / hyp;
+  }
+  Azimuth.fromSinCos(this.sinresult, this.cosresult);
+}
 
 /// Simulator. A class that simulates LOBs.
 /// Has no local state except a random number generator.
 class Sim {
   final _random = Random();
-  List<LOB> simulateLOBs(PosReadOnly playerPos, PosReadOnly txpos) {
-    if (_random.nextInt(20) != 0) {
+  
+  /// add random noise
+  Azimuth _noi(Azimuth a) {
+    return Azimuth.fromSinCos(
+      a.sinresult + 0.2*(_random.nextDouble() - 0.5),
+      a.cosresult + 0.2*(_random.nextDouble() - 0.5)
+    );
+  }
+  
+  List<LOB> simulateLOBs(PosReadOnly p, PosReadOnly t) {
+    if (_random.nextInt(10) != 0) {
       return [];
     }
-    return [(source: playerPos, target: txpos)];
+    return [(
+      source: p,
+      azimuth: _noi(Azimuth.fromPositions(p, t))
+    )];
   }
 }
 
