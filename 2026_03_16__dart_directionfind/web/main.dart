@@ -27,32 +27,27 @@ class HTML {
 }
 
 class Pos {
-  double _x;
-  double _y;
-  Pos(this._x, this._y);
-  void move(Vel v, Duration t) {
-    _x += v.vx * t.inMilliseconds;
-    _y += v.vy * t.inMilliseconds;
-  }
-  /// A read-only copy of this position
-  PosReadOnly get ro => PosReadOnly(_x, _y);
-}
-
-class PosReadOnly {
   final double x;
   final double y;
-  PosReadOnly(this.x, this.y);
+  Pos(this.x, this.y);
+  /// Return a new Pos shifted based on distance=rate*time
+  Pos move(Vel v, Duration t) {
+    return Pos(x + v.vx*t.inMilliseconds, y + v.vy*t.inMilliseconds);
+  }
   /// Return number with 70000 added to look more like a grid coordinate
   String _padbig(double u) => (u + 70000).toInt().toString();
   String get pretty => "${_padbig(x)}, ${_padbig(y)}";
 }
 
-class Player {
+typedef Player = ({Pos pos, double vx, double vy});
+
+class PlayerMutable {
   /// initial position is arbitrary
-  final _pos = Pos(500, 1050);
-  double _vx = 0;
-  double _vy = 0;
+  Pos _pos;
+  double _vx;
+  double _vy;
   final _speed = 0.2;
+  PlayerMutable(this._pos, this._vx, this._vy);
   void addEventListeners() {
     document.body!
       ..onKeyDown.listen(_handleOnKeyDown)
@@ -73,7 +68,7 @@ class Player {
     else { print("${event.key} up"); }
   }
   void update(Duration tdelta) {
-    _pos.move((vx: _vx, vy: _vy), tdelta);
+    _pos = _pos.move((vx: _vx, vy: _vy), tdelta);
   }
   void draw(CanvasRenderingContext2D ctx) {
     const s = 15;
@@ -81,16 +76,17 @@ class Player {
     ctx.fillStyle = "#000".toJS; 
     ctx.fillRect(canvWidth / 2 - s, canvHeight / 2 - s, s2, s2);
   }
-  PosReadOnly get posro => _pos.ro;
+  /// A read-only copy (to avoid passing a mutable object)
+  Player get ro => (pos: _pos, vx: _vx, vy: _vy);
 }
 
-void fillRectRel(num x, num y, num w, num h, CanvasRenderingContext2D ctx, PosReadOnly relpos) {
+void fillRectRel(num x, num y, num w, num h, CanvasRenderingContext2D ctx, Pos relpos) {
   ctx.fillRect(x - relpos.x + canvWidth/2, y - relpos.y + canvHeight/2, w, h);
 }
-void moveToRel(num x, num y, CanvasRenderingContext2D ctx, PosReadOnly relpos){
+void moveToRel(num x, num y, CanvasRenderingContext2D ctx, Pos relpos){
   ctx.moveTo(x - relpos.x + canvWidth/2, y - relpos.y + canvHeight/2);
 }
-void lineToRel(num x, num y, CanvasRenderingContext2D ctx, PosReadOnly relpos){
+void lineToRel(num x, num y, CanvasRenderingContext2D ctx, Pos relpos){
   ctx.lineTo(x - relpos.x + canvWidth/2, y - relpos.y + canvHeight/2);
 }
 
@@ -127,22 +123,23 @@ class HUD {
   void bodyAppend() {
     document.body!.appendChild(_div);
   }
-  void update(PosReadOnly p, PosReadOnly t) {
-    _status.innerText = "player pos: ${p.pretty}\n Transmitting radio pos: ${t.pretty}\n";
+  void update(Player p, TxRadio t, LOBCol lobc) {
+    final dBm = lobc.lastlob?.rxpow.dBm.toStringAsFixed(1);
+    _status.innerText = 
+      "Player pos: ${p.pos.pretty}\n"
+      "Transmitting radio pos: ${t.pos.pretty}\n"
+      "Most recent LOB power: ${dBm ?? "__"} dBm\n";
   }
 }
 
 class TxRadio {
-  final _pos = Pos(400, 370);
+  final pos = Pos(400, 370);
+  final txpower = Power(1000);
 
-  void update(Duration tdelta) {
-    // Eventually might turn on/off or move
-  }
-  void draw(CanvasRenderingContext2D ctx, PosReadOnly playerPos) {
+  void draw(CanvasRenderingContext2D ctx, Player p) {
     ctx.fillStyle = "#00f".toJS; 
-    fillRectRel(_pos.ro.x, _pos.ro.y, 10, 10, ctx, playerPos);
+    fillRectRel(pos.x, pos.y, 10, 10, ctx, p.pos);
   }
-  PosReadOnly get posro => _pos.ro;
 }
 
 /// Repeatedly call requestAnimationFrame; pass the time delta as an argument to `frameUpdate`
@@ -181,23 +178,26 @@ class SimpleObject {
   SimpleObject(double x, double y) {
     _pos = Pos(x, y);
   }
-  void draw(CanvasRenderingContext2D ctx, PosReadOnly playerPos) {
+  void draw(CanvasRenderingContext2D ctx, Pos playerPos) {
     ctx.fillStyle = "#000".toJS; 
-    fillRectRel(_pos.ro.x + 6, _pos.ro.y + 10, 3, 30, ctx, playerPos);
+    fillRectRel(_pos.x + 6, _pos.y + 10, 3, 30, ctx, playerPos);
     ctx.fillStyle = "#0f0".toJS; 
-    fillRectRel(_pos.ro.x, _pos.ro.y, 16, 10, ctx, playerPos);
+    fillRectRel(_pos.x, _pos.y, 16, 10, ctx, playerPos);
   }
 }
 
-typedef LOB = ({PosReadOnly source, Azimuth azimuth});
+typedef LOB = ({Pos source, Azimuth azimuth, Power rxpow});
 
 /// Collection of LOBs
 class LOBCol {
   final List<LOB> _lobs = [];
-  void addlobs(List<LOB> newlobs) {
-    _lobs.addAll(newlobs);
+  LOB? get lastlob => _lobs.lastOrNull;
+  void addlob(LOB? newlob) {
+    if (newlob != null) {
+      _lobs.add(newlob);
+    }
   }
-  void draw(CanvasRenderingContext2D ctx, PosReadOnly playerPos) {
+  void draw(CanvasRenderingContext2D ctx, Player p) {
     const loblength = 10000; // arbitrarily long so that the lob appears to be an unending ray
     for (var lob in _lobs) {
       final endx = lob.source.x + loblength*lob.azimuth.cosresult;
@@ -205,24 +205,36 @@ class LOBCol {
       ctx.beginPath();
       ctx.lineWidth = 2;
       ctx.strokeStyle = "orange".toJS;
-      moveToRel(lob.source.x, lob.source.y, ctx, playerPos);
-      lineToRel(endx, endy, ctx, playerPos);
+      moveToRel(lob.source.x, lob.source.y, ctx, p.pos);
+      lineToRel(endx, endy, ctx, p.pos);
       ctx.stroke();
     }
   }
 }
 
+
 class Azimuth {
   late final double sinresult;
   late final double cosresult;
-  Azimuth.fromPositions(PosReadOnly p, PosReadOnly t) {
-    final xd = t.x - p.x;
-    final yd = t.y - p.y;
-    final hyp = sqrt(xd*xd + yd*yd);
-    sinresult = yd / hyp;
-    cosresult = xd / hyp;
+  Azimuth.fromPositions(Player p, TxRadio t) {
+    final xd = t.pos.x - p.pos.x;
+    final yd = t.pos.y - p.pos.y;
+    final dist = sqrt(xd*xd + yd*yd);
+    sinresult = yd / dist;
+    cosresult = xd / dist;
   }
   Azimuth.fromSinCos(this.sinresult, this.cosresult);
+}
+
+double logbase10(double x) => log(x) / log(10);
+
+class Power {
+  final double mW;
+  double get dBm => 10 * logbase10(mW);
+  Power(this.mW);
+  Power operator *(double other) {
+    return Power(mW * other);
+  }
 }
 
 /// Simulator. A class that simulates LOBs.
@@ -237,23 +249,31 @@ class Sim {
       a.cosresult + 0.2*(_random.nextDouble() - 0.5)
     );
   }
+  /// A very rudimentary path loss computation
+  Power _distLoss(TxRadio t, Player p1) {
+    final xd = t.pos.x - p1.pos.x;
+    final yd = t.pos.y - p1.pos.y;
+    final dist = sqrt(xd*xd + yd*yd);
+    return t.txpower * (1 / dist);
+  }
   
-  List<LOB> simulateLOBs(PosReadOnly p, PosReadOnly t) {
-    if (_random.nextInt(10) != 0) {
-      return [];
+  LOB? simulateLOB(Player p1, TxRadio t) {
+    if (_random.nextInt(40) != 0) {
+      return null;
     }
-    return [(
-      source: p,
-      azimuth: _noi(Azimuth.fromPositions(p, t))
-    )];
+    return (
+      source: p1.pos,
+      azimuth: _noi(Azimuth.fromPositions(p1, t)),
+      rxpow: _distLoss(t, p1),
+    );
   }
 }
 
 class ObjCol {
   final _objs = [SimpleObject(400, 1000), SimpleObject(450, 1200)];
-  void draw(CanvasRenderingContext2D ctx, PosReadOnly playerPos) {
+  void draw(CanvasRenderingContext2D ctx, Player p) {
     for (final obj in _objs) {
-      obj.draw(ctx, playerPos);
+      obj.draw(ctx, p.pos);
     }
   }
 }
@@ -261,11 +281,11 @@ class ObjCol {
 void main() async {
   final cm = CanvM();
   final hud = HUD();
-  final p1 = Player();
   final t1 = TxRadio();
   final sim = Sim();
   final oc = ObjCol();
   final lobc = LOBCol();
+  final p1 = PlayerMutable(Pos(500, 1050), 0, 0);
 
   hud.bodyAppend();
   cm.bodyAppend();
@@ -274,13 +294,12 @@ void main() async {
 
   runEachFrame((Duration tdelta) {
     p1.update(tdelta);
-    t1.update(tdelta);
-    hud.update(p1.posro, t1.posro);
-    lobc.addlobs(sim.simulateLOBs(p1.posro, t1.posro));
+    lobc.addlob(sim.simulateLOB(p1.ro, t1));
+    hud.update(p1.ro, t1, lobc);
     cm.drawBackground();
     p1.draw(cm.ctx);
-    t1.draw(cm.ctx, p1.posro);
-    oc.draw(cm.ctx, p1.posro);
-    lobc.draw(cm.ctx, p1.posro);
+    t1.draw(cm.ctx, p1.ro);
+    oc.draw(cm.ctx, p1.ro);
+    lobc.draw(cm.ctx, p1.ro);
   });
 }
