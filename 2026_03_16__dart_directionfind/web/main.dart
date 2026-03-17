@@ -12,6 +12,7 @@ const canvHeight = 400;
 /// Distance per second.
 typedef Vel = ({double vx, double vy});
 
+num sq(num x) => x*x;
 
 /// Methods for creating HTML elems
 class HTML {
@@ -31,7 +32,10 @@ class Pos {
   final double y;
   Pos(this.x, this.y);
   /// Return a new Pos shifted based on distance=rate*time
-  Pos move(Vel v, Duration t) {
+  Pos? move(Vel v, Duration t) {
+    if (v == (vx: 0.0, vy: 0.0)) {
+      return null;
+    }
     return Pos(x + v.vx*t.inMilliseconds, y + v.vy*t.inMilliseconds);
   }
   /// Return number with 70000 added to look more like a grid coordinate
@@ -39,17 +43,21 @@ class Pos {
   String get pretty => "${_padbig(x)}, ${_padbig(y)}";
 }
 
-typedef Player = ({Pos pos, double vx, double vy});
+// A read-only view of the current player state.
+class Player {
+  final Pos pos;
+  Player(this.pos);
+} 
 
 class PlayerMutable {
-  /// initial position is arbitrary
   Pos _pos;
-  double _vx;
-  double _vy;
+  double _vx = 0;
+  double _vy = 0;
   final _speed = 0.2;
-  PlayerMutable(this._pos, this._vx, this._vy);
-  void addEventListeners() {
-    document.body!
+  PlayerMutable(this._pos);
+  Player get ro => Player(_pos);
+  void addEventListeners(HTMLElement eventElem) {
+    eventElem
       ..onKeyDown.listen(_handleOnKeyDown)
       ..onKeyUp.listen(_handleOnKeyUp);
   }
@@ -58,17 +66,18 @@ class PlayerMutable {
     else if (event.key == 'ArrowDown') { _vy = _speed; }
     else if (event.key == 'ArrowLeft') { _vx = -_speed; }
     else if (event.key == 'ArrowRight') { _vx = _speed; }
-    else { print("${event.key} down"); }
   }
   void _handleOnKeyUp(KeyboardEvent event) {
     if (event.key == 'ArrowUp') { _vy = 0; }
     else if (event.key == 'ArrowDown') { _vy = 0; }
     else if (event.key == 'ArrowLeft') { _vx = 0; }
     else if (event.key == 'ArrowRight') { _vx = 0; }
-    else { print("${event.key} up"); }
   }
   void update(Duration tdelta) {
-    _pos = _pos.move((vx: _vx, vy: _vy), tdelta);
+    final newPos = _pos.move((vx: _vx, vy: _vy), tdelta);
+    if (newPos != null) {
+      _pos = newPos;
+    }
   }
   void draw(CanvasRenderingContext2D ctx) {
     const sz = 2; // size
@@ -81,8 +90,6 @@ class PlayerMutable {
     ctx.fillRect(cenx-sz*1, ceny+sz*10, sz*1.5, sz*5); // leg
     ctx.fillRect(cenx+sz*1, ceny+sz*10, sz*1.5, sz*5); // leg
   }
-  /// A read-only copy (to avoid passing a mutable object)
-  Player get ro => (pos: _pos, vx: _vx, vy: _vy);
 }
 
 void fillRectRel(num x, num y, num w, num h, CanvasRenderingContext2D ctx, Pos relpos) {
@@ -119,22 +126,35 @@ class CanvM {
     ctx.fillRect(0, 0, _canv.width, _canv.height);
   }
   /// Mutate the document body to append this class's HTML elem
-  void bodyAppend() {
-    document.body!.appendChild(_canv);
+  void elemAppend(HTMLElement elem) {
+    elem.appendChild(_canv);
   }
 }
 
 class HUD {
   /// Currently this `div` just contains the status.
-  final _div = HTML.div()..style.color = "#f00";
-  late final HTMLSpanElement _status;
+  final _div = HTML.div();
+  late final HTMLSpanElement _status = HTML.span();
+  late final HTMLInputElement _gatheringLobs = HTML.checkbox()..defaultChecked = true;
+  bool get gatheringLobs => _gatheringLobs.checked;
   HUD() {
-    _status = HTML.span();
+    _div.appendChild(HTML.div()..innerText = "Direction Finding Simulator");
+    _div.appendChild(HTML.div()..innerText = "Arrow keys to move.");
     _div.appendChild(_status);
+    _div.appendChild(HTML.span()..innerText = "Gathering Lobs (Toggle: 'L'):");
+    _div.appendChild(_gatheringLobs);
   }
-  /// Mutate the document body to append this class's HTML elem
-  void bodyAppend() {
-    document.body!.appendChild(_div);
+  void addEventListeners(HTMLElement eventElem) {
+    eventElem.onKeyDown.listen(_handleOnKeyDown);
+  }
+  void _handleOnKeyDown(KeyboardEvent event) {
+    if (event.key.toLowerCase() == "l") {
+      _gatheringLobs.checked = !_gatheringLobs.checked;
+    }
+  }
+  /// Mutate the parent to append this class's HTML elem
+  void elemAppend(HTMLElement parent) {
+    parent.appendChild(_div);
   }
   void update(Player p, TxRadio t, LOBCol lobc) {
     final dBm = lobc.lastlob?.rxpow.dBm.toStringAsFixed(1);
@@ -199,8 +219,8 @@ class Bush {
     final xd = _pos.x - p1.pos.x;
     final yd = _pos.y - p1.pos.y;
     /// Distance threshold. Basically pythagorean theorem but without sqrt and with some scaling to make it so bushes near the edge still render
-    final dthr = 2 * (xd*xd + yd*yd);
-    if (dthr > canvHeight*canvHeight && dthr > canvWidth*canvWidth) {
+    final dthr = 2 * (sq(xd) + sq(yd));
+    if (dthr > sq(canvHeight) && dthr > sq(canvWidth)) {
       return;
     }
     ctx.fillStyle = "#440".toJS;
@@ -224,10 +244,13 @@ typedef LOB = ({Pos source, Azimuth azimuth, Power rxpow});
 class LOBCol {
   final List<LOB> _lobs = [];
   LOB? get lastlob => _lobs.lastOrNull;
-  void addlob(LOB? newlob) {
-    if (newlob != null) {
-      _lobs.add(newlob);
+  void addlob(LOB? newlob, HUD hud) {
+    if (hud.gatheringLobs == false) {
+      return;
+    } else if (newlob == null) {
+      return;
     }
+    _lobs.add(newlob);
   }
   void draw(CanvasRenderingContext2D ctx, Player p) {
     const loblength = 10000; // arbitrarily long so that the lob appears to be an unending ray
@@ -274,11 +297,12 @@ class Power {
 class Sim {
   final _random = Random();
   
-  /// add random noise
+  /// add random noise. Need to figure out whether this is typical distribution
   Azimuth _noi(Azimuth a) {
+    p3(double x) => x*x*x;
     return Azimuth.fromSinCos(
-      a.sinresult + 0.2*(_random.nextDouble() - 0.5),
-      a.cosresult + 0.2*(_random.nextDouble() - 0.5)
+      a.sinresult + 0.003*p3(6*(_random.nextDouble() - 0.5)),
+      a.cosresult + 0.003*p3(6*(_random.nextDouble() - 0.5))
     );
   }
   /// A very rudimentary path loss computation
@@ -290,7 +314,7 @@ class Sim {
   }
   
   LOB? simulateLOB(Player p1, TxRadio t) {
-    if (_random.nextInt(40) != 0) {
+    if (_random.nextInt(10) != 0) {
       return null;
     }
     return (
@@ -327,26 +351,28 @@ class ObjCol {
 
 void main() async {
   final cm = CanvM();
-  final hud = HUD();
   final t1 = TxRadio();
   final sim = Sim();
   final oc = ObjCol();
   final lobc = LOBCol();
-  final p1 = PlayerMutable(Pos(500, 1050), 0, 0);
+  final playermut = PlayerMutable(Pos(500, 1050));
+  final hud = HUD();
 
-  hud.bodyAppend();
-  cm.bodyAppend();
+  hud.elemAppend(document.body!);
+  cm.elemAppend(document.body!);
   
-  p1.addEventListeners();
+  playermut.addEventListeners(document.body!);
+  hud.addEventListeners(document.body!);
 
   runEachFrame((Duration tdelta) {
-    p1.update(tdelta);
-    lobc.addlob(sim.simulateLOB(p1.ro, t1));
-    hud.update(p1.ro, t1, lobc);
+    playermut.update(tdelta);
+    final p1 = playermut.ro;
+    lobc.addlob(sim.simulateLOB(p1, t1), hud);
+    hud.update(p1, t1, lobc);
     cm.drawBackground();
-    p1.draw(cm.ctx);
-    t1.draw(cm.ctx, p1.ro);
-    oc.draw(cm.ctx, p1.ro);
-    lobc.draw(cm.ctx, p1.ro);
+    t1.draw(cm.ctx, p1);
+    playermut.draw(cm.ctx);
+    oc.draw(cm.ctx, p1);
+    lobc.draw(cm.ctx, p1);
   });
 }
