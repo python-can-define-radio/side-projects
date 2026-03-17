@@ -71,10 +71,15 @@ class PlayerMutable {
     _pos = _pos.move((vx: _vx, vy: _vy), tdelta);
   }
   void draw(CanvasRenderingContext2D ctx) {
-    const s = 15;
-    const s2 = s * 2;
+    const sz = 2; // size
+    const cenx = canvWidth / 2;
+    const ceny = canvHeight / 2;
     ctx.fillStyle = "#000".toJS; 
-    ctx.fillRect(canvWidth / 2 - s, canvHeight / 2 - s, s2, s2);
+    fillCircle(cenx + sz, ceny-sz*3, sz*3, ctx); // head
+    ctx.fillRect(cenx-sz*1, ceny-sz*2, sz*4, sz*12); // torso
+    ctx.fillRect(cenx-sz*4, ceny+sz*2, sz*10, sz);  // arms
+    ctx.fillRect(cenx-sz*1, ceny+sz*10, sz*1.5, sz*5); // leg
+    ctx.fillRect(cenx+sz*1, ceny+sz*10, sz*1.5, sz*5); // leg
   }
   /// A read-only copy (to avoid passing a mutable object)
   Player get ro => (pos: _pos, vx: _vx, vy: _vy);
@@ -88,6 +93,14 @@ void moveToRel(num x, num y, CanvasRenderingContext2D ctx, Pos relpos){
 }
 void lineToRel(num x, num y, CanvasRenderingContext2D ctx, Pos relpos){
   ctx.lineTo(x - relpos.x + canvWidth/2, y - relpos.y + canvHeight/2);
+}
+void fillCircle(num x, num y, num radius, CanvasRenderingContext2D ctx) {
+  ctx.beginPath();
+  ctx.arc(x, y, radius, 0, 2 * pi);
+  ctx.fill();  
+}
+void fillCircleRel(num x, num y, num radius, CanvasRenderingContext2D ctx, Pos relpos) {
+  fillCircle(x - relpos.x + canvWidth/2, y - relpos.y + canvHeight/2, radius, ctx);
 }
 
 /// Canvas Manager.
@@ -173,16 +186,35 @@ Initially, dfing is based on line-of-sight only. (Later: add reflections, path l
 - elevation
 */
 
-class SimpleObject {
+
+
+class Bush {
   late final Pos _pos;
-  SimpleObject(double x, double y) {
+  final String _color;
+  final int _size;
+  Bush(double x, double y, this._color, this._size) {
     _pos = Pos(x, y);
   }
-  void draw(CanvasRenderingContext2D ctx, Pos playerPos) {
-    ctx.fillStyle = "#000".toJS; 
-    fillRectRel(_pos.x + 6, _pos.y + 10, 3, 30, ctx, playerPos);
-    ctx.fillStyle = "#0f0".toJS; 
-    fillRectRel(_pos.x, _pos.y, 16, 10, ctx, playerPos);
+  void draw(CanvasRenderingContext2D ctx, Player p1) {
+    final xd = _pos.x - p1.pos.x;
+    final yd = _pos.y - p1.pos.y;
+    /// Distance threshold. Basically pythagorean theorem but without sqrt and with some scaling to make it so bushes near the edge still render
+    final dthr = 2 * (xd*xd + yd*yd);
+    if (dthr > canvHeight*canvHeight && dthr > canvWidth*canvWidth) {
+      return;
+    }
+    ctx.fillStyle = "#440".toJS;
+    fillRectRel(_pos.x - _size, _pos.y + _size*0.7, _size*0.9, 6, ctx, p1.pos);
+    fillRectRel(_pos.x, _pos.y + _size*0.7, _size*0.9, 6, ctx, p1.pos);
+    fillRectRel(_pos.x + _size*0.7, _pos.y + _size*0.7, _size*0.9, 6, ctx, p1.pos);
+    ctx.fillStyle = _color.toJS; 
+    fillCircleRel(_pos.x - _size, _pos.y, _size, ctx, p1.pos);
+    fillCircleRel(_pos.x, _pos.y, _size, ctx, p1.pos);
+    fillCircleRel(_pos.x, _pos.y - _size, _size, ctx, p1.pos);
+    fillCircleRel(_pos.x + _size, _pos.y, _size, ctx, p1.pos);
+    fillCircleRel(_pos.x, _pos.y - _size, _size, ctx, p1.pos);
+    fillCircleRel(_pos.x + 2*_size, _pos.y, _size, ctx, p1.pos);
+    fillCircleRel(_pos.x + 1.5*_size, _pos.y - _size, _size, ctx, p1.pos);
   }
 }
 
@@ -270,10 +302,25 @@ class Sim {
 }
 
 class ObjCol {
-  final _objs = [SimpleObject(400, 1000), SimpleObject(450, 1200)];
-  void draw(CanvasRenderingContext2D ctx, Player p) {
+  late final List<Bush> _objs;
+  ObjCol() {
+    final random = Random();
+    Bush makebush() {
+      final redandblue = "${random.nextInt(5)}";
+      final green = "${random.nextInt(5)+5}";
+      final size = random.nextInt(6) + 2;
+      return Bush(
+        (random.nextDouble() - 0.5) * 10000,
+        (random.nextDouble() - 0.5) * 10000,
+        "#$redandblue$green$redandblue",
+        size
+      );
+    }
+    _objs = [for (var i = 0; i < 10000; i++) makebush()];
+  }
+  void draw(CanvasRenderingContext2D ctx, Player p1) {
     for (final obj in _objs) {
-      obj.draw(ctx, p.pos);
+      obj.draw(ctx, p1);
     }
   }
 }
