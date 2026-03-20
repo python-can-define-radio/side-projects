@@ -310,7 +310,7 @@ class Sim {
     final xd = t.pos.x - p1.pos.x;
     final yd = t.pos.y - p1.pos.y;
     final dist = sqrt(xd*xd + yd*yd);
-    return t.txpower * (1 / sq(dist));
+    return t.txpower * 0.1 * (1 / sq(dist));
   }
   
   LOB? simulateLOB(Player p1, TxRadio t) {
