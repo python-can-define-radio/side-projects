@@ -125,17 +125,17 @@ class CanvM {
     ctx.fillStyle = _bgcolor.toJS; 
     ctx.fillRect(0, 0, _canv.width, _canv.height);
   }
-  /// Mutate the document body to append this class's HTML elem
-  void elemAppend(HTMLElement elem) {
-    elem.appendChild(_canv);
+  /// Mutate `parent` to append this class's HTML elem
+  void elemAppend(HTMLElement parent) {
+    parent.appendChild(_canv);
   }
 }
 
 class HUD {
-  /// Currently this `div` just contains the status.
   final _div = HTML.div();
-  late final HTMLSpanElement _status = HTML.span();
-  late final HTMLInputElement _gatheringLobs = HTML.checkbox()..defaultChecked = true;
+  final HTMLSpanElement _status = HTML.span();
+  final HTMLInputElement _gatheringLobs = HTML.checkbox()..defaultChecked = true;
+  /// A read-only view of the checkbox state
   bool get gatheringLobs => _gatheringLobs.checked;
   HUD() {
     _div.appendChild(HTML.div()..innerText = "Direction Finding Simulator");
@@ -160,14 +160,14 @@ class HUD {
     final dBm = lobc.lastlob?.rxpow.dBm.toStringAsFixed(1);
     _status.innerText = 
       "Player pos: ${p.pos.pretty}\n"
-      "Transmitting radio pos: ${t.pos.pretty}\n"
+      "Transmitting radio pos (would normally be unknown): ${t.pos.pretty}\n"
       "Most recent LOB power: ${dBm ?? "__"} dBm\n";
   }
 }
 
 class TxRadio {
   final pos = Pos(400, 370);
-  final txpower = Power(1000);
+  final txpower = Power(mW: 100);
 
   void draw(CanvasRenderingContext2D ctx, Player p) {
     ctx.fillStyle = "#00f".toJS; 
@@ -286,9 +286,9 @@ double logbase10(double x) => log(x) / log(10);
 class Power {
   final double mW;
   double get dBm => 10 * logbase10(mW);
-  Power(this.mW);
+  Power({required this.mW});
   Power operator *(double other) {
-    return Power(mW * other);
+    return Power(mW: mW * other);
   }
 }
 
@@ -310,7 +310,7 @@ class Sim {
     final xd = t.pos.x - p1.pos.x;
     final yd = t.pos.y - p1.pos.y;
     final dist = sqrt(xd*xd + yd*yd);
-    return t.txpower * (1 / dist);
+    return t.txpower * (1 / sq(dist));
   }
   
   LOB? simulateLOB(Player p1, TxRadio t) {
