@@ -176,22 +176,22 @@ void fillCircleRel(
 /// Canvas Manager.
 class CanvM {
   final _bgcolor = "#fcc";
-  final _canv = HTML.canvas();
+  final canv = HTML.canvas();
   late final CanvasRenderingContext2D ctx;
   CanvM() {
-    _canv
+    canv
       ..width = canvWidth
       ..height = canvHeight;
-    ctx = _canv.getContext('2d') as CanvasRenderingContext2D;
+    ctx = canv.getContext('2d') as CanvasRenderingContext2D;
   }
   void drawBackground() {
     ctx.fillStyle = _bgcolor.toJS;
-    ctx.fillRect(0, 0, _canv.width, _canv.height);
+    ctx.fillRect(0, 0, canv.width, canv.height);
   }
 
   /// Mutate `parent` to append this class's HTML elem
   void elemAppend(HTMLElement parent) {
-    parent.appendChild(_canv);
+    parent.appendChild(canv);
   }
 }
 
@@ -270,7 +270,7 @@ class HUD {
 
     final dBm = lobc.lastlob?.rxpow.dBm.toStringAsFixed(1);
     _playerpos.innerText = "Use the arrow keys to move.\nPlayer pos: ${p.pos.pretty}\n";
-    _lobpower.innerText = "Most recent LOB power: ${dBm ?? "__"} dBm\n";
+    _lobpower.innerText = "Selected LOB power: ${dBm ?? "__"} dBm\n";
   }
 }
 
@@ -363,38 +363,73 @@ class Bush {
 }
 
 typedef LOB = ({Pos source, Azimuth azimuth, Power rxpow});
+typedef LobClickEv = ({double x, double y});
 
 /// Collection of LOBs
 class LOBCol {
   final List<LOB> _lobs = [];
+  final _events = Queue<LobClickEv>();
+
+  bool _selected = false;
+
   LOB? get lastlob => _lobs.lastOrNull;
-  void update(HUD hud) {
+
+  void addEventListeners(HTMLCanvasElement canv) {
+    canv.onClick.listen((ev) {
+      final rect = canv.getBoundingClientRect();
+      final x = ev.clientX - rect.left;
+      final y = ev.clientY - rect.top;
+      _events.add((x: x, y: y));
+    });
+  }
+
+  void update(HUD hud, Player p) {
     if (hud.clearRequested) {
-      _lobs.clear(); // ✅ mutation contained in owning class
+      _lobs.clear();
     }
+
+    while (_events.isNotEmpty) {
+      final click = _events.removeFirst();
+      _handleClick(click, p);
+    }
+  }
+
+  void _handleClick(LobClickEv click, Player p) {
+    _selected = true;
+    _lobs.add(_lobs.removeAt(0));
   }
 
   void addlob(LOB? newlob, HUD hud) {
-    if (hud.gatheringLobs == false) {
-      return;
-    } else if (newlob == null) {
-      return;
+    if (hud.gatheringLobs && newlob != null) {
+      _lobs.add(newlob);
     }
-    _lobs.add(newlob);
   }
 
   void draw(CanvasRenderingContext2D ctx, Player p) {
-    const loblength =
-        10000; // arbitrarily long so that the lob appears to be an unending ray
-    for (var lob in _lobs) {
+    const loblength = 10000;  /// arbitrarily long so that the lob appears to be an unending ray
+
+    void drawOne(LOB? lob, String color) {
+      if (lob == null) return;
+
       final endx = lob.source.x + loblength * lob.azimuth.cosresult;
       final endy = lob.source.y + loblength * lob.azimuth.sinresult;
+
       ctx.beginPath();
       ctx.lineWidth = 2;
-      ctx.strokeStyle = "orange".toJS;
+      ctx.strokeStyle = color.toJS;
+
       moveToRel(lob.source.x, lob.source.y, ctx, p.pos);
       lineToRel(endx, endy, ctx, p.pos);
       ctx.stroke();
+    }
+
+    if (_lobs.isNotEmpty) {
+      for (final lob in _lobs.getRange(0, _lobs.length - 1)) {
+        drawOne(lob, "orange");
+      }
+      if (_selected) {
+        drawOne(_lobs.lastOrNull, "red");
+      }
     }
   }
 }
@@ -496,13 +531,14 @@ void main() async {
 
   playermut.addEventListeners(document.body!);
   hud.addEventListeners(document.body!);
+  lobc.addEventListeners(cm.canv);
 
   runEachFrame((Duration tdelta) {
     playermut.update(tdelta);
     final p1 = playermut.ro;
     lobc.addlob(sim.simulateLOB(p1, t1), hud);
     hud.update(p1, t1, lobc);
-    lobc.update(hud); // ✅ reacts to HUD state
+    lobc.update(hud, p1);
     cm.drawBackground();
     t1.draw(cm.ctx, p1);
     playermut.draw(cm.ctx);

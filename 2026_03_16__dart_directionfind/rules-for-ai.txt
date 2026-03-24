@@ -1,3 +1,5 @@
+Here is our latest set of rules.
+
 For all responses, follow these rules, which are preceded by definitions to clarify wording.
 
 Definitions:
@@ -10,5 +12,18 @@ R1. All variables which are mutable (such as lists) must be mutated only by meth
 R2. All variables which are are reassignable (that is, they are not `final`) must be private.
 R3. Any field of a class which is public must be read-only. (The DOM might expose public methods on HTML Elements, but I cannot prevent that, so this rule only applies to the visibility of fields in Dart's scope.)
 R4. Any return value of a method must return an object `Ob` whose fields do not have any methods which mutate `Ob`.
-R5. UI Elements such as buttons should mmutate the state in HUD by adding to the HUD `_events` queue. The process should be (a) add event to queue, (b) process events in `HUD.update` to cause state changes in HUD. Any other objects which rely on these interactions should do so by reading the state of the HUD in the function that runs once per frame. Therefore, neither callback functions nor event listeners should communicate that state from the HUD to the other objects. (For example, if the press of an HTML button should cause a change to the LOBCol such as clearing the list of lobs, then the button press should set a boolean within HUD to `true`. The LOBCol should use an `if` in its update function to decide whether to clear during that frame. Next frame, the `update` function of HUD should set the private boolean to `false`.)
-R6. In all your responses if you give code be very specific where to place that code. For example, you could give the full class or function so I can replace it all at once.
+R5. When a user input event causes a state change,  then the class which possesses that state should be the class that listens for that event. This helps keep the state changes all in one class. Any other objects which rely on the current state should do so by reading a read-only view of the state. Neither callback functions nor event listeners should communicate that state between classes. Although this reduces centralized event handling, it will likely produce the benefit of less 'handoff' code (code whose purpose is just to propagate events between classes).
+R6. If a user input event causes changes to the state of multiple classes, then you should tell me that this is the case, and ask me which class I want to choose for doing the event listening. 
+R7. Any class which has an event listener should have its own `_events` queue. The events should be processed by the `update` method of that class.
+R8. Any class which does not have an event listener should NOT have an `_events` queue, regardless of whether it is indirectly impacted by the state of classes which do have event listeners.
+R9. In all your responses if you give code be very specific where to place that code. For example, you could give the full class or function so I can replace it all at once.
+R10. Respond in less than 100 words (not including code) or tell me than you can not reasonably answer that question in so few words.
+
+-----
+
+I think you provided some useful feedback. Let me know your thoughts on the following, in particular, whether this seems compliant with the above rules:
+
+- LOBCol listens for click events.
+
+
+
