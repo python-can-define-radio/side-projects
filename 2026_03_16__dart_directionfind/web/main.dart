@@ -4,6 +4,7 @@ library;
 import 'dart:js_interop';
 import 'package:web/web.dart';
 import 'dart:math';
+import 'dart:collection';
 
 
 const canvWidth = 600;
@@ -49,17 +50,24 @@ class Player {
   Player(this.pos);
 } 
 
+
+enum EvType { down, up, clearPressed }
+
+typedef LabelledEv = ({EvType type, KeyboardEvent event});
+
+
 class PlayerMutable {
   Pos _pos;
   double _vx = 0;
   double _vy = 0;
   final _speed = 0.2;
+  final _events = Queue<LabelledEv>();
   PlayerMutable(this._pos);
   Player get ro => Player(_pos);
   void addEventListeners(HTMLElement eventElem) {
     eventElem
-      ..onKeyDown.listen(_handleOnKeyDown)
-      ..onKeyUp.listen(_handleOnKeyUp);
+      ..onKeyDown.listen((ev) => _events.add((type: EvType.down, event: ev)))
+      ..onKeyUp.listen((ev) => _events.add((type: EvType.up, event: ev)));
   }
   void _handleOnKeyDown(KeyboardEvent event) {
     if (event.key == 'ArrowUp') { _vy = -_speed; }
@@ -74,6 +82,16 @@ class PlayerMutable {
     else if (event.key == 'ArrowRight') { _vx = 0; }
   }
   void update(Duration tdelta) {
+    while (_events.isNotEmpty) {
+      switch (_events.removeFirst()) {
+        case (type: EvType.up, event: final ev):
+          _handleOnKeyUp(ev);
+          break;
+        case (type: EvType.down, event: final ev):
+          _handleOnKeyDown(ev);
+          break;
+      }
+    }
     final newPos = _pos.move((vx: _vx, vy: _vy), tdelta);
     if (newPos != null) {
       _pos = newPos;
@@ -135,30 +153,69 @@ class HUD {
   final _div = HTML.div();
   final HTMLSpanElement _status = HTML.span();
   final HTMLInputElement _gatheringLobs = HTML.checkbox()..defaultChecked = true;
-  /// A read-only view of the checkbox state
+  final HTMLButtonElement _clearBtn = HTML.button();
+  final _events = Queue<LabelledEv>();
+
+  bool _clearRequested = false; // private mutable state (R2)
+
+  /// Read-only views (R3)
   bool get gatheringLobs => _gatheringLobs.checked;
+  bool get clearRequested => _clearRequested;
+
   HUD() {
+    _clearBtn.innerText = "Clear LOBs";
+
     _div.appendChild(HTML.div()..innerText = "Direction Finding Simulator");
     _div.appendChild(HTML.div()..innerText = "Arrow keys to move.");
     _div.appendChild(_status);
     _div.appendChild(HTML.span()..innerText = "Gathering Lobs (Toggle: 'L'):");
     _div.appendChild(_gatheringLobs);
+    _div.appendChild(_clearBtn);
   }
+
   void addEventListeners(HTMLElement eventElem) {
-    eventElem.onKeyDown.listen(_handleOnKeyDown);
+    eventElem.onKeyDown.listen(
+      (ev) => _events.add((type: EvType.down, event: ev))
+    );
+
+    _clearBtn.onClick.listen((_) {
+      // enqueue event instead of mutating state directly (R5)
+      _events.add((type: EvType.clearPressed, event: KeyboardEvent("")));
+    });
   }
+
   void _handleOnKeyDown(KeyboardEvent event) {
     if (event.key.toLowerCase() == "l") {
       _gatheringLobs.checked = !_gatheringLobs.checked;
     }
   }
+
   /// Mutate the parent to append this class's HTML elem
   void elemAppend(HTMLElement parent) {
     parent.appendChild(_div);
   }
+
   void update(Player p, TxRadio t, LOBCol lobc) {
+    // reset one-frame signals first (R5 pattern)
+    _clearRequested = false;
+
+    while (_events.isNotEmpty) {
+      switch (_events.removeFirst()) {
+        case (type: EvType.down, event: final ev):
+          _handleOnKeyDown(ev);
+          break;
+
+        case (type: EvType.clearPressed, event: _):
+          _clearRequested = true; // state mutation happens here
+          break;
+
+        case (type: EvType.up, event: _):
+          break;
+      }
+    }
+
     final dBm = lobc.lastlob?.rxpow.dBm.toStringAsFixed(1);
-    _status.innerText = 
+    _status.innerText =
       "Player pos: ${p.pos.pretty}\n"
       "Transmitting radio pos (would normally be unknown): ${t.pos.pretty}\n"
       "Most recent LOB power: ${dBm ?? "__"} dBm\n";
@@ -244,6 +301,11 @@ typedef LOB = ({Pos source, Azimuth azimuth, Power rxpow});
 class LOBCol {
   final List<LOB> _lobs = [];
   LOB? get lastlob => _lobs.lastOrNull;
+  void update(HUD hud) {
+    if (hud.clearRequested) {
+      _lobs.clear(); // ✅ mutation contained in owning class
+    }
+  }
   void addlob(LOB? newlob, HUD hud) {
     if (hud.gatheringLobs == false) {
       return;
@@ -369,6 +431,7 @@ void main() async {
     final p1 = playermut.ro;
     lobc.addlob(sim.simulateLOB(p1, t1), hud);
     hud.update(p1, t1, lobc);
+    lobc.update(hud); // ✅ reacts to HUD state
     cm.drawBackground();
     t1.draw(cm.ctx, p1);
     playermut.draw(cm.ctx);

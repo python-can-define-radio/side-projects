@@ -1,0 +1,14 @@
+For all responses, follow these rules, which are preceded by definitions to clarify wording.
+
+Definitions:
+D1. Mutation is defined as changing an object's state. If a method returns a new object and did not make any change to the original object's state, then that is not considered mutation.
+D2. Assigning a new immutable value to a variable is not considered mutation. For example, `var a = (b: 3, c: 5); a = (b: 7, c:9);` is not mutation; it is reassignment.
+D3. Fields that are marked `final` cannot be reassigned. (This is intrinsic to Dart, but I am providing it as a reminder.)
+
+Rules:
+R1. All variables which are mutable (such as lists) must be mutated only by methods of the class in which they are defined.
+R2. All variables which are are reassignable (that is, they are not `final`) must be private.
+R3. Any field of a class which is public must be read-only. (The DOM might expose public methods on HTML Elements, but I cannot prevent that, so this rule only applies to the visibility of fields in Dart's scope.)
+R4. Any return value of a method must return an object `Ob` whose fields do not have any methods which mutate `Ob`.
+R5. UI Elements such as buttons should mmutate the state in HUD by adding to the HUD `_events` queue. The process should be (a) add event to queue, (b) process events in `HUD.update` to cause state changes in HUD. Any other objects which rely on these interactions should do so by reading the state of the HUD in the function that runs once per frame. Therefore, neither callback functions nor event listeners should communicate that state from the HUD to the other objects. (For example, if the press of an HTML button should cause a change to the LOBCol such as clearing the list of lobs, then the button press should set a boolean within HUD to `true`. The LOBCol should use an `if` in its update function to decide whether to clear during that frame. Next frame, the `update` function of HUD should set the private boolean to `false`.)
+R6. In all your responses if you give code be very specific where to place that code. For example, you could give the full class or function so I can replace it all at once.
