@@ -56,25 +56,23 @@ class Player {
   Player(this.pos);
 }
 
-enum EvType { down, up, clearPressed }
-
-typedef LabelledEv = ({EvType type, KeyboardEvent event});
 
 class PlayerMutable {
   Pos _pos;
   double _vx = 0;
   double _vy = 0;
   final _speed = 0.2;
-  final _events = Queue<LabelledEv>();
+  final _events = Queue<KeyboardEvent>();
   PlayerMutable(this._pos);
   Player get ro => Player(_pos);
-  void addEventListeners(HTMLElement eventElem) {
-    eventElem
-      ..onKeyDown.listen((ev) => _events.add((type: EvType.down, event: ev)))
-      ..onKeyUp.listen((ev) => _events.add((type: EvType.up, event: ev)));
-  }
+  
+  void addev(KeyboardEvent ev) => _events.add(ev);
 
   void _handleOnKeyDown(KeyboardEvent event) {
+    if (event.type != "keydown") {
+      return;
+    }
+    
     if (event.key == 'ArrowUp') {
       _vy = -_speed;
     } else if (event.key == 'ArrowDown') {
@@ -87,6 +85,10 @@ class PlayerMutable {
   }
 
   void _handleOnKeyUp(KeyboardEvent event) {
+    if (event.type != "keyup") {
+      return;
+    }
+
     if (event.key == 'ArrowUp') {
       _vy = 0;
     } else if (event.key == 'ArrowDown') {
@@ -100,15 +102,11 @@ class PlayerMutable {
 
   void update(Duration tdelta) {
     while (_events.isNotEmpty) {
-      switch (_events.removeFirst()) {
-        case (type: EvType.up, event: final ev):
-          _handleOnKeyUp(ev);
-          break;
-        case (type: EvType.down, event: final ev):
-          _handleOnKeyDown(ev);
-          break;
-      }
+      final ev = _events.removeFirst();
+      _handleOnKeyUp(ev);
+      _handleOnKeyDown(ev);
     }
+     
     final newPos = _pos.move((vx: _vx, vy: _vy), tdelta);
     if (newPos != null) {
       _pos = newPos;
@@ -221,6 +219,14 @@ class CanvM {
   }
 }
 
+
+class HUDEvent {
+  final KeyboardEvent? kb;
+  final bool clear;
+  HUDEvent({this.kb, this.clear = false});
+}
+
+
 class HUD {
   final rootdiv = HTML.div()..id = "hud";
   final HTMLSpanElement _playerpos = HTML.span();
@@ -229,7 +235,7 @@ class HUD {
     ..defaultChecked = true;
   final HTMLButtonElement _clearBtn = HTML.button()
     ..innerText = "Clear LOBs [ c ]";
-  final _events = Queue<LabelledEv>();
+  final _events = Queue<HUDEvent>();
   bool _clearRequested = false;
   /// Read-only views
   bool get gatheringLobs => _gatheringLobs.checked;
@@ -248,44 +254,43 @@ class HUD {
   }
 
   void addEventListeners(HTMLElement eventElem) {
-    eventElem.onKeyDown.listen(
-      (ev) => _events.add((type: EvType.down, event: ev)),
-    );
-
-    _clearBtn.onClick.listen((_) {
-      _events.add((type: EvType.clearPressed, event: KeyboardEvent("")));
-    });
+    eventElem.onKeyDown.listen((ev) => _events.add(HUDEvent(kb: ev)));
+    _clearBtn.onClick.listen((_)  => _events.add(HUDEvent(clear: true)));
   }
 
-  void _handleOnKeyDown(KeyboardEvent event) {
-    final key = event.key.toLowerCase();
-
-    if (key == "g") {
-      _gatheringLobs.checked = !_gatheringLobs.checked;
-    } else if (key == "c") {
-      // enqueue event instead of mutating state directly (R5)
-      _events.add((type: EvType.clearPressed, event: event));
+  void _handleEvent(HUDEvent hev) {
+    if (hev.clear) {
+      _clearRequested = true;
     }
+    final kb = hev.kb;
+    if (kb == null) {
+      return;
+    }
+
+    final key = kb.key.toLowerCase();
+    final iskeydown = kb.type == "keydown";
+
+    if (iskeydown && key == "g") {
+      _gatheringLobs.checked = !_gatheringLobs.checked;
+    } else if (iskeydown && key == "c") {
+      _clearRequested = true;
+    }
+  }
+
+  (bool, bool) _stateFromEvents(List<HUDEvent> recentevents) {
+    // TODO: make this static
+    _clearRequested = false; // reset this from whatever it was in the last frame
+    while (_events.isNotEmpty) {
+      _handleEvent(_events.removeFirst());
+    }
+    return (_clearRequested, _gatheringLobs.checked);
   }
 
   void update(Player p, TxRadio t, LOBCol lobc) {
-    // reset one-frame signals first (R5 pattern)
-    _clearRequested = false;
-
-    while (_events.isNotEmpty) {
-      switch (_events.removeFirst()) {
-        case (type: EvType.down, event: final ev):
-          _handleOnKeyDown(ev);
-          break;
-
-        case (type: EvType.clearPressed, event: _):
-          _clearRequested = true; // state mutation happens here
-          break;
-
-        case (type: EvType.up, event: _):
-          break;
-      }
-    }
+    final (cr, gl) = _stateFromEvents(_events.toList());
+    _clearRequested = cr;
+    _gatheringLobs.checked = gl;
+    _events.clear(); // TODO: drain the queue atomically
 
     final dBm = lobc.lastlob?.rxpow.dBm.toStringAsFixed(1);
     _playerpos.innerText = "Use the arrow keys to move.\nPlayer pos: ${p.pos.pretty}\n";
@@ -568,7 +573,8 @@ void main() async {
 
   createPageHTML(document.body!, hud, cmLife, cmLob);
 
-  playermut.addEventListeners(document.body!);
+  document.body!.onKeyDown.listen(playermut.addev);
+  document.body!.onKeyUp.listen(playermut.addev);
   hud.addEventListeners(document.body!);
   lobc.addEventListeners(cmLob.canv);
 
