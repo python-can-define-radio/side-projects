@@ -190,15 +190,39 @@ class CanvM {
     ctx.fillStyle = _bgcolor.toJS;
     ctx.fillRect(0, 0, canv.width, canv.height);
   }
+  
+  void drawGrid(Player p) {
+    const gridSpacing = 50;
 
-  /// Mutate `parent` to append this class's HTML elem
-  void elemAppend(HTMLElement parent) {
-    parent.appendChild(canv);
+    ctx.save();
+    ctx.strokeStyle = "#ccc".toJS;
+    ctx.lineWidth = 0.5;
+
+    final px = p.pos.x;
+    final py = p.pos.y;
+
+    for (var x = -canvWidth ~/ 2; x <= canvWidth * 1.5; x += gridSpacing) {
+      final screenX = x - px % gridSpacing + canvWidth / 2;
+      ctx.beginPath();
+      ctx.moveTo(screenX, 0);
+      ctx.lineTo(screenX, canvHeight);
+      ctx.stroke();
+    }
+
+    for (var y = -canvHeight ~/ 2; y <= canvHeight * 1.5; y += gridSpacing) {
+      final screenY = y - py % gridSpacing + canvHeight / 2;
+      ctx.beginPath();
+      ctx.moveTo(0, screenY);
+      ctx.lineTo(canvWidth, screenY);
+      ctx.stroke();
+    }
+
+    ctx.restore();
   }
 }
 
 class HUD {
-  final _hudroot = HTML.div()..id = "hud";
+  final rootdiv = HTML.div()..id = "hud";
   final HTMLSpanElement _playerpos = HTML.span();
   final HTMLSpanElement _lobpower = HTML.span();
   final HTMLInputElement _gatheringLobs = HTML.checkbox()
@@ -212,17 +236,15 @@ class HUD {
   bool get clearRequested => _clearRequested;
 
   HUD() {
-    final leftPanel = HTML.div()
-      ..appendChild(_playerpos);
-
-    final rightPanel = HTML.div()
-      ..appendChild(_lobpower)
-      ..appendChild(HTML.span()..innerText = "Gathering Lobs [ g ]:")
-      ..appendChild(_gatheringLobs)
-      ..appendChild(_clearBtn);
-
-    _hudroot.appendChild(leftPanel);
-    _hudroot.appendChild(rightPanel);
+    rootdiv
+      ..appendChild(HTML.div()
+        ..appendChild(_playerpos))
+      ..appendChild(HTML.div()
+        ..appendChild(_lobpower)
+        ..appendChild(HTML.span()..innerText = "Gathering Lobs [ g ]:")
+        ..appendChild(_gatheringLobs)
+        ..appendChild(_clearBtn)
+      );
   }
 
   void addEventListeners(HTMLElement eventElem) {
@@ -244,11 +266,6 @@ class HUD {
       // enqueue event instead of mutating state directly (R5)
       _events.add((type: EvType.clearPressed, event: event));
     }
-  }
-
-  /// Mutate the parent to append this class's HTML elem
-  void elemAppend(HTMLElement parent) {
-    parent.appendChild(_hudroot);
   }
 
   void update(Player p, TxRadio t, LOBCol lobc) {
@@ -402,7 +419,9 @@ class LOBCol {
 
   void _handleClick(LobClickEv click, Player p) {
     _selected = true;
-    _lobs.add(_lobs.removeAt(0));
+    if (_lobs.isNotEmpty) {
+      _lobs.add(_lobs.removeAt(0));
+    }
   }
 
   void addlob(LOB? newlob, HUD hud) {
@@ -523,8 +542,22 @@ class ObjCol {
   }
 }
 
+
+/// Attaches HTML elements to `root`
+void createPageHTML(HTMLElement root, HUD hud, CanvM cmLife, CanvM cmLob) {
+  root
+    ..appendChild(hud.rootdiv)
+    ..appendChild(HTML.div()
+      ..style.display = "flex"
+      ..style.flexDirection = "row"
+      ..appendChild(cmLife.canv)
+      ..appendChild(cmLob.canv)
+    );
+}
+
+
 void main() async {
-  final cmMap = CanvM("#cfc", canvWidth, canvHeight);
+  final cmLife = CanvM("#cfc", canvWidth, canvHeight);
   final cmLob = CanvM("#eef", canvWidth, canvHeight);
   final t1 = TxRadio();
   final sim = Sim();
@@ -533,16 +566,7 @@ void main() async {
   final playermut = PlayerMutable(Pos(500, 1050));
   final hud = HUD();
 
-
-  lobc.addEventListeners(cmLob.canv); // move clicks to right panel
-  hud.elemAppend(document.body!);
-  final container = HTML.div()
-    ..style.display = "flex"
-    ..style.flexDirection = "row"; // side by side
-
-  container.append(cmMap.canv);
-  container.append(cmLob.canv);
-  document.body!.append(container);
+  createPageHTML(document.body!, hud, cmLife, cmLob);
 
   playermut.addEventListeners(document.body!);
   hud.addEventListeners(document.body!);
@@ -551,54 +575,21 @@ void main() async {
   runEachFrame((Duration tdelta) {
     playermut.update(tdelta);
     final p1 = playermut.ro;
+
     lobc.addlob(sim.simulateLOB(p1, t1), hud);
     hud.update(p1, t1, lobc);
     lobc.update(hud, p1);
-    /// LEFT canvas: map (world view)
-    cmMap.drawBackground();
-    t1.draw(cmMap.ctx, p1);
-    playermut.draw(cmMap.ctx);
-    oc.draw(cmMap.ctx, p1);
 
-    /// RIGHT canvas: LOB/radar view
+    /// LEFT canvas: life
+    cmLife.drawBackground();
+    t1.draw(cmLife.ctx, p1);
+    playermut.draw(cmLife.ctx);
+    oc.draw(cmLife.ctx, p1);
+
+    /// RIGHT canvas: lobs
     cmLob.drawBackground();
-
-    /// Draw moving grid overlay relative to player
-    const gridSpacing = 50; // world units between lines
-    cmLob.ctx.save();
-    cmLob.ctx.strokeStyle = "#ccc".toJS;
-    cmLob.ctx.lineWidth = 0.5;
-
-    final px = p1.pos.x;
-    final py = p1.pos.y;
-
-    // vertical lines
-    for (var x = -canvWidth ~/ 2; x <= canvWidth * 1.5; x += gridSpacing) {
-      final screenX = x - px % gridSpacing + canvWidth / 2;
-      cmLob.ctx.beginPath();
-      cmLob.ctx.moveTo(screenX, 0);
-      cmLob.ctx.lineTo(screenX, canvHeight);
-      cmLob.ctx.stroke();
-    }
-
-    // horizontal lines
-    for (var y = -canvHeight ~/ 2; y <= canvHeight * 1.5; y += gridSpacing) {
-      final screenY = y - py % gridSpacing + canvHeight / 2;
-      cmLob.ctx.beginPath();
-      cmLob.ctx.moveTo(0, screenY);
-      cmLob.ctx.lineTo(canvWidth, screenY);
-      cmLob.ctx.stroke();
-    }
-
-    cmLob.ctx.restore();
-
+    cmLob.drawGrid(p1);
     lobc.draw(cmLob.ctx, p1);
-
-    /// Draw player avatar at center
-    const scale = 0.05; // 5% size of main world
-    cmLob.ctx.save();
-    cmLob.ctx.translate(canvWidth * scale / 2, canvHeight * scale / 2); 
-    playermut.draw(cmLob.ctx); 
-    cmLob.ctx.restore();
+    playermut.draw(cmLob.ctx);
   });
 }
