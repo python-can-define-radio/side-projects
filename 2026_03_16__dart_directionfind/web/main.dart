@@ -175,15 +175,17 @@ void fillCircleRel(
 
 /// Canvas Manager.
 class CanvM {
-  final _bgcolor = "#fcc";
+  final String _bgcolor;
   final canv = HTML.canvas();
   late final CanvasRenderingContext2D ctx;
-  CanvM() {
+
+  CanvM(this._bgcolor, int w, int h) {
     canv
-      ..width = canvWidth
-      ..height = canvHeight;
+      ..width = w
+      ..height = h;
     ctx = canv.getContext('2d') as CanvasRenderingContext2D;
   }
+
   void drawBackground() {
     ctx.fillStyle = _bgcolor.toJS;
     ctx.fillRect(0, 0, canv.width, canv.height);
@@ -303,8 +305,17 @@ void runEachFrame(void Function(Duration) frameUpdate) {
 
 /*
 
+///////// Start
 
-1. player stays in center of map -- movement moves the world, not the player
+Left: "Real life":
+  - Player
+  - Bushes
+  - Transmitter
+Right (or perhaps a small rectangle inlay on top of 'real life'): "DF equipment"
+  - LOBs
+
+//////////////// End
+
 
 Player is direction finding a transmitter.
 Initially, dfing is based on line-of-sight only. (Later: add reflections, path loss, etc)
@@ -518,7 +529,8 @@ class ObjCol {
 }
 
 void main() async {
-  final cm = CanvM();
+  final cmMap = CanvM("#cfc", 400, canvHeight);
+  final cmLob = CanvM("#eef", 200, canvHeight);
   final t1 = TxRadio();
   final sim = Sim();
   final oc = ObjCol();
@@ -526,12 +538,20 @@ void main() async {
   final playermut = PlayerMutable(Pos(500, 1050));
   final hud = HUD();
 
+
+  lobc.addEventListeners(cmLob.canv); // move clicks to right panel
   hud.elemAppend(document.body!);
-  cm.elemAppend(document.body!);
+  final container = HTML.div()
+    ..style.display = "flex"
+    ..style.flexDirection = "row"; // side by side
+
+  container.append(cmMap.canv);
+  container.append(cmLob.canv);
+  document.body!.append(container);
 
   playermut.addEventListeners(document.body!);
   hud.addEventListeners(document.body!);
-  lobc.addEventListeners(cm.canv);
+  lobc.addEventListeners(cmLob.canv);
 
   runEachFrame((Duration tdelta) {
     playermut.update(tdelta);
@@ -539,10 +559,21 @@ void main() async {
     lobc.addlob(sim.simulateLOB(p1, t1), hud);
     hud.update(p1, t1, lobc);
     lobc.update(hud, p1);
-    cm.drawBackground();
-    t1.draw(cm.ctx, p1);
-    playermut.draw(cm.ctx);
-    oc.draw(cm.ctx, p1);
-    lobc.draw(cm.ctx, p1);
+    /// LEFT canvas: map (world view)
+    cmMap.drawBackground();
+    t1.draw(cmMap.ctx, p1);
+    playermut.draw(cmMap.ctx);
+    oc.draw(cmMap.ctx, p1);
+
+    /// RIGHT canvas: LOB/radar view
+    cmLob.drawBackground();
+    lobc.draw(cmLob.ctx, p1);
+
+    /// mini player avatar (scaled down)
+    const scale = 0.05; // 5% size of main world
+    cmLob.ctx.save();
+    cmLob.ctx.translate(canvWidth * scale / 2, canvHeight * scale / 2); 
+    playermut.draw(cmLob.ctx); 
+    cmLob.ctx.restore();
   });
 }

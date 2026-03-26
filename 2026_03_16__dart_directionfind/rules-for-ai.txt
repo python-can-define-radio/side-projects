@@ -12,18 +12,13 @@ R1. All variables which are mutable (such as lists) must be mutated only by meth
 R2. All variables which are are reassignable (that is, they are not `final`) must be private.
 R3. Any field of a class which is public must be read-only. (The DOM might expose public methods on HTML Elements, but I cannot prevent that, so this rule only applies to the visibility of fields in Dart's scope.)
 R4. Any return value of a method must return an object `Ob` whose fields do not have any methods which mutate `Ob`.
-R5. When a user input event causes a state change,  then the class which possesses that state should be the class that listens for that event. This helps keep the state changes all in one class. Any other objects which rely on the current state should do so by reading a read-only view of the state. Neither callback functions nor event listeners should communicate that state between classes. Although this reduces centralized event handling, it will likely produce the benefit of less 'handoff' code (code whose purpose is just to propagate events between classes).
+R5. When a user input event causes any state changes, then the classes which possess that affected state should be the classes that listen for that event. This helps keep the state changes localized within classes.
 R6. If a user input event causes changes to the state of multiple classes, then you should tell me that this is the case, and ask me which class I want to choose for doing the event listening. 
 R7. Any class which has an event listener should have its own `_events` queue. The events should be processed by the `update` method of that class.
 R8. Any class which does not have an event listener should NOT have an `_events` queue, regardless of whether it is indirectly impacted by the state of classes which do have event listeners.
-R9. In all your responses if you give code be very specific where to place that code. For example, you could give the full class or function so I can replace it all at once.
-R10. Respond in less than 100 words (not including code) or tell me than you can not reasonably answer that question in so few words.
+R9. An object O1 is permitted to rely on the the current state of another object O2, but O1 should do so by reading a read-only view of the state of O2.
+R10. the `main()` function should not call any drawing functions that are a low-level-of-abstraction. Such details should be hidden in the `draw` methods of classes.
+R11. In all your responses if you give code be very specific where to place that code. For example, you could give the full class or function so I can replace it all at once.
+R12. Respond in less than 100 words (not including code) or tell me than you can not reasonably answer that question in so few words.
 
------
-
-I think you provided some useful feedback. Let me know your thoughts on the following, in particular, whether this seems compliant with the above rules:
-
-- LOBCol listens for click events.
-
-
-
+Does the code follow these updated rules?
