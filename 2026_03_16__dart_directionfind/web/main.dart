@@ -305,16 +305,11 @@ void runEachFrame(void Function(Duration) frameUpdate) {
 
 /*
 
-///////// Start
-
-Left: "Real life":
-  - Player
-  - Bushes
-  - Transmitter
-Right (or perhaps a small rectangle inlay on top of 'real life'): "DF equipment"
-  - LOBs
-
-//////////////// End
+Next steps as of 2026 march 25
+- Move the junk out of `main`
+- Option in HUD to switch between separate map or overlay
+  - implementation: have a variable that gets set to the proper canvas
+- Zoom in/out on LOB view
 
 
 Player is direction finding a transmitter.
@@ -529,8 +524,8 @@ class ObjCol {
 }
 
 void main() async {
-  final cmMap = CanvM("#cfc", 400, canvHeight);
-  final cmLob = CanvM("#eef", 200, canvHeight);
+  final cmMap = CanvM("#cfc", canvWidth, canvHeight);
+  final cmLob = CanvM("#eef", canvWidth, canvHeight);
   final t1 = TxRadio();
   final sim = Sim();
   final oc = ObjCol();
@@ -567,9 +562,39 @@ void main() async {
 
     /// RIGHT canvas: LOB/radar view
     cmLob.drawBackground();
+
+    /// Draw moving grid overlay relative to player
+    const gridSpacing = 50; // world units between lines
+    cmLob.ctx.save();
+    cmLob.ctx.strokeStyle = "#ccc".toJS;
+    cmLob.ctx.lineWidth = 0.5;
+
+    final px = p1.pos.x;
+    final py = p1.pos.y;
+
+    // vertical lines
+    for (var x = -canvWidth ~/ 2; x <= canvWidth * 1.5; x += gridSpacing) {
+      final screenX = x - px % gridSpacing + canvWidth / 2;
+      cmLob.ctx.beginPath();
+      cmLob.ctx.moveTo(screenX, 0);
+      cmLob.ctx.lineTo(screenX, canvHeight);
+      cmLob.ctx.stroke();
+    }
+
+    // horizontal lines
+    for (var y = -canvHeight ~/ 2; y <= canvHeight * 1.5; y += gridSpacing) {
+      final screenY = y - py % gridSpacing + canvHeight / 2;
+      cmLob.ctx.beginPath();
+      cmLob.ctx.moveTo(0, screenY);
+      cmLob.ctx.lineTo(canvWidth, screenY);
+      cmLob.ctx.stroke();
+    }
+
+    cmLob.ctx.restore();
+
     lobc.draw(cmLob.ctx, p1);
 
-    /// mini player avatar (scaled down)
+    /// Draw player avatar at center
     const scale = 0.05; // 5% size of main world
     cmLob.ctx.save();
     cmLob.ctx.translate(canvWidth * scale / 2, canvHeight * scale / 2); 
