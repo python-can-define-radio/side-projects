@@ -24,7 +24,7 @@ h1 {
   margin-top: 20px;
 }
 
-#hud {
+#hud > div {
   display: flex;
   flex-direction: row;
   justify-content: space-between;
@@ -32,7 +32,7 @@ h1 {
   margin: 20px;
 }
 
-#hud > div {
+#hud > div > div {
   border: 1px solid #ccc;
   padding: 10px;
   min-width: 200px;

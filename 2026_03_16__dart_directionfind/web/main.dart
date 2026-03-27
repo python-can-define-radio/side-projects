@@ -14,6 +14,16 @@ typedef Vel = ({double vx, double vy});
 
 num sq(num x) => x * x;
 
+
+/// Mutates `queue`
+List<T> drainQueue<T>(Queue<T> queue) {
+  final ls = List<T>.empty(growable: true);
+  while (queue.isNotEmpty) {
+    ls.add(queue.removeFirst());
+  }
+  return ls;
+}
+
 /// Methods for creating HTML elems
 class HTML {
   static HTMLButtonElement button() =>
@@ -50,7 +60,7 @@ class Pos {
   String get pretty => "${_padbig(x)}, ${_padbig(y)}";
 }
 
-// A read-only view of the current player state.
+/// A read-only view of the current player state.
 class Player {
   final Pos pos;
   Player(this.pos);
@@ -62,16 +72,20 @@ class PlayerMutable {
   double _vx = 0;
   double _vy = 0;
   final _speed = 0.2;
-  final _events = Queue<KeyboardEvent>();
-  PlayerMutable(this._pos);
   Player get ro => Player(_pos);
-  
-  void addev(KeyboardEvent ev) => _events.add(ev);
+  final hud = HTML.div();
+  PlayerMutable(this._pos){
+    hudupdate();
+  }
 
-  void _handleOnKeyDown(KeyboardEvent event) {
-    if (event.type != "keydown") {
-      return;
-    }
+
+  void hudupdate(){
+    hud.replaceChildren(HTML.span()..innerText = "Use the arrow keys to move.\nPlayer pos: ${_pos.pretty}\n");
+  }
+  
+
+  void handleOnKeyDown(KeyboardEvent event) {
+    assert (event.type == "keydown");
     
     if (event.key == 'ArrowUp') {
       _vy = -_speed;
@@ -84,10 +98,8 @@ class PlayerMutable {
     }
   }
 
-  void _handleOnKeyUp(KeyboardEvent event) {
-    if (event.type != "keyup") {
-      return;
-    }
+  void handleOnKeyUp(KeyboardEvent event) {
+    assert (event.type == "keyup");
 
     if (event.key == 'ArrowUp') {
       _vy = 0;
@@ -100,29 +112,25 @@ class PlayerMutable {
     }
   }
 
+
   void update(Duration tdelta) {
-    while (_events.isNotEmpty) {
-      final ev = _events.removeFirst();
-      _handleOnKeyUp(ev);
-      _handleOnKeyDown(ev);
-    }
-     
     final newPos = _pos.move((vx: _vx, vy: _vy), tdelta);
     if (newPos != null) {
       _pos = newPos;
+      hudupdate();
     }
   }
 
   void draw(CanvasRenderingContext2D ctx) {
-    const sz = 2; // size
+    const sz = 2;
     const cenx = canvWidth / 2;
     const ceny = canvHeight / 2;
     ctx.fillStyle = "#000".toJS;
-    fillCircle(cenx + sz, ceny - sz * 3, sz * 3, ctx); // head
-    ctx.fillRect(cenx - sz * 1, ceny - sz * 2, sz * 4, sz * 12); // torso
-    ctx.fillRect(cenx - sz * 4, ceny + sz * 2, sz * 10, sz); // arms
-    ctx.fillRect(cenx - sz * 1, ceny + sz * 10, sz * 1.5, sz * 5); // leg
-    ctx.fillRect(cenx + sz * 1, ceny + sz * 10, sz * 1.5, sz * 5); // leg
+    fillCircle(cenx + sz, ceny - sz * 3, sz * 3, ctx); /// head
+    ctx.fillRect(cenx - sz * 1, ceny - sz * 2, sz * 4, sz * 12); /// torso
+    ctx.fillRect(cenx - sz * 4, ceny + sz * 2, sz * 10, sz); /// arms
+    ctx.fillRect(cenx - sz * 1, ceny + sz * 10, sz * 1.5, sz * 5); /// leg
+    ctx.fillRect(cenx + sz * 1, ceny + sz * 10, sz * 1.5, sz * 5); /// leg
   }
 }
 
@@ -171,7 +179,6 @@ void fillCircleRel(
   );
 }
 
-/// Canvas Manager.
 class CanvM {
   final String _bgcolor;
   final canv = HTML.canvas();
@@ -220,84 +227,6 @@ class CanvM {
 }
 
 
-class HUDEvent {
-  final KeyboardEvent? kb;
-  final bool clear;
-  HUDEvent({this.kb, this.clear = false});
-}
-
-
-class HUD {
-  final rootdiv = HTML.div()..id = "hud";
-  final HTMLSpanElement _playerpos = HTML.span();
-  final HTMLSpanElement _lobpower = HTML.span();
-  final HTMLInputElement _gatheringLobs = HTML.checkbox()
-    ..defaultChecked = true;
-  final HTMLButtonElement _clearBtn = HTML.button()
-    ..innerText = "Clear LOBs [ c ]";
-  final _events = Queue<HUDEvent>();
-  bool _clearRequested = false;
-  /// Read-only views
-  bool get gatheringLobs => _gatheringLobs.checked;
-  bool get clearRequested => _clearRequested;
-
-  HUD() {
-    rootdiv
-      ..appendChild(HTML.div()
-        ..appendChild(_playerpos))
-      ..appendChild(HTML.div()
-        ..appendChild(_lobpower)
-        ..appendChild(HTML.span()..innerText = "Gathering Lobs [ g ]:")
-        ..appendChild(_gatheringLobs)
-        ..appendChild(_clearBtn)
-      );
-  }
-
-  void addEventListeners(HTMLElement eventElem) {
-    eventElem.onKeyDown.listen((ev) => _events.add(HUDEvent(kb: ev)));
-    _clearBtn.onClick.listen((_)  => _events.add(HUDEvent(clear: true)));
-  }
-
-  void _handleEvent(HUDEvent hev) {
-    if (hev.clear) {
-      _clearRequested = true;
-    }
-    final kb = hev.kb;
-    if (kb == null) {
-      return;
-    }
-
-    final key = kb.key.toLowerCase();
-    final iskeydown = kb.type == "keydown";
-
-    if (iskeydown && key == "g") {
-      _gatheringLobs.checked = !_gatheringLobs.checked;
-    } else if (iskeydown && key == "c") {
-      _clearRequested = true;
-    }
-  }
-
-  (bool, bool) _stateFromEvents(List<HUDEvent> recentevents) {
-    // TODO: make this static
-    _clearRequested = false; // reset this from whatever it was in the last frame
-    while (_events.isNotEmpty) {
-      _handleEvent(_events.removeFirst());
-    }
-    return (_clearRequested, _gatheringLobs.checked);
-  }
-
-  void update(Player p, TxRadio t, LOBCol lobc) {
-    final (cr, gl) = _stateFromEvents(_events.toList());
-    _clearRequested = cr;
-    _gatheringLobs.checked = gl;
-    _events.clear(); // TODO: drain the queue atomically
-
-    final dBm = lobc.lastlob?.rxpow.dBm.toStringAsFixed(1);
-    _playerpos.innerText = "Use the arrow keys to move.\nPlayer pos: ${p.pos.pretty}\n";
-    _lobpower.innerText = "Selected LOB power: ${dBm ?? "__"} dBm\n";
-  }
-}
-
 class TxRadio {
   final pos = Pos(400, 370);
   final txpower = Power(mW: 100);
@@ -328,11 +257,10 @@ void runEachFrame(void Function(Duration) frameUpdate) {
 /*
 
 Next steps as of 2026 march 25
-- Move the junk out of `main`
+- incorporate hud boxes into the lob view possibly add some kind of reticule?
 - Option in HUD to switch between separate map or overlay
   - implementation: have a variable that gets set to the proper canvas
 - Zoom in/out on LOB view
-
 
 Player is direction finding a transmitter.
 Initially, dfing is based on line-of-sight only. (Later: add reflections, path loss, etc)
@@ -391,46 +319,51 @@ class Bush {
 }
 
 typedef LOB = ({Pos source, Azimuth azimuth, Power rxpow});
-typedef LobClickEv = ({double x, double y});
+typedef XY = ({double x, double y});
 
-/// Collection of LOBs
 class LOBCol {
   final List<LOB> _lobs = [];
-  final _events = Queue<LobClickEv>();
+  final hud = HTML.div();
+  final _gatheringLobsCb = HTML.checkbox()..defaultChecked = true;
+  final _lobpower = HTML.div();
 
   bool _selected = false;
-
   LOB? get lastlob => _lobs.lastOrNull;
 
-  void addEventListeners(HTMLCanvasElement canv) {
-    canv.onClick.listen((ev) {
-      final rect = canv.getBoundingClientRect();
-      final x = ev.clientX - rect.left;
-      final y = ev.clientY - rect.top;
-      _events.add((x: x, y: y));
-    });
+  LOBCol() {
+    hud
+      ..appendChild(HTML.div()
+        ..appendChild(HTML.span()..innerText = "Gathering Lobs [ g ]:")
+        ..appendChild(_gatheringLobsCb))
+      ..appendChild(HTML.button()
+        ..innerText = "Clear LOBs [ c ]"
+        ..onClick.listen((_) => _lobs.clear()))
+      ..appendChild(_lobpower);  
   }
 
-  void update(HUD hud, Player p) {
-    if (hud.clearRequested) {
+  void handleOnKeyDown(KeyboardEvent ev) {
+    if (ev.key.toLowerCase() == "g") {
+      _gatheringLobsCb.checked = !_gatheringLobsCb.checked;
+    }
+    else if (ev.key.toLowerCase() == "c") {
       _lobs.clear();
     }
-
-    while (_events.isNotEmpty) {
-      final click = _events.removeFirst();
-      _handleClick(click, p);
     }
+
+  void update() {
+    final dBm = lastlob?.rxpow.dBm.toStringAsFixed(1);
+    _lobpower.innerText = "Selected LOB power: ${dBm ?? "__"} dBm\n";
   }
 
-  void _handleClick(LobClickEv click, Player p) {
+  void handleClick() {
     _selected = true;
     if (_lobs.isNotEmpty) {
       _lobs.add(_lobs.removeAt(0));
     }
   }
 
-  void addlob(LOB? newlob, HUD hud) {
-    if (hud.gatheringLobs && newlob != null) {
+  void addlob(LOB? newlob) {
+    if (_gatheringLobsCb.checked && newlob != null) {
       _lobs.add(newlob);
     }
   }
@@ -548,10 +481,10 @@ class ObjCol {
 }
 
 
-/// Attaches HTML elements to `root`
-void createPageHTML(HTMLElement root, HUD hud, CanvM cmLife, CanvM cmLob) {
+void attachElems(HTMLElement root, PlayerMutable playermut, CanvM cmLife, CanvM cmLob, LOBCol lobc) {
   root
-    ..appendChild(hud.rootdiv)
+    ..appendChild(playermut.hud)
+    ..appendChild(lobc.hud)
     ..appendChild(HTML.div()
       ..style.display = "flex"
       ..style.flexDirection = "row"
@@ -569,22 +502,19 @@ void main() async {
   final oc = ObjCol();
   final lobc = LOBCol();
   final playermut = PlayerMutable(Pos(500, 1050));
-  final hud = HUD();
+  
+  attachElems(document.body!, playermut, cmLife, cmLob, lobc);
 
-  createPageHTML(document.body!, hud, cmLife, cmLob);
-
-  document.body!.onKeyDown.listen(playermut.addev);
-  document.body!.onKeyUp.listen(playermut.addev);
-  hud.addEventListeners(document.body!);
-  lobc.addEventListeners(cmLob.canv);
+  document.body!.onKeyDown.listen(playermut.handleOnKeyDown);
+  document.body!.onKeyUp.listen(playermut.handleOnKeyUp);
+  cmLob.canv.onClick.listen((_) => lobc.handleClick());
+  document.body!.onKeyDown.listen(lobc.handleOnKeyDown);
 
   runEachFrame((Duration tdelta) {
     playermut.update(tdelta);
     final p1 = playermut.ro;
-
-    lobc.addlob(sim.simulateLOB(p1, t1), hud);
-    hud.update(p1, t1, lobc);
-    lobc.update(hud, p1);
+    lobc.addlob(sim.simulateLOB(p1, t1));
+    lobc.update();
 
     /// LEFT canvas: life
     cmLife.drawBackground();
