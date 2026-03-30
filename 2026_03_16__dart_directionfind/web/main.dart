@@ -15,15 +15,6 @@ typedef Vel = ({double vx, double vy});
 num sq(num x) => x * x;
 
 
-/// Mutates `queue`
-List<T> drainQueue<T>(Queue<T> queue) {
-  final ls = List<T>.empty(growable: true);
-  while (queue.isNotEmpty) {
-    ls.add(queue.removeFirst());
-  }
-  return ls;
-}
-
 /// Methods for creating HTML elems
 class HTML {
   static HTMLButtonElement button() =>
