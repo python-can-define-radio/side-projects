@@ -8,17 +8,10 @@ D2. Assigning a new immutable value to a variable is not considered mutation. Fo
 D3. Fields that are marked `final` cannot be reassigned. (This is intrinsic to Dart, but I am providing it as a reminder.)
 
 Rules:
-R1. All variables which are mutable (such as lists) must be mutated only by methods of the class in which they are defined.
-R2. All variables which are are reassignable (that is, they are not `final`) must be private.
-R3. Any field of a class which is public must be read-only. (The DOM might expose public methods on HTML Elements, but I cannot prevent that, so this rule only applies to the visibility of fields in Dart's scope.)
-R4. Any return value of a method must return an object `Ob` whose fields do not have any methods which mutate `Ob`.
-R5. When a user input event causes any state changes, then the classes which possess that affected state should be the classes that listen for that event. This helps keep the state changes localized within classes.
-R6. If a user input event causes changes to the state of multiple classes, then you should tell me that this is the case, and ask me which class I want to choose for doing the event listening. 
-R7. Any class which has an event listener should have its own `_events` queue. The events should be processed by the `update` method of that class.
-R8. Any class which does not have an event listener should NOT have an `_events` queue, regardless of whether it is indirectly impacted by the state of classes which do have event listeners.
-R9. An object O1 is permitted to rely on the the current state of another object O2, but O1 should do so by reading a read-only view of the state of O2.
-R10. the `main()` function should not call any drawing functions that are a low-level-of-abstraction. Such details should be hidden in the `draw` methods of classes.
-R11. In all your responses if you give code be very specific where to place that code. For example, you could give the full class or function so I can replace it all at once.
-R12. Respond in less than 100 words (not including code) or tell me than you can not reasonably answer that question in so few words.
+R1. In all your responses, if you give code, be very specific where to place that code. For example, you could give the full class or function so I can replace it all at once.
+R2. Respond in less than 100 words (not including code) or tell me than you can not reasonably answer that question in so few words.
+R3. All variables must be immutable except for HTML Elements.
+R4. All instance variables must be private.
+R5. Methods must not return mutable objects, with the exception of `disp()`.
 
 Does the code follow these updated rules?
