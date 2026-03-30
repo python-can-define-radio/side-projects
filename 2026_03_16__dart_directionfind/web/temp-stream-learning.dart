@@ -253,17 +253,22 @@ typedef LOB = ({Pos source, Azimuth azimuth, Power rxpow});
 
 
 class LOBCol {
-  final List<LOB> _lobs = [];
+  List<LOB> _lobs = _lunmo([]);
   final _gatheringLobsCb = HTML.checkbox()..defaultChecked = true;
+  static List<T> _lunmo<T>(List<T> ls) => List.unmodifiable(ls);
 
   LOBCol(KbStm keydown) {
+    _lobs = _lunmo([
+      (source: Pos(3, 5), azimuth: Azimuth(), rxpow: Power(mW: 3))
+    ]); /// TODO: remove this when ready
+    print(_lobs);
     keydown
       .where((ev) => ev.key.toLowerCase() == "g")
       .listen((_) => 
         _gatheringLobsCb.checked = !_gatheringLobsCb.checked);
     keydown
       .where((ev) => ev.key.toLowerCase() == "c")
-      .listen((_) => _lobs.clear());
+      .listen((_) => _lobs = _lunmo([]));
   }
   HTMLDivElement disp() {
     return HTML.div()
@@ -272,7 +277,7 @@ class LOBCol {
         ..appendChild(_gatheringLobsCb))
       ..appendChild(HTML.button()
         ..innerText = "Clear LOBs [ c ]"
-        ..onClick.listen((_) => _lobs.clear()));
+        ..onClick.listen((_) => _lobs = _lunmo([])));
   }
 }
 
