@@ -11,6 +11,8 @@ import 'package:async/async.dart';
 const canvWidth = 600;
 const canvHeight = 400;
 
+num sq(num x) => x * x;
+
 /// Methods for creating HTML elems
 class HTML {
   static HTMLButtonElement button() =>
@@ -29,21 +31,21 @@ class HTML {
       document.createElement('span') as HTMLSpanElement;
 }
 
+class Pos {
+  final double x;
+  final double y;
+  Pos(this.x, this.y);
+
+  /// Return number with 70000 added to look more like a grid coordinate
+  String _padbig(double u) => (u + 70000).toInt().toString();
+  String get pretty => "${_padbig(x)}, ${_padbig(y)}";
+}
+
 
 abstract class Drawable {
   void draw(CanvasRenderingContext2D ctx, Pos center);
 }
 
-class TxRadio implements Drawable {
-  final pos = Pos(400, 370);
-  final txpower = Power(mW: 100);
-  
-  @override
-  void draw(CanvasRenderingContext2D ctx, Pos center) {
-    ctx.fillStyle = "#00f".toJS;
-    fillRectRel(pos.x, pos.y, 10, 10, ctx, center);
-  }
-}
 
 /// Repeatedly call requestAnimationFrame; pass the time delta as an argument to `frameUpdate`
 void runEachFrame(void Function(Duration) frameUpdate) {
@@ -83,19 +85,14 @@ class LatestStreamVal<T> {
   }
 }
 
-class Pos {
-  final double x;
-  final double y;
-  Pos(this.x, this.y);
-}
 
 typedef KbStm = ElementStream<KeyboardEvent>;
 typedef DuStm = Stream<Duration>;
 
 class Player implements Drawable {
   late final Stream<Pos> posStm;
-  late final LatestStreamVal<Pos> _posNow;
-  Pos get pos => _posNow.val;
+  late final LatestStreamVal<Pos> _pos;
+  Pos get pos => _pos.val;
   static const speed = 0.2;
   Player(KbStm keydown, KbStm keyup, DuStm tdeltaStm) {
     final initPos = Pos(380.0, 400.0);
@@ -106,7 +103,7 @@ class Player implements Drawable {
     posStm = StreamZip<double>([xStm, yStm])
       .map((xy) => Pos(xy[0], xy[1]))
       .asBroadcastStream();
-    _posNow = LatestStreamVal(posStm, initPos);
+    _pos = LatestStreamVal(posStm, initPos);
   }
 
   static Stream<double> _makeXStream(double initX, Stream<double> vxStm, DuStm tdeltaStm) async* {
@@ -169,8 +166,15 @@ class Player implements Drawable {
   
   @override
   void draw(CanvasRenderingContext2D ctx, Pos _) {
-    ctx.fillStyle = "#f00".toJS;
-    ctx.fillRect(300, 200, 30, 40);
+    const sz = 2;
+    const cenx = canvWidth / 2;
+    const ceny = canvHeight / 2;
+    ctx.fillStyle = "#000".toJS;
+    fillCircle(cenx + sz, ceny - sz * 3, sz * 3, ctx); /// head
+    ctx.fillRect(cenx - sz * 1, ceny - sz * 2, sz * 4, sz * 12); /// torso
+    ctx.fillRect(cenx - sz * 4, ceny + sz * 2, sz * 10, sz); /// arms
+    ctx.fillRect(cenx - sz * 1, ceny + sz * 10, sz * 1.5, sz * 5); /// leg
+    ctx.fillRect(cenx + sz * 1, ceny + sz * 10, sz * 1.5, sz * 5); /// leg
   }
 }
 
@@ -248,6 +252,17 @@ class CanvM {
   HTMLCanvasElement disp() => _canv;
 }
 
+class TxRadio implements Drawable {
+  final pos = Pos(400, 370);
+  final txpower = Power(mW: 100);
+  
+  @override
+  void draw(CanvasRenderingContext2D ctx, Pos center) {
+    ctx.fillStyle = "#00f".toJS;
+    fillRectRel(pos.x, pos.y, 10, 10, ctx, center);
+  }
+}
+
 
 Stream<Duration> makeFrameStm() {
   final timeDiffSC = StreamController<Duration>();
@@ -259,16 +274,14 @@ Stream<Duration> makeFrameStm() {
 typedef LOB = ({Pos source, Azimuth azimuth, Power rxpow});
 
 
-class LOBCol {
+class LOBCol implements Drawable {
   List<LOB> _lobs = _lunmo([]);
   final _gatheringLobsCb = HTML.checkbox()..defaultChecked = true;
+  late final Stream<LOB> _gathLobStm;
+  /// Make an unmodifiable list
   static List<T> _lunmo<T>(List<T> ls) => List.unmodifiable(ls);
 
-  LOBCol(KbStm keydown) {
-    _lobs = _lunmo([
-      (source: Pos(3, 5), azimuth: Azimuth(), rxpow: Power(mW: 3))
-    ]); /// TODO: remove this when ready
-    print(_lobs);
+  LOBCol(KbStm keydown, Stream<LOB> lobStm) {
     keydown
       .where((ev) => ev.key.toLowerCase() == "g")
       .listen((_) => 
@@ -276,19 +289,61 @@ class LOBCol {
     keydown
       .where((ev) => ev.key.toLowerCase() == "c")
       .listen((_) => _lobs = _lunmo([]));
+    _gathLobStm = lobStm.where((_) => _gatheringLobsCb.checked).asBroadcastStream();
+    _gathLobStm.listen((lob) => _lobs = _lunmo(_lobs + [lob]));
   }
+    
+  static String _fmtpow(LOB lob) =>
+    "Most recent LOB power: ${lob.rxpow.dBm.toStringAsFixed(1)} dBm\n";
+
   HTMLDivElement disp() {
+    final lobPowEl = HTML.div();
+    _gathLobStm.listen((lob) => lobPowEl.innerText = _fmtpow(lob));
     return HTML.div()
       ..appendChild(HTML.div()
         ..appendChild(HTML.span()..innerText = "Gathering Lobs [ g ]:")
         ..appendChild(_gatheringLobsCb))
       ..appendChild(HTML.button()
         ..innerText = "Clear LOBs [ c ]"
-        ..onClick.listen((_) => _lobs = _lunmo([])));
+        ..onClick.listen((_) => _lobs = _lunmo([])))
+      ..appendChild(lobPowEl);
+  }
+
+  @override
+  void draw(CanvasRenderingContext2D ctx, Pos center) {
+    void drawOne(LOB lob, String color) {
+      const loblength = 10000;  /// arbitrarily long so that the lob appears to be an unending ray
+      final endx = lob.source.x + loblength * lob.azimuth.cosresult;
+      final endy = lob.source.y + loblength * lob.azimuth.sinresult;
+      ctx.beginPath();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = color.toJS;
+      moveToRel(lob.source.x, lob.source.y, ctx, center);
+      lineToRel(endx, endy, ctx, center);
+      ctx.stroke();
+    }
+    if (_lobs.isNotEmpty) {
+      final [...beginning, lastlob] = _lobs;
+      beginning.forEach((lob) => drawOne(lob, "orange"));
+      drawOne(lastlob, "red"); // eventually this will be the selected lob; currently it's just the last.
+    }
   }
 }
 
-class Azimuth {}
+
+
+class Azimuth {
+  late final double sinresult;
+  late final double cosresult;
+  Azimuth.fromPositions(Player p, TxRadio t) {
+    final xd = t.pos.x - p.pos.x;
+    final yd = t.pos.y - p.pos.y;
+    final dist = sqrt(xd * xd + yd * yd);
+    sinresult = yd / dist;
+    cosresult = xd / dist;
+  }
+  Azimuth.fromSinCos(this.sinresult, this.cosresult);
+}
 
 double logbase10(double x) => log(x) / log(10);
 
@@ -298,6 +353,42 @@ class Power {
   Power({required this.mW});
   Power operator *(double other) {
     return Power(mW: mW * other);
+  }
+}
+
+/// Simulator. A class that simulates LOBs.
+class Sim {
+  final _random = Random();
+  late final Stream<LOB> lobStm;
+  Sim(Player p1, TxRadio t1) {
+    lobStm = 
+      Stream<Null>.periodic(Duration(milliseconds: 50))
+      .where((_) => _random.nextInt(5) == 0)
+      .map((_) => _makelob(p1, t1))
+      .asBroadcastStream();
+  }
+
+  LOB _makelob(Player p1, TxRadio t1) => (
+    source: p1.pos,
+    azimuth: _noi(Azimuth.fromPositions(p1, t1)),
+    rxpow: _distLoss(t1, p1),
+  );
+
+  /// add random noise. Need to figure out whether this is typical distribution
+  Azimuth _noi(Azimuth a) {
+    p3(double x) => x * x * x;
+    return Azimuth.fromSinCos(
+      a.sinresult + 0.003 * p3(6 * (_random.nextDouble() - 0.5)),
+      a.cosresult + 0.003 * p3(6 * (_random.nextDouble() - 0.5)),
+    );
+  }
+
+  /// A very rudimentary path loss computation
+  Power _distLoss(TxRadio t, Player p1) {
+    final xd = t.pos.x - p1.pos.x;
+    final yd = t.pos.y - p1.pos.y;
+    final dist = sqrt(xd * xd + yd * yd);
+    return t.txpower * 0.1 * (1 / sq(dist)) * (_random.nextDouble() * 0.1 + 0.9);
   }
 }
 
@@ -315,9 +406,10 @@ void main() {
   final keyup = document.body!.onKeyUp;
   final frameStm = makeFrameStm();
   final p1 = Player(keydown, keyup, frameStm);
-  final lobc = LOBCol(keydown);
   final t1 = TxRadio();
-  final cmLife = CanvM("#cfc", canvWidth, canvHeight, p1.posStm, [p1, t1]);
+  final sim = Sim(p1, t1);
+  final lobc = LOBCol(keydown, sim.lobStm);
+  final cmLife = CanvM("#cfc", canvWidth, canvHeight, p1.posStm, [p1, t1, lobc]);
   attachElems(document.body!, p1, lobc, cmLife); 
 }
 
