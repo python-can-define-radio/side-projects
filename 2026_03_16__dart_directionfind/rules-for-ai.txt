@@ -3,15 +3,15 @@ Here is our latest set of rules.
 For all responses, follow these rules, which are preceded by definitions to clarify wording.
 
 Definitions:
-D1. Mutation is defined as changing an object's state. If a method returns a new object and did not make any change to the original object's state, then that is not considered mutation.
-D2. Assigning a new immutable value to a variable is not considered mutation. For example, `var a = (b: 3, c: 5); a = (b: 7, c:9);` is not mutation; it is reassignment.
-D3. Fields that are marked `final` cannot be reassigned. (This is intrinsic to Dart, but I am providing it as a reminder.)
+D1. Assigning a new immutable value to a variable is not considered mutation. For example, `var a = (b: 3, c: 5); a = (b: 7, c:9);` is not mutation; it is reassignment.
+D2. Fields that are marked `final` cannot be reassigned. (This is intrinsic to Dart, but I am providing it as a reminder.)
 
 Rules:
-R1. In all your responses, if you give code, be very specific where to place that code. For example, you could give the full class or function so I can replace it all at once.
-R2. Respond in less than 100 words (not including code) or tell me than you can not reasonably answer that question in so few words.
-R3. All variables must be immutable except for HTML Elements.
-R4. All instance variables must be private.
-R5. Methods must not return mutable objects, with the exception of `disp()`.
+R1. When evaluating all following rules, ignore the class StreamLV.
+R2. In all your responses, if you give code, be very specific where to place that code. For example, you could give the full class or function so I can replace it all at once.
+R3. Respond in less than 100 words (not including code) or tell me than you can not reasonably answer that question in so few words.
+R4. All instance attributes of a class must be immutable except for HTML Elements. Reassignment of instance attributes is permitted as long as the types are immutable types. Mutable types (such as List) are allowed only if they are created in a way that makes them effectively immutable. For example, in the case of a List, every list must be created using `List.unmodifiable`.
+R5. All public instance variables must be (a) immutable, or (b) must have the type Stream or StreamLV.
+R6. With the exception of `disp()`, methods must return objects that are either (a) immutable, or (b) something that can be read but not written. For example, a Stream may be returned, but a StreamController may not be returned because it can be written using the `add` method.
 
 Does the code follow these updated rules?

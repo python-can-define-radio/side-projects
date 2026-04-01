@@ -81,7 +81,7 @@ extension Scanner<T> on Stream<T> {
 class StreamLV<T> {
   T _latestVal;
   T get latestVal => _latestVal;
-  Stream<T> stream;
+  final Stream<T> stream;
   StreamLV(this._latestVal, this.stream) {
     stream.listen((val) => _latestVal = val);
   }
@@ -275,6 +275,39 @@ class CanvM {
   HTMLCanvasElement disp() => _canv;
 }
 
+class Grid implements Drawable {
+  @override
+  void draw(CanvasRenderingContext2D ctx, Pos center) {
+    const gridSpacing = 50;
+
+    ctx.save();
+    ctx.strokeStyle = "#ccc".toJS;
+    ctx.lineWidth = 0.5;
+
+    final px = center.x;
+    final py = center.y;
+
+    for (var x = -canvWidth ~/ 2; x <= canvWidth * 1.5; x += gridSpacing) {
+      final screenX = x - px % gridSpacing + canvWidth / 2;
+      ctx.beginPath();
+      ctx.moveTo(screenX, 0);
+      ctx.lineTo(screenX, canvHeight);
+      ctx.stroke();
+    }
+
+    for (var y = -canvHeight ~/ 2; y <= canvHeight * 1.5; y += gridSpacing) {
+      final screenY = y - py % gridSpacing + canvHeight / 2;
+      ctx.beginPath();
+      ctx.moveTo(0, screenY);
+      ctx.lineTo(canvWidth, screenY);
+      ctx.stroke();
+    }
+
+    ctx.restore();
+  }
+}
+
+
 class TxRadio implements Drawable {
   final pos = Pos(400, 370);
   final txpower = Power(mW: 100);
@@ -282,7 +315,7 @@ class TxRadio implements Drawable {
   @override
   void draw(CanvasRenderingContext2D ctx, Pos center) {
     ctx.fillStyle = "#00f".toJS;
-    fillRectRel(pos.x, pos.y, 10, 10, ctx, center);
+    fillRectRel(pos.x - 5, pos.y - 5, 10, 10, ctx, center);
   }
 }
 
@@ -490,7 +523,7 @@ class ObjCol implements Drawable {
       );
     }
 
-    _objs = [for (var i = 0; i < 10000; i++) makebush()];
+    _objs = List.unmodifiable([for (var i = 0; i < 10000; i++) makebush()]);
   }
 
   @override
@@ -510,8 +543,9 @@ void main() {
   final sim = Sim(p1, t1);
   final lobc = LOBCol(keydown, sim.lobStm);
   final bushes = ObjCol();
+  final grid = Grid();
   final cmLife = CanvM("#cfc", canvWidth, canvHeight, p1.posStmLV, [p1, t1, bushes]);
-  final cmLob = CanvM("#eef", canvWidth, canvHeight, p1.posStmLV, [p1, lobc]);
+  final cmLob = CanvM("#eef", canvWidth, canvHeight, p1.posStmLV, [p1, lobc, grid]);
   attachElems(document.body!, p1, lobc, cmLife, cmLob); 
 }
 
