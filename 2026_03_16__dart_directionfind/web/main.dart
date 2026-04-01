@@ -77,90 +77,113 @@ extension Scanner<T> on Stream<T> {
 }
 
 
-class LatestStreamVal<T> {
-  T _val;
-  T get val => _val;
-  LatestStreamVal(Stream<T> stream, this._val) {
-    stream.listen((x) => _val = x);
+/// A wrapped stream that keeps a record of the most recent stream value.
+class StreamLV<T> {
+  T _latestVal;
+  T get latestVal => _latestVal;
+  Stream<T> stream;
+  StreamLV(this._latestVal, this.stream) {
+    stream.listen((val) => _latestVal = val);
   }
+  StreamSubscription<T> listen(void Function(T) onData) => stream.listen(onData);
 }
 
 
 typedef KbStm = ElementStream<KeyboardEvent>;
 typedef DuStm = Stream<Duration>;
 
+enum DirUD { up, down, neutral }
+enum DirLR { left, right, neutral }
+
+
 class Player implements Drawable {
-  late final Stream<Pos> posStm;
-  late final LatestStreamVal<Pos> _pos;
-  Pos get pos => _pos.val;
-  static const speed = 0.2;
+  late final StreamLV<Pos> posStmLV;
+  Pos get pos => posStmLV.latestVal;
+
   Player(KbStm keydown, KbStm keyup, DuStm tdeltaStm) {
     final initPos = Pos(380.0, 400.0);
-    final vxStm = _makeVxStream(0, keydown, keyup);
-    final vyStm = _makeVyStream(0, keydown, keyup);
-    final xStm = _makeXStream(initPos.x, vxStm, tdeltaStm);
-    final yStm = _makeYStream(initPos.y, vyStm, tdeltaStm);
-    posStm = StreamZip<double>([xStm, yStm])
+    final speedStm = _speedStream(0.2, keydown, keyup);
+    final vxStmLV = _makeVxStream(keydown, keyup);
+    final vyStmLV = _makeVyStream(keydown, keyup);
+    final xStm = _makeXStream(initPos.x, vxStmLV, tdeltaStm, speedStm);
+    final yStm = _makeYStream(initPos.y, vyStmLV, tdeltaStm, speedStm);
+    final posStm = StreamZip<double>([xStm, yStm])
       .map((xy) => Pos(xy[0], xy[1]))
       .asBroadcastStream();
-    _pos = LatestStreamVal(posStm, initPos);
+    posStmLV = StreamLV(initPos, posStm);
   }
 
-  static Stream<double> _makeXStream(double initX, Stream<double> vxStm, DuStm tdeltaStm) async* {
+  static double udconv(DirUD d) => switch(d) { .up => -1, .down => 1, .neutral => 0 };
+  static double lrconv(DirLR d) => switch(d) { .left => -1, .right => 1, .neutral => 0 };
+
+  static Stream<double> _makeXStream(double initX, StreamLV<DirLR> vxStm, DuStm tdeltaStm, StreamLV<double> speedStm) async* {
     var curX = initX;
-    final curVx = LatestStreamVal(vxStm, 0);
     await for(final tdelta in tdeltaStm) {
-      curX += curVx.val * tdelta.inMilliseconds;
+      curX += lrconv(vxStm.latestVal) * speedStm.latestVal * tdelta.inMilliseconds;
       yield curX;
     }
   }
 
-  static Stream<double> _makeYStream(double initY, Stream<double> vyStm, DuStm tdeltaStm) async* {
+  static Stream<double> _makeYStream(double initY, StreamLV<DirUD> vyStm, DuStm tdeltaStm, StreamLV<double> speedStm) async* {
     var curY = initY;
-    var curVy = LatestStreamVal(vyStm, 0);
     await for(final tdelta in tdeltaStm) {
-      curY += curVy.val * tdelta.inMilliseconds;
+      curY += udconv(vyStm.latestVal) * speedStm.latestVal * tdelta.inMilliseconds;
       yield curY;
     }
   }
   
-  static Stream<double> _makeVxStream(double initVx, KbStm keydown, KbStm keyup) {
-    final scx = StreamController<double>()..add(initVx);
+  static StreamLV<DirLR> _makeVxStream(KbStm keydown, KbStm keyup) {
+    final scx = StreamController<DirLR>()..add(DirLR.neutral);
     keydown.listen((ev) {
       if (ev.key == "ArrowLeft") {
-        scx.add(-speed);
+        scx.add(DirLR.left);
       } else if (ev.key == "ArrowRight") {
-        scx.add(speed);
+        scx.add(DirLR.right);
       }
     });
     keyup.listen((ev) {
       if (["ArrowLeft", "ArrowRight"].contains(ev.key)) {
-        scx.add(0);
+        scx.add(DirLR.neutral);
       }
     });
-    return scx.stream;
+    return StreamLV(DirLR.neutral, scx.stream);
   }
   
-  static Stream<double> _makeVyStream(double initVy, KbStm keydown, KbStm keyup) {
-    final scy = StreamController<double>()..add(initVy);
+  static StreamLV<DirUD> _makeVyStream(KbStm keydown, KbStm keyup) {
+    final scy = StreamController<DirUD>()..add(DirUD.neutral);
     keydown.listen((ev) {
       if (ev.key == "ArrowDown") {
-        scy.add(speed);
+        scy.add(DirUD.down);
       } else if (ev.key == "ArrowUp") {
-        scy.add(-speed);
+        scy.add(DirUD.up);
       }
     });
     keyup.listen((ev) {
       if (["ArrowDown", "ArrowUp"].contains(ev.key)) {
-        scy.add(0);
+        scy.add(DirUD.neutral);
       }
     });
-    return scy.stream;
+    return StreamLV(DirUD.neutral, scy.stream);
+  }
+
+  static StreamLV<double> _speedStream(double initSpeed, KbStm keydown, KbStm keyup) {
+    final speed = StreamController<double>()..add(initSpeed);
+    keydown.listen((ev) {
+      if (ev.key == "Shift") {
+        speed.add(2*initSpeed);
+      }
+    });
+    keyup.listen((ev) {
+      if (ev.key == "Shift") {
+        speed.add(initSpeed);
+      }
+    });
+    return StreamLV(initSpeed, speed.stream);
   }
   
   HTMLDivElement disp() {
     final posEl = HTML.span()..style.color = "lightgreen";
-    posStm.listen((pos) => posEl.innerText = "pos: ${pos.x.toStringAsFixed(2)} ${pos.y.toStringAsFixed(2)}");
+    posStmLV.listen((pos) => posEl.innerText = "pos: ${pos.x.toStringAsFixed(2)} ${pos.y.toStringAsFixed(2)}");
     return HTML.div()..appendChild(posEl);
   }
   
@@ -230,12 +253,12 @@ class CanvM {
   final _canv = HTML.canvas();
   late final CanvasRenderingContext2D _ctx;
 
-  CanvM(this._bgcolor, int w, int h, Stream<Pos> posStm, List<Drawable> drawItems) {
+  CanvM(this._bgcolor, int w, int h, StreamLV<Pos> posStmLV, List<Drawable> drawItems) {
     _canv
       ..width = w
       ..height = h;
     _ctx = _canv.getContext('2d') as CanvasRenderingContext2D;
-    posStm.listen((pos) => _frameUpdate(pos, drawItems));
+    posStmLV.listen((pos) => _frameUpdate(pos, drawItems));
   }
 
   void _frameUpdate(Pos pos, List<Drawable> drawItems) {
@@ -270,6 +293,53 @@ Stream<Duration> makeFrameStm() {
   return timeDiffSC.stream.asBroadcastStream();
 }
 
+
+class Bush implements Drawable {
+  late final Pos _pos;
+  final String _color;
+  final int _size;
+  Bush(double x, double y, this._color, this._size) {
+    _pos = Pos(x, y);
+  }
+
+  @override
+  void draw(CanvasRenderingContext2D ctx, Pos center) {
+    final xd = _pos.x - center.x;
+    final yd = _pos.y - center.y;
+
+    /// Distance threshold. Basically pythagorean theorem but without sqrt and with some scaling to make it so bushes near the edge still render
+    
+    if (yd.abs() > (0.7 * canvHeight) || xd.abs() > (0.7 * canvWidth)) {
+      return;
+    }
+    ctx.fillStyle = "#440".toJS;
+    fillRectRel(
+      _pos.x - _size,
+      _pos.y + _size * 0.7,
+      _size * 0.9,
+      6,
+      ctx,
+      center,
+    );
+    fillRectRel(_pos.x, _pos.y + _size * 0.7, _size * 0.9, 6, ctx, center);
+    fillRectRel(
+      _pos.x + _size * 0.7,
+      _pos.y + _size * 0.7,
+      _size * 0.9,
+      6,
+      ctx,
+      center,
+    );
+    ctx.fillStyle = _color.toJS;
+    fillCircleRel(_pos.x - _size, _pos.y, _size, ctx, center);
+    fillCircleRel(_pos.x, _pos.y, _size, ctx, center);
+    fillCircleRel(_pos.x, _pos.y - _size, _size, ctx, center);
+    fillCircleRel(_pos.x + _size, _pos.y, _size, ctx, center);
+    fillCircleRel(_pos.x, _pos.y - _size, _size, ctx, center);
+    fillCircleRel(_pos.x + 2 * _size, _pos.y, _size, ctx, center);
+    fillCircleRel(_pos.x + 1.5 * _size, _pos.y - _size, _size, ctx, center);
+  }
+}
 
 typedef LOB = ({Pos source, Azimuth azimuth, Power rxpow});
 
@@ -393,13 +463,43 @@ class Sim {
 }
 
 
-void attachElems(HTMLElement root, Player p1, LOBCol lobc, CanvM cmLife){
+void attachElems(HTMLElement root, Player p1, LOBCol lobc, CanvM cmLife, CanvM cmLob){
   root
     ..appendChild(p1.disp())
     ..appendChild(lobc.disp())
-    ..appendChild(cmLife.disp());
+    ..appendChild(HTML.div()
+      ..style.display = "flex"
+      ..style.flexDirection = "row"
+      ..appendChild(cmLife.disp())
+      ..appendChild(cmLob.disp()));
 }
 
+class ObjCol implements Drawable {
+  late final List<Bush> _objs;
+  ObjCol() {
+    final random = Random();
+    Bush makebush() {
+      final redandblue = "${random.nextInt(5)}";
+      final green = "${random.nextInt(5) + 5}";
+      final size = random.nextInt(6) + 2;
+      return Bush(
+        (random.nextDouble() - 0.5) * 10000,
+        (random.nextDouble() - 0.5) * 10000,
+        "#$redandblue$green$redandblue",
+        size,
+      );
+    }
+
+    _objs = [for (var i = 0; i < 10000; i++) makebush()];
+  }
+
+  @override
+  void draw(CanvasRenderingContext2D ctx, Pos center) {
+    for (final obj in _objs) {
+      obj.draw(ctx, center);
+    }
+  }
+}
 
 void main() {
   final keydown = document.body!.onKeyDown;
@@ -409,8 +509,10 @@ void main() {
   final t1 = TxRadio();
   final sim = Sim(p1, t1);
   final lobc = LOBCol(keydown, sim.lobStm);
-  final cmLife = CanvM("#cfc", canvWidth, canvHeight, p1.posStm, [p1, t1, lobc]);
-  attachElems(document.body!, p1, lobc, cmLife); 
+  final bushes = ObjCol();
+  final cmLife = CanvM("#cfc", canvWidth, canvHeight, p1.posStmLV, [p1, t1, bushes]);
+  final cmLob = CanvM("#eef", canvWidth, canvHeight, p1.posStmLV, [p1, lobc]);
+  attachElems(document.body!, p1, lobc, cmLife, cmLob); 
 }
 
 
