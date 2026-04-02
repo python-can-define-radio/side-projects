@@ -186,18 +186,26 @@ class Player implements Drawable {
     posStmLV.listen((pos) => posEl.innerText = "pos: ${pos.x.toStringAsFixed(2)} ${pos.y.toStringAsFixed(2)}");
     return HTML.div()..appendChild(posEl);
   }
-  
+ 
   @override
   void draw(CanvasRenderingContext2D ctx, Pos _) {
     const sz = 2;
     const cenx = canvWidth / 2;
     const ceny = canvHeight / 2;
-    ctx.fillStyle = "#000".toJS;
-    fillCircle(cenx + sz, ceny - sz * 3, sz * 3, ctx); /// head
-    ctx.fillRect(cenx - sz * 1, ceny - sz * 2, sz * 4, sz * 12); /// torso
-    ctx.fillRect(cenx - sz * 4, ceny + sz * 2, sz * 10, sz); /// arms
-    ctx.fillRect(cenx - sz * 1, ceny + sz * 10, sz * 1.5, sz * 5); /// leg
-    ctx.fillRect(cenx + sz * 1, ceny + sz * 10, sz * 1.5, sz * 5); /// leg
+
+    // bright fill (HUD-friendly)
+    ctx.fillStyle = "#fff".toJS;
+
+    fillCircle(cenx + sz, ceny - sz * 3, sz * 3, ctx);
+    ctx.fillRect(cenx - sz * 1, ceny - sz * 2, sz * 4, sz * 12);
+    ctx.fillRect(cenx - sz * 4, ceny + sz * 2, sz * 10, sz);
+    ctx.fillRect(cenx - sz * 1, ceny + sz * 10, sz * 1.5, sz * 5);
+    ctx.fillRect(cenx + sz * 1, ceny + sz * 10, sz * 1.5, sz * 5);
+
+    // outline for contrast
+    ctx.strokeStyle = "#003333".toJS;
+    ctx.lineWidth = 1;
+    // ctx.stroke();
   }
 }
 
@@ -496,15 +504,25 @@ class Sim {
 }
 
 
+// REPLACE entire attachElems function
 void attachElems(HTMLElement root, Player p1, LOBCol lobc, CanvM cmLife, CanvM cmLob){
+  final hudFrame = HTML.div()
+    ..style.background = "#222"
+    ..style.padding = "12px"
+    ..style.border = "4px solid #555"
+    ..style.borderRadius = "8px"
+    ..style.boxShadow = "0 0 20px #000 inset, 0 0 10px #000"
+    ..appendChild(cmLob.disp());
+
   root
     ..appendChild(p1.disp())
     ..appendChild(lobc.disp())
     ..appendChild(HTML.div()
       ..style.display = "flex"
       ..style.flexDirection = "row"
+      ..style.gap = "16px"
       ..appendChild(cmLife.disp())
-      ..appendChild(cmLob.disp()));
+      ..appendChild(hudFrame));
 }
 
 class ObjCol implements Drawable {
@@ -545,7 +563,14 @@ void main() {
   final bushes = ObjCol();
   final grid = Grid();
   final cmLife = CanvM("#cfc", canvWidth, canvHeight, p1.posStmLV, [p1, t1, bushes]);
-  final cmLob = CanvM("#eef", canvWidth, canvHeight, p1.posStmLV, [p1, lobc, grid]);
+  final cmLob = CanvM("#0a0f14", canvWidth, canvHeight, p1.posStmLV, [p1, lobc, grid]);
+  final lobCanvas = cmLob.disp();
+
+  lobCanvas.style
+    ..background = "#0a0f14"
+    ..border = "4px solid #555"
+    ..borderRadius = "8px"
+    ..boxShadow = "0 0 20px #000 inset, 0 0 10px #000";
   attachElems(document.body!, p1, lobc, cmLife, cmLob); 
 }
 
