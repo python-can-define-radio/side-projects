@@ -186,7 +186,7 @@ class PlayerHUD {
   final StreamLV<Pos> _posStmLV;
   PlayerHUD(this._posStmLV);
   HTMLDivElement disp() {
-    final posEl = HTML.span()..style.color = "lightgreen";
+    final posEl = HTML.span();
     _posStmLV.listen((pos) => posEl.innerText = "pos: ${pos.x.toStringAsFixed(2)} ${pos.y.toStringAsFixed(2)}");
     return HTML.div()..appendChild(posEl);
   }
@@ -259,30 +259,14 @@ void fillCircleRel(
 class CanvM {
   final HTMLCanvasElement _canv = HTML.canvas();
   late final CanvasRenderingContext2D _ctx;
-  final List<Drawable> _drawItems;
+  final ImmuList<Drawable> _drawItems;
 
-  CanvM(String type, int w, int h, StreamLV<Pos> posStmLV, List<Drawable> drawItems)
-      : _drawItems = List.unmodifiable(drawItems) {
+  CanvM(String cssid, int w, int h, StreamLV<Pos> posStmLV, List<Drawable> drawItems)
+      : _drawItems = ImmuList(drawItems) {
     _canv
       ..width = w
-      ..height = h;
-
-    if (type == "life") {
-      _canv.style
-        ..background = "#cfc"
-        ..border = "4px solid #333"
-        ..borderRadius = "8px"
-        ..boxShadow = "0 0 20px #000 inset, 0 0 10px #000";
-    } else if (type == "hud") {
-      _canv.style
-        ..background = "#0a0f14"
-        ..border = "4px solid #555"
-        ..borderRadius = "8px"
-        ..boxShadow = "0 0 30px #000 inset, 0 0 12px #000";
-    } else {
-      throw ArgumentError('Unknown type "$type", expected "life" or "hud"');
-    }
-
+      ..height = h
+      ..id = cssid;
     _ctx = _canv.getContext('2d') as CanvasRenderingContext2D;
     posStmLV.listen((pos) => _frameUpdate(pos));
   }
@@ -290,10 +274,9 @@ class CanvM {
   HTMLCanvasElement disp() => _canv;
 
   void _frameUpdate(Pos pos) {
+    _ctx.clearRect(0, 0, _canv.width, _canv.height);
     _ctx.save();
-    _ctx.fillStyle = _canv.style.background.toJS;
-    _ctx.fillRect(0, 0, _canv.width, _canv.height);
-    for (final item in _drawItems) {
+    for (final item in _drawItems.values) {
       item.draw(_ctx, pos);
     }
     _ctx.restore();
@@ -396,66 +379,70 @@ class Bush implements Drawable {
 
 typedef LOB = ({Pos source, Azimuth azimuth, Power rxpow});
 
+class ImmuList<T> {
+  /// wrapped list
+  final List<T> _wrlist;
+  /// I don't know how to make a shallow copy in Dart
+  List<T> get values => _wrlist.map((x) => x).toList();
+  ImmuList(List<T> vals) : _wrlist = vals.map((x) => x).toList();
+}
+
 class LOBCol implements Drawable {
   final HTMLInputElement _gatheringLobsCb = HTML.checkbox()..defaultChecked = true;
   final HTMLButtonElement _clearBtn = HTML.button()
-    ..innerText = "Clear LOBs [ c ]"
-    ..style.border = "1px solid white"
-    ..style.backgroundColor = "transparent";
+    ..id = "clear-btn"
+    ..innerText = "Clear LOBs [ c ]";
+  late final StreamLV<ImmuList<LOB>> _gathLobStmLV;
 
-  late final StreamLV<List<LOB>> _lobsLV;
-  late final Stream<LOB> _gathLobStm;
-
-  LOBCol(KbStm keydown, Stream<LOB> lobStm) {
+  LOBCol(KbStm keydown, Stream<LOB> univLobStm) {
     keydown
-        .where((ev) => ev.key.toLowerCase() == "g")
-        .listen((_) => _gatheringLobsCb.checked = !_gatheringLobsCb.checked);
+      .where((ev) => ev.key.toLowerCase() == "g")
+      .listen((_) => _gatheringLobsCb.checked = !_gatheringLobsCb.checked);
 
-    final clearKeyStm = keydown
-        .where((ev) => ev.key.toLowerCase() == "c")
-        .map((_) => null);
+    final cStm = keydown.where((ev) => ev.key.toLowerCase() == "c").asBroadcastStream();
+    buttonAesthetic(cStm, _clearBtn);
 
-    final clearBtnStm = _clearBtn.onClick.map((_) => null);
-    final clearStm = StreamGroup.merge([clearKeyStm, clearBtnStm]);
-    final filteredLobsStm = lobStm.where((_) => _gatheringLobsCb.checked);
-    final cmdStm = StreamGroup.merge([
-      filteredLobsStm,
+    final Stream<Object> clearStm = StreamGroup.merge([cStm, _clearBtn.onClick]);
+    final gathLobStm = makeGathLobStream(
       clearStm,
-    ]);
-
-    // Accumulate LOBs, reset on null
-    final lobsStmAccum = cmdStm.scan<List<LOB>>(
-      List.unmodifiable([]),
-      (acc, val) => val == null ? List.unmodifiable([]) : List.unmodifiable([...acc, val]),
-    ).asBroadcastStream();
-
-    _lobsLV = StreamLV(List.unmodifiable([]), lobsStmAccum);
-
-    // Expose the last received LOB for HUD
-    _gathLobStm = filteredLobsStm;
+      univLobStm.where((_) => _gatheringLobsCb.checked)
+    );
+    _gathLobStmLV = StreamLV(ImmuList([]), gathLobStm);
   }
 
-  static String _fmtpow(LOB lob) =>
-      "Most recent LOB power: ${lob.rxpow.dBm.toStringAsFixed(1)} dBm\n";
+  static void buttonAesthetic(Stream<Event> cStm, HTMLElement btn) {
+    cStm.listen((_) {
+      btn.classList.add("button-active");
+      Future.delayed(Duration(milliseconds: 100), () => btn.classList.remove("button-active"));
+    });
+  }
+
+  static Stream<ImmuList<LOB>> makeGathLobStream(Stream<Object> clearStm, Stream<LOB> filteredLobsStm)  {
+    final sc = StreamController<ImmuList<LOB>>();
+    final curLobList = <LOB>[];
+    filteredLobsStm.listen((lob) {
+      curLobList.add(lob); 
+      sc.add(ImmuList(curLobList));
+    });
+    clearStm.listen((_) {
+      curLobList.clear();
+      sc.add(ImmuList(curLobList));
+    });
+    return sc.stream.asBroadcastStream();
+  }
+
+  static String _fmtpow(LOB? lob) {
+    final fm = lob?.rxpow.dBm.toStringAsFixed(1);
+    return "LOB power: ${fm ?? "__"} dBm\n";
+  }
 
   HTMLDivElement dispInfo() {
     final lobPowEl = HTML.div();
-    _gathLobStm.listen((lob) => lobPowEl.innerText = _fmtpow(lob));
+    _gathLobStmLV.listen((lobs) => lobPowEl.innerText = _fmtpow(lobs.values.lastOrNull));
     return lobPowEl;
   }
 
   HTMLDivElement dispCtl() {
-  // Apply consistent HUD-like styling
-  void applyHudStyle(HTMLElement el) {
-    el.style
-      ..color = "lightgreen"
-      ..fontFamily = "monospace"
-      ..fontSize = "14px";
-  }
-
-  applyHudStyle(_clearBtn);
-  applyHudStyle(_gatheringLobsCb);
-
   return HTML.div()
     ..style.display = "flex"
     ..style.flexDirection = "column"
@@ -469,7 +456,7 @@ class LOBCol implements Drawable {
 
   @override
   void draw(CanvasRenderingContext2D ctx, Pos center) {
-    final lobs = _lobsLV.latestVal;
+    final lobs = _gathLobStmLV.latestVal.values;
 
     void drawOne(LOB lob, String color) {
       const loblength = 10000;
@@ -519,9 +506,10 @@ class Power {
 /// Simulator. A class that simulates LOBs.
 class Sim {
   final _random = Random();
-  late final Stream<LOB> lobStm;
+  /// LOBs coming from the universe (as opposed to those which we have gathered)
+  late final Stream<LOB> univLobStm;
   Sim(Player p1, TxRadio t1) {
-    lobStm = 
+    univLobStm = 
       Stream<Null>.periodic(Duration(milliseconds: 50))
       .where((_) => _random.nextInt(5) == 0)
       .map((_) => _makelob(p1, t1))
@@ -567,22 +555,22 @@ void attachElems(HTMLElement root, PlayerHUD ph, LOBCol lobc, CanvM cmLife, Canv
         ..appendChild(cmLob.disp())
         ..appendChild(ph.disp()
           ..style.position = "absolute"
-          ..style.top = "10px"
-          ..style.left = "15px"
+          ..style.top = "20px"
+          ..style.left = "25px"
           ..style.color = "lightgreen"
           ..style.fontFamily = "monospace"
         )
         ..appendChild(lobc.dispInfo()
           ..style.position = "absolute"
-          ..style.top = "25px"
-          ..style.left = "15px"
+          ..style.top = "35px"
+          ..style.left = "25px"
           ..style.color = "lightgreen"
           ..style.fontFamily = "monospace"
         )
         ..appendChild(lobc.dispCtl()
           ..style.position = "absolute"
-          ..style.top = "5px"
-          ..style.right = "15px"
+          ..style.top = "20px"
+          ..style.right = "20px"
           ..style.color = "lightgreen"
           ..style.fontFamily = "monospace"
         )
@@ -625,7 +613,7 @@ void main() {
   final ph = PlayerHUD(p1.posStmLV);
   final t1 = TxRadio();
   final sim = Sim(p1, t1);
-  final lobc = LOBCol(keydown, sim.lobStm);
+  final lobc = LOBCol(keydown, sim.univLobStm);
   final bushes = ObjCol();
   final grid = Grid();
   final avatarlife = Avatar("#000");
