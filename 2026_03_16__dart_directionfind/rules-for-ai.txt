@@ -13,5 +13,6 @@ R3. Respond in less than 100 words (not including code) or tell me than you can 
 R4. All instance attributes of a class must be immutable except for HTML Elements. Reassignment of instance attributes is permitted as long as the types are immutable types. Mutable types (such as List) are allowed only if they are created in a way that makes them effectively immutable. For example, in the case of a List, every list must be created using `List.unmodifiable`.
 R5. All public instance variables must be (a) immutable, or (b) must have the type Stream or StreamLV.
 R6. With the exception of `disp()`, methods must return objects that are either (a) immutable, or (b) something that can be read but not written. For example, a Stream may be returned, but a StreamController may not be returned because it can be written using the `add` method.
+R7. `disp()` must be called only within `attachElems()`.
 
 Does the code follow these updated rules?

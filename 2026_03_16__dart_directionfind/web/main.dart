@@ -261,20 +261,23 @@ class CanvM {
   final _canv = HTML.canvas();
   late final CanvasRenderingContext2D _ctx;
 
-  CanvM(this._bgcolor, int w, int h, StreamLV<Pos> posStmLV, List<Drawable> drawItems) {
-    _canv
-      ..width = w
-      ..height = h;
-    _ctx = _canv.getContext('2d') as CanvasRenderingContext2D;
-    posStmLV.listen((pos) => _frameUpdate(pos, drawItems));
-  }
+  CanvM(this._bgcolor, int w, int h, StreamLV<Pos> posStmLV, List<Drawable> drawItems)
+    : _drawItems = List.unmodifiable(drawItems) {
+  _canv
+    ..width = w
+    ..height = h;
+  _ctx = _canv.getContext('2d') as CanvasRenderingContext2D;
+  posStmLV.listen((pos) => _frameUpdate(pos));
+}
 
-  void _frameUpdate(Pos pos, List<Drawable> drawItems) {
-    _drawBackground();
-    for (final item in drawItems) {
-      item.draw(_ctx, pos);
-    }
+final List<Drawable> _drawItems;
+
+  void _frameUpdate(Pos pos) {
+  _drawBackground();
+  for (final item in _drawItems) {
+    item.draw(_ctx, pos);
   }
+}
 
   void _drawBackground() {
     _ctx.fillStyle = _bgcolor.toJS;
@@ -336,12 +339,12 @@ Stream<Duration> makeFrameStm() {
 
 
 class Bush implements Drawable {
-  late final Pos _pos;
+  final Pos _pos;
   final String _color;
   final int _size;
-  Bush(double x, double y, this._color, this._size) {
-    _pos = Pos(x, y);
-  }
+  Bush(double x, double y, this._color, this._size)
+  : _pos = Pos(x, y);
+  
 
   @override
   void draw(CanvasRenderingContext2D ctx, Pos center) {
@@ -386,44 +389,71 @@ typedef LOB = ({Pos source, Azimuth azimuth, Power rxpow});
 
 
 class LOBCol implements Drawable {
-  List<LOB> _lobs = _lunmo([]);
-  final _gatheringLobsCb = HTML.checkbox()..defaultChecked = true;
+  final HTMLInputElement _gatheringLobsCb = HTML.checkbox()..defaultChecked = true;
+  final HTMLButtonElement _clearBtn = HTML.button()..innerText = "Clear LOBs [ c ]";
+
+  late final StreamLV<List<LOB>> _lobsLV;
   late final Stream<LOB> _gathLobStm;
-  /// Make an unmodifiable list
-  static List<T> _lunmo<T>(List<T> ls) => List.unmodifiable(ls);
 
   LOBCol(KbStm keydown, Stream<LOB> lobStm) {
+    // Toggle checkbox with 'g' key
     keydown
-      .where((ev) => ev.key.toLowerCase() == "g")
-      .listen((_) => 
-        _gatheringLobsCb.checked = !_gatheringLobsCb.checked);
-    keydown
-      .where((ev) => ev.key.toLowerCase() == "c")
-      .listen((_) => _lobs = _lunmo([]));
-    _gathLobStm = lobStm.where((_) => _gatheringLobsCb.checked).asBroadcastStream();
-    _gathLobStm.listen((lob) => _lobs = _lunmo(_lobs + [lob]));
+        .where((ev) => ev.key.toLowerCase() == "g")
+        .listen((_) => _gatheringLobsCb.checked = !_gatheringLobsCb.checked);
+
+    // Clear via 'c' key
+    final clearKeyStm = keydown
+        .where((ev) => ev.key.toLowerCase() == "c")
+        .map((_) => null);
+
+    // Clear via button click
+    final clearBtnStm = _clearBtn.onClick.map((_) => null);
+
+    // Merge clear events
+    final clearStm = StreamGroup.merge([clearKeyStm, clearBtnStm]);
+
+    // LOBs filtered by checkbox at emission time
+    final filteredLobsStm = lobStm.where((_) => _gatheringLobsCb.checked);
+
+    // Combine filtered LOBs and clears into one stream
+    final cmdStm = StreamGroup.merge([
+      filteredLobsStm,
+      clearStm,
+    ]);
+
+    // Accumulate LOBs, reset on null
+    final lobsStmAccum = cmdStm.scan<List<LOB>>(
+      List.unmodifiable([]),
+      (acc, val) => val == null ? List.unmodifiable([]) : List.unmodifiable([...acc, val]),
+    ).asBroadcastStream();
+
+    _lobsLV = StreamLV(List.unmodifiable([]), lobsStmAccum);
+
+    // Expose the last received LOB for HUD
+    _gathLobStm = filteredLobsStm;
   }
-    
+
   static String _fmtpow(LOB lob) =>
-    "Most recent LOB power: ${lob.rxpow.dBm.toStringAsFixed(1)} dBm\n";
+      "Most recent LOB power: ${lob.rxpow.dBm.toStringAsFixed(1)} dBm\n";
 
   HTMLDivElement disp() {
     final lobPowEl = HTML.div();
     _gathLobStm.listen((lob) => lobPowEl.innerText = _fmtpow(lob));
+
     return HTML.div()
       ..appendChild(HTML.div()
-        ..appendChild(HTML.span()..innerText = "Gathering Lobs [ g ]:")
+        ..appendChild(HTML.span()..innerText = "Gathering LOBs [ g ]: ")
         ..appendChild(_gatheringLobsCb))
-      ..appendChild(HTML.button()
-        ..innerText = "Clear LOBs [ c ]"
-        ..onClick.listen((_) => _lobs = _lunmo([])))
+      ..appendChild(_clearBtn)
       ..appendChild(lobPowEl);
   }
 
   @override
   void draw(CanvasRenderingContext2D ctx, Pos center) {
+    final lobs = _lobsLV.latestVal;
+
     void drawOne(LOB lob, String color) {
-      const loblength = 10000;  /// arbitrarily long so that the lob appears to be an unending ray
+      const loblength = 10000;
       final endx = lob.source.x + loblength * lob.azimuth.cosresult;
       final endy = lob.source.y + loblength * lob.azimuth.sinresult;
       ctx.beginPath();
@@ -433,10 +463,11 @@ class LOBCol implements Drawable {
       lineToRel(endx, endy, ctx, center);
       ctx.stroke();
     }
-    if (_lobs.isNotEmpty) {
-      final [...beginning, lastlob] = _lobs;
-      beginning.forEach((lob) => drawOne(lob, "orange"));
-      drawOne(lastlob, "red"); // eventually this will be the selected lob; currently it's just the last.
+
+    if (lobs.isNotEmpty) {
+      final [...beginning, lastlob] = lobs;
+      for (final lob in beginning) {drawOne(lob, "orange");}
+      drawOne(lastlob, "red");
     }
   }
 }
