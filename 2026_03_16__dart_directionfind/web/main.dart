@@ -96,7 +96,7 @@ enum DirUD { up, down, neutral }
 enum DirLR { left, right, neutral }
 
 
-class Player implements Drawable {
+class Player {
   late final StreamLV<Pos> posStmLV;
   Pos get pos => posStmLV.latestVal;
 
@@ -186,29 +186,25 @@ class Player implements Drawable {
     posStmLV.listen((pos) => posEl.innerText = "pos: ${pos.x.toStringAsFixed(2)} ${pos.y.toStringAsFixed(2)}");
     return HTML.div()..appendChild(posEl);
   }
- 
+}
+
+class Avatar implements Drawable {
+  final String color; 
+  Avatar(this.color); 
+
   @override
-  void draw(CanvasRenderingContext2D ctx, Pos _) {
+  void draw(CanvasRenderingContext2D ctx, Pos center) {
     const sz = 2;
     const cenx = canvWidth / 2;
     const ceny = canvHeight / 2;
-
-    // bright fill (HUD-friendly)
-    ctx.fillStyle = "#fff".toJS;
-
+    ctx.fillStyle = color.toJS;
     fillCircle(cenx + sz, ceny - sz * 3, sz * 3, ctx);
     ctx.fillRect(cenx - sz * 1, ceny - sz * 2, sz * 4, sz * 12);
     ctx.fillRect(cenx - sz * 4, ceny + sz * 2, sz * 10, sz);
     ctx.fillRect(cenx - sz * 1, ceny + sz * 10, sz * 1.5, sz * 5);
     ctx.fillRect(cenx + sz * 1, ceny + sz * 10, sz * 1.5, sz * 5);
-
-    // outline for contrast
-    ctx.strokeStyle = "#003333".toJS;
-    ctx.lineWidth = 1;
-    // ctx.stroke();
   }
 }
-
 
 void fillRectRel(
   num x,
@@ -257,33 +253,47 @@ void fillCircleRel(
 
 
 class CanvM {
-  final String _bgcolor;
-  final _canv = HTML.canvas();
+  final HTMLCanvasElement _canv = HTML.canvas();
   late final CanvasRenderingContext2D _ctx;
+  final List<Drawable> _drawItems;
 
-  CanvM(this._bgcolor, int w, int h, StreamLV<Pos> posStmLV, List<Drawable> drawItems)
-    : _drawItems = List.unmodifiable(drawItems) {
-  _canv
-    ..width = w
-    ..height = h;
-  _ctx = _canv.getContext('2d') as CanvasRenderingContext2D;
-  posStmLV.listen((pos) => _frameUpdate(pos));
-}
+  CanvM(String type, int w, int h, StreamLV<Pos> posStmLV, List<Drawable> drawItems)
+      : _drawItems = List.unmodifiable(drawItems) {
+    _canv
+      ..width = w
+      ..height = h;
 
-final List<Drawable> _drawItems;
+    if (type == "life") {
+      _canv.style
+        ..background = "#cfc"
+        ..border = "4px solid #333"
+        ..borderRadius = "8px"
+        ..boxShadow = "0 0 20px #000 inset, 0 0 10px #000";
+    } else if (type == "hud") {
+      _canv.style
+        ..background = "#0a0f14"
+        ..border = "4px solid #555"
+        ..borderRadius = "8px"
+        ..boxShadow = "0 0 30px #000 inset, 0 0 12px #000";
+    } else {
+      throw ArgumentError('Unknown type "$type", expected "life" or "hud"');
+    }
+
+    _ctx = _canv.getContext('2d') as CanvasRenderingContext2D;
+    posStmLV.listen((pos) => _frameUpdate(pos));
+  }
+
+  HTMLCanvasElement disp() => _canv;
 
   void _frameUpdate(Pos pos) {
-  _drawBackground();
-  for (final item in _drawItems) {
-    item.draw(_ctx, pos);
-  }
-}
-
-  void _drawBackground() {
-    _ctx.fillStyle = _bgcolor.toJS;
+    _ctx.save();
+    _ctx.fillStyle = _canv.style.background!.toJS;
     _ctx.fillRect(0, 0, _canv.width, _canv.height);
+    for (final item in _drawItems) {
+      item.draw(_ctx, pos);
+    }
+    _ctx.restore();
   }
-  HTMLCanvasElement disp() => _canv;
 }
 
 class Grid implements Drawable {
@@ -291,7 +301,6 @@ class Grid implements Drawable {
   void draw(CanvasRenderingContext2D ctx, Pos center) {
     const gridSpacing = 50;
 
-    ctx.save();
     ctx.strokeStyle = "#ccc".toJS;
     ctx.lineWidth = 0.5;
 
@@ -313,8 +322,6 @@ class Grid implements Drawable {
       ctx.lineTo(canvWidth, screenY);
       ctx.stroke();
     }
-
-    ctx.restore();
   }
 }
 
@@ -350,8 +357,6 @@ class Bush implements Drawable {
   void draw(CanvasRenderingContext2D ctx, Pos center) {
     final xd = _pos.x - center.x;
     final yd = _pos.y - center.y;
-
-    /// Distance threshold. Basically pythagorean theorem but without sqrt and with some scaling to make it so bushes near the edge still render
     
     if (yd.abs() > (0.7 * canvHeight) || xd.abs() > (0.7 * canvWidth)) {
       return;
@@ -387,7 +392,6 @@ class Bush implements Drawable {
 
 typedef LOB = ({Pos source, Azimuth azimuth, Power rxpow});
 
-
 class LOBCol implements Drawable {
   final HTMLInputElement _gatheringLobsCb = HTML.checkbox()..defaultChecked = true;
   final HTMLButtonElement _clearBtn = HTML.button()..innerText = "Clear LOBs [ c ]";
@@ -396,26 +400,17 @@ class LOBCol implements Drawable {
   late final Stream<LOB> _gathLobStm;
 
   LOBCol(KbStm keydown, Stream<LOB> lobStm) {
-    // Toggle checkbox with 'g' key
     keydown
         .where((ev) => ev.key.toLowerCase() == "g")
         .listen((_) => _gatheringLobsCb.checked = !_gatheringLobsCb.checked);
 
-    // Clear via 'c' key
     final clearKeyStm = keydown
         .where((ev) => ev.key.toLowerCase() == "c")
         .map((_) => null);
 
-    // Clear via button click
     final clearBtnStm = _clearBtn.onClick.map((_) => null);
-
-    // Merge clear events
     final clearStm = StreamGroup.merge([clearKeyStm, clearBtnStm]);
-
-    // LOBs filtered by checkbox at emission time
     final filteredLobsStm = lobStm.where((_) => _gatheringLobsCb.checked);
-
-    // Combine filtered LOBs and clears into one stream
     final cmdStm = StreamGroup.merge([
       filteredLobsStm,
       clearStm,
@@ -471,7 +466,6 @@ class LOBCol implements Drawable {
     }
   }
 }
-
 
 
 class Azimuth {
@@ -534,17 +528,7 @@ class Sim {
   }
 }
 
-
-// REPLACE entire attachElems function
 void attachElems(HTMLElement root, Player p1, LOBCol lobc, CanvM cmLife, CanvM cmLob){
-  final hudFrame = HTML.div()
-    ..style.background = "#222"
-    ..style.padding = "12px"
-    ..style.border = "4px solid #555"
-    ..style.borderRadius = "8px"
-    ..style.boxShadow = "0 0 20px #000 inset, 0 0 10px #000"
-    ..appendChild(cmLob.disp());
-
   root
     ..appendChild(p1.disp())
     ..appendChild(lobc.disp())
@@ -553,7 +537,7 @@ void attachElems(HTMLElement root, Player p1, LOBCol lobc, CanvM cmLife, CanvM c
       ..style.flexDirection = "row"
       ..style.gap = "16px"
       ..appendChild(cmLife.disp())
-      ..appendChild(hudFrame));
+      ..appendChild(cmLob.disp()));
 }
 
 class ObjCol implements Drawable {
@@ -593,53 +577,9 @@ void main() {
   final lobc = LOBCol(keydown, sim.lobStm);
   final bushes = ObjCol();
   final grid = Grid();
-  final cmLife = CanvM("#cfc", canvWidth, canvHeight, p1.posStmLV, [p1, t1, bushes]);
-  final cmLob = CanvM("#0a0f14", canvWidth, canvHeight, p1.posStmLV, [p1, lobc, grid]);
-  final lobCanvas = cmLob.disp();
-
-  lobCanvas.style
-    ..background = "#0a0f14"
-    ..border = "4px solid #555"
-    ..borderRadius = "8px"
-    ..boxShadow = "0 0 20px #000 inset, 0 0 10px #000";
+  final avatarlife = Avatar("#000");
+  final avatarhud = Avatar("#fff");
+  final cmLife = CanvM("life", canvWidth, canvHeight, p1.posStmLV, [avatarlife, bushes, t1],);
+  final cmLob = CanvM("hud", canvWidth, canvHeight, p1.posStmLV, [avatarhud, lobc, grid],);
   attachElems(document.body!, p1, lobc, cmLife, cmLob); 
 }
-
-
-
-/*
-Stream<int> timedCounter(Duration interval) async* {
-  int i = 0;
-  while (true) {
-    yield i;
-    i += 1;
-    await Future.delayed(interval);
-  }
-}
-//   timedCounter(Duration(seconds: 1))
-//     .doubleEach()
-//     .listen((val) => p.innerText = "count is $val");
-*/
-
-
-/*
-extension Doubler on Stream<int> {
-  Stream<int> doubleEach() async* {
-    await for(final val in this) {
-      yield val * 2;
-    }
-  }
-}
-*/
-
-/*
-extension Counter<T> on Stream<T> {
-  Stream<int> count({int init = 0}) async* {
-    int i = init;
-    await for(final _ in this) {
-      yield i;
-      i += 1;
-    }
-  }
-}
-*/
