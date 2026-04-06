@@ -180,10 +180,14 @@ class Player {
     });
     return StreamLV(initSpeed, speed.stream);
   }
-  
+}
+
+class PlayerHUD {
+  final StreamLV<Pos> _posStmLV;
+  PlayerHUD(this._posStmLV);
   HTMLDivElement disp() {
     final posEl = HTML.span()..style.color = "lightgreen";
-    posStmLV.listen((pos) => posEl.innerText = "pos: ${pos.x.toStringAsFixed(2)} ${pos.y.toStringAsFixed(2)}");
+    _posStmLV.listen((pos) => posEl.innerText = "pos: ${pos.x.toStringAsFixed(2)} ${pos.y.toStringAsFixed(2)}");
     return HTML.div()..appendChild(posEl);
   }
 }
@@ -287,7 +291,7 @@ class CanvM {
 
   void _frameUpdate(Pos pos) {
     _ctx.save();
-    _ctx.fillStyle = _canv.style.background!.toJS;
+    _ctx.fillStyle = _canv.style.background.toJS;
     _ctx.fillRect(0, 0, _canv.width, _canv.height);
     for (final item in _drawItems) {
       item.draw(_ctx, pos);
@@ -394,7 +398,10 @@ typedef LOB = ({Pos source, Azimuth azimuth, Power rxpow});
 
 class LOBCol implements Drawable {
   final HTMLInputElement _gatheringLobsCb = HTML.checkbox()..defaultChecked = true;
-  final HTMLButtonElement _clearBtn = HTML.button()..innerText = "Clear LOBs [ c ]";
+  final HTMLButtonElement _clearBtn = HTML.button()
+    ..innerText = "Clear LOBs [ c ]"
+    ..style.border = "1px solid white"
+    ..style.backgroundColor = "transparent";
 
   late final StreamLV<List<LOB>> _lobsLV;
   late final Stream<LOB> _gathLobStm;
@@ -431,17 +438,34 @@ class LOBCol implements Drawable {
   static String _fmtpow(LOB lob) =>
       "Most recent LOB power: ${lob.rxpow.dBm.toStringAsFixed(1)} dBm\n";
 
-  HTMLDivElement disp() {
+  HTMLDivElement dispInfo() {
     final lobPowEl = HTML.div();
     _gathLobStm.listen((lob) => lobPowEl.innerText = _fmtpow(lob));
-
-    return HTML.div()
-      ..appendChild(HTML.div()
-        ..appendChild(HTML.span()..innerText = "Gathering LOBs [ g ]: ")
-        ..appendChild(_gatheringLobsCb))
-      ..appendChild(_clearBtn)
-      ..appendChild(lobPowEl);
+    return lobPowEl;
   }
+
+  HTMLDivElement dispCtl() {
+  // Apply consistent HUD-like styling
+  void applyHudStyle(HTMLElement el) {
+    el.style
+      ..color = "lightgreen"
+      ..fontFamily = "monospace"
+      ..fontSize = "14px";
+  }
+
+  applyHudStyle(_clearBtn);
+  applyHudStyle(_gatheringLobsCb);
+
+  return HTML.div()
+    ..style.display = "flex"
+    ..style.flexDirection = "column"
+    ..style.alignItems = "right"
+    ..appendChild(_clearBtn)
+    ..appendChild(HTML.div()
+      ..appendChild(HTML.span()..innerText = "Gathering LOBs [ g ]: ")
+      ..appendChild(_gatheringLobsCb)
+    );
+}
 
   @override
   void draw(CanvasRenderingContext2D ctx, Pos center) {
@@ -528,16 +552,42 @@ class Sim {
   }
 }
 
-void attachElems(HTMLElement root, Player p1, LOBCol lobc, CanvM cmLife, CanvM cmLob){
+void attachElems(HTMLElement root, PlayerHUD ph, LOBCol lobc, CanvM cmLife, CanvM cmLob){
   root
-    ..appendChild(p1.disp())
-    ..appendChild(lobc.disp())
+    ..style.display = "flex"
+    ..style.flexDirection = "column"
+    ..style.alignItems = "center"
     ..appendChild(HTML.div()
       ..style.display = "flex"
       ..style.flexDirection = "row"
       ..style.gap = "16px"
       ..appendChild(cmLife.disp())
-      ..appendChild(cmLob.disp()));
+      ..appendChild(HTML.div()
+        ..style.position = "relative"
+        ..appendChild(cmLob.disp())
+        ..appendChild(ph.disp()
+          ..style.position = "absolute"
+          ..style.top = "10px"
+          ..style.left = "15px"
+          ..style.color = "lightgreen"
+          ..style.fontFamily = "monospace"
+        )
+        ..appendChild(lobc.dispInfo()
+          ..style.position = "absolute"
+          ..style.top = "25px"
+          ..style.left = "15px"
+          ..style.color = "lightgreen"
+          ..style.fontFamily = "monospace"
+        )
+        ..appendChild(lobc.dispCtl()
+          ..style.position = "absolute"
+          ..style.top = "5px"
+          ..style.right = "15px"
+          ..style.color = "lightgreen"
+          ..style.fontFamily = "monospace"
+        )
+      )
+    );
 }
 
 class ObjCol implements Drawable {
@@ -572,6 +622,7 @@ void main() {
   final keyup = document.body!.onKeyUp;
   final frameStm = makeFrameStm();
   final p1 = Player(keydown, keyup, frameStm);
+  final ph = PlayerHUD(p1.posStmLV);
   final t1 = TxRadio();
   final sim = Sim(p1, t1);
   final lobc = LOBCol(keydown, sim.lobStm);
@@ -581,5 +632,5 @@ void main() {
   final avatarhud = Avatar("#fff");
   final cmLife = CanvM("life", canvWidth, canvHeight, p1.posStmLV, [avatarlife, bushes, t1],);
   final cmLob = CanvM("hud", canvWidth, canvHeight, p1.posStmLV, [avatarhud, lobc, grid],);
-  attachElems(document.body!, p1, lobc, cmLife, cmLob); 
+  attachElems(document.body!, ph, lobc, cmLife, cmLob); 
 }
