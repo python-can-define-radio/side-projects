@@ -187,7 +187,7 @@ class PlayerHUD {
   PlayerHUD(this._posStmLV);
   HTMLDivElement disp() {
     final posEl = HTML.span();
-    _posStmLV.listen((pos) => posEl.innerText = "pos: ${pos.x.toStringAsFixed(2)} ${pos.y.toStringAsFixed(2)}");
+    _posStmLV.listen((pos) => posEl.innerText = "pos: ${pos.pretty}");
     return HTML.div()..appendChild(posEl);
   }
 }
