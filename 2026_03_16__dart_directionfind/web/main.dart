@@ -78,14 +78,12 @@ extension Scanner<T> on Stream<T> {
 
 
 /// A wrapped stream that keeps a record of the most recent stream value.
-class StreamLV<T> {
+class Observable<T> {
   T _latestVal;
   T get latestVal => _latestVal;
-  final Stream<T> stream;
-  StreamLV(this._latestVal, this.stream) {
+  Observable(this._latestVal, Stream<T> stream) {
     stream.listen((val) => _latestVal = val);
   }
-  StreamSubscription<T> listen(void Function(T) onData) => stream.listen(onData);
 }
 
 
@@ -94,42 +92,45 @@ typedef DuStm = Stream<Duration>;
 
 
 class Player {
-  late final StreamLV<Pos> posStmLV;
-  Pos get pos => posStmLV.latestVal;
+  final Stream<Pos> posStm;
+  late final Observable<Pos> _posObs;
+  Pos get pos => _posObs.latestVal;
 
-  Player(KbStm keydown, KbStm keyup, DuStm tdeltaStm) {
-    final initPos = Pos(380.0, 400.0);
-    final speedStm = _speedStream(0.2, keydown, keyup);
-    final dirxStmLV = _makeDirxStream(keydown, keyup);
-    final diryStmLV = _makeDiryStream(keydown, keyup);
-    final xStm = _makeXStream(initPos.x, dirxStmLV, tdeltaStm, speedStm);
-    final yStm = _makeYStream(initPos.y, diryStmLV, tdeltaStm, speedStm);
-    final posStm = StreamZip<double>([xStm, yStm])
-      .map((xy) => Pos(xy[0], xy[1]))
+  Player(Pos initPos, KbStm keydown, KbStm keyup, DuStm tdelta) :
+    posStm = _makePosStm(initPos, keydown, keyup, tdelta) {
+      _posObs = Observable(initPos, posStm);  
+    }
+    
+  static Stream<Pos> _makePosStm(Pos initPos, KbStm keydown, KbStm keyup, DuStm tdelta) {
+    
+    final speed = _makeSpeed(0.2, keydown, keyup);
+    final dirx = _makeDirx(keydown, keyup);
+    final diry = _makeDiry(keydown, keyup);
+    final x = _makeX(initPos.x, dirx, tdelta, speed);
+    final y = _makeY(initPos.y, diry, tdelta, speed);
+    return StreamZip<double>([x, y])
+      .map((xypair) => Pos(xypair[0], xypair[1]))
       .asBroadcastStream();
-    posStmLV = StreamLV(initPos, posStm);
   }
 
-  
-
-  static Stream<double> _makeXStream(double initX, StreamLV<double> dirxStmLV, DuStm tdeltaStm, StreamLV<double> speedStm) async* {
+  static Stream<double> _makeX(double initX, Observable<double> dirx, DuStm tdelta, Observable<double> speed) async* {
     var curX = initX;
-    await for(final tdelta in tdeltaStm) {
-      curX += dirxStmLV.latestVal * speedStm.latestVal * tdelta.inMilliseconds;
+    await for(final tdeltaVal in tdelta) {
+      curX += dirx.latestVal * speed.latestVal * tdeltaVal.inMilliseconds;
       yield curX;
     }
   }
 
-  static Stream<double> _makeYStream(double initY, StreamLV<double> diryStmLV, DuStm tdeltaStm, StreamLV<double> speedStm) async* {
+  static Stream<double> _makeY(double initY, Observable<double> diry, DuStm tdelta, Observable<double> speed) async* {
     var curY = initY;
-    await for(final tdelta in tdeltaStm) {
-      curY += diryStmLV.latestVal * speedStm.latestVal * tdelta.inMilliseconds;
+    await for(final tdeltaVal in tdelta) {
+      curY += diry.latestVal * speed.latestVal * tdeltaVal.inMilliseconds;
       yield curY;
     }
   }
   
-  static StreamLV<double> _makeDirxStream(KbStm keydown, KbStm keyup) {
-    final sc = StreamController<double>()..add(0);
+  static Observable<double> _makeDirx(KbStm keydown, KbStm keyup) {
+    final sc = StreamController<double>();
     keydown.listen((ev) {
       if (ev.key == "ArrowLeft") {
         sc.add(-1);
@@ -142,11 +143,11 @@ class Player {
         sc.add(0);
       }
     });
-    return StreamLV(0, sc.stream);
+    return Observable(0, sc.stream);
   }
   
-  static StreamLV<double> _makeDiryStream(KbStm keydown, KbStm keyup) {
-    final sc = StreamController<double>()..add(0);
+  static Observable<double> _makeDiry(KbStm keydown, KbStm keyup) {
+    final sc = StreamController<double>();
     keydown.listen((ev) {
       if (ev.key == "ArrowDown") {
         sc.add(1);
@@ -159,11 +160,11 @@ class Player {
         sc.add(0);
       }
     });
-    return StreamLV(0, sc.stream);
+    return Observable(0, sc.stream);
   }
 
-  static StreamLV<double> _speedStream(double initSpeed, KbStm keydown, KbStm keyup) {
-    final speed = StreamController<double>()..add(initSpeed);
+  static Observable<double> _makeSpeed(double initSpeed, KbStm keydown, KbStm keyup) {
+    final speed = StreamController<double>();
     keydown.listen((ev) {
       if (ev.key == "Shift") {
         speed.add(2*initSpeed);
@@ -174,16 +175,16 @@ class Player {
         speed.add(initSpeed);
       }
     });
-    return StreamLV(initSpeed, speed.stream);
+    return Observable(initSpeed, speed.stream);
   }
 }
 
 class PlayerHUD {
-  final StreamLV<Pos> _posStmLV;
-  PlayerHUD(this._posStmLV);
+  final Stream<Pos> _posStm;
+  PlayerHUD(this._posStm);
   HTMLDivElement disp() {
     final posEl = HTML.span();
-    _posStmLV.listen((pos) => posEl.innerText = "pos: ${pos.pretty}");
+    _posStm.listen((pos) => posEl.innerText = "pos: ${pos.pretty}");
     return HTML.div()..appendChild(posEl);
   }
 }
@@ -257,14 +258,14 @@ class CanvM {
   late final CanvasRenderingContext2D _ctx;
   final ImmuList<Drawable> _drawItems;
 
-  CanvM(String cssid, int w, int h, StreamLV<Pos> posStmLV, List<Drawable> drawItems)
+  CanvM(String cssid, int w, int h, Stream<Pos> posStm, List<Drawable> drawItems)
       : _drawItems = ImmuList(drawItems) {
     _canv
       ..width = w
       ..height = h
       ..id = cssid;
     _ctx = _canv.getContext('2d') as CanvasRenderingContext2D;
-    posStmLV.listen((pos) => _frameUpdate(pos));
+    posStm.listen(_frameUpdate);
   }
 
   HTMLCanvasElement disp() => _canv;
@@ -388,39 +389,46 @@ class LOBCol implements Drawable {
   final HTMLButtonElement _clearBtn = HTML.button()
     ..id = "clear-btn"
     ..innerText = "Clear LOBs [ c ]";
-  late final StreamLV<ImmuList<LOB>> _gathLobStmLV;
+  late final Stream<ImmuList<LOB>> _lobsStm;
+  late final Observable<ImmuList<LOB>> _lobs;
 
-  LOBCol(KbStm keydown, Stream<LOB> univLobStm) {
-    keydown
-      .where((ev) => ev.key.toLowerCase() == "g")
-      .listen((_) => _gatheringLobsCb.checked = !_gatheringLobsCb.checked);
-
-    final cStm = keydown.where((ev) => ev.key.toLowerCase() == "c").asBroadcastStream();
-    buttonAesthetic(cStm, _clearBtn);
-
-    final Stream<Object> clearStm = StreamGroup.merge([cStm, _clearBtn.onClick]);
-    final gathLobStm = makeGathLobStream(
-      clearStm,
-      univLobStm.where((_) => _gatheringLobsCb.checked)
-    );
-    _gathLobStmLV = StreamLV(ImmuList([]), gathLobStm);
+  LOBCol(KbStm keydown, Stream<LOB> univLobs) {
+    _configGKey(keydown, _gatheringLobsCb);
+    final clear = _configClearing(keydown, _clearBtn);
+    final filtlobs = univLobs.where((_) => _gatheringLobsCb.checked);
+    _lobsStm = _makeLobStream(clear, filtlobs);
+    _lobs = Observable(ImmuList([]), _lobsStm);
   }
 
-  static void buttonAesthetic(Stream<Event> cStm, HTMLElement btn) {
-    cStm.listen((_) {
+  static void _configGKey(KbStm keydown, HTMLInputElement gatheringLobsCb) {
+    keydown
+      .where((ev) => ev.key.toLowerCase() == "g")
+      .listen((_) => gatheringLobsCb.checked = !gatheringLobsCb.checked);
+  }
+  
+  static Stream<Event> _configClearing(KbStm keydown, HTMLButtonElement clearBtn) {
+    final cDown = keydown.where((ev) => ev.key.toLowerCase() == "c").asBroadcastStream();
+    _buttonAesthetic(cDown, clearBtn);
+    return StreamGroup.merge([cDown, clearBtn.onClick]);
+  }
+
+  static void _buttonAesthetic(Stream<Event> cDown, HTMLElement btn) {
+    cDown.listen((_) {
       btn.classList.add("button-active");
       Future.delayed(Duration(milliseconds: 100), () => btn.classList.remove("button-active"));
     });
   }
 
-  static Stream<ImmuList<LOB>> makeGathLobStream(Stream<Object> clearStm, Stream<LOB> filteredLobsStm)  {
+  /// Makes a stream of the lobs saved on the simulated DFing equipment,
+  /// not to be confused with the stream of lobs coming from the universe.
+  static Stream<ImmuList<LOB>> _makeLobStream(Stream<Object> clear, Stream<LOB> filtlobs)  {
     final sc = StreamController<ImmuList<LOB>>();
     final curLobList = <LOB>[];
-    filteredLobsStm.listen((lob) {
+    filtlobs.listen((lob) {
       curLobList.add(lob); 
       sc.add(ImmuList(curLobList));
     });
-    clearStm.listen((_) {
+    clear.listen((_) {
       curLobList.clear();
       sc.add(ImmuList(curLobList));
     });
@@ -434,7 +442,7 @@ class LOBCol implements Drawable {
 
   HTMLDivElement dispInfo() {
     final lobPowEl = HTML.div();
-    _gathLobStmLV.listen((lobs) => lobPowEl.innerText = _fmtpow(lobs.values.lastOrNull));
+    _lobsStm.listen((lobs) => lobPowEl.innerText = _fmtpow(lobs.values.lastOrNull));
     return lobPowEl;
   }
 
@@ -452,7 +460,7 @@ class LOBCol implements Drawable {
 
   @override
   void draw(CanvasRenderingContext2D ctx, Pos center) {
-    final lobs = _gathLobStmLV.latestVal.values;
+    final lobs = _lobs.latestVal.values;
 
     void drawOne(LOB lob, String color) {
       const loblength = 10000;
@@ -503,13 +511,13 @@ class Power {
 class Sim {
   final _random = Random();
   /// LOBs coming from the universe (as opposed to those which we have gathered)
-  late final Stream<LOB> univLobStm;
+  late final Stream<LOB> univLobs;
   Sim(Player p1, TxRadio t1) {
-    univLobStm = 
+    univLobs = 
       Stream<Null>.periodic(Duration(milliseconds: 50))
-      .where((_) => _random.nextInt(5) == 0)
-      .map((_) => _makelob(p1, t1))
-      .asBroadcastStream();
+        .where((_) => _random.nextInt(5) == 0)
+        .map((_) => _makelob(p1, t1))
+        .asBroadcastStream();
   }
 
   LOB _makelob(Player p1, TxRadio t1) => (
@@ -605,17 +613,17 @@ void main() {
   final keydown = document.body!.onKeyDown;
   final keyup = document.body!.onKeyUp;
   final frameStm = makeFrameStm();
-  final p1 = Player(keydown, keyup, frameStm);
-  final ph = PlayerHUD(p1.posStmLV);
+  final p1 = Player(Pos(380.0, 400.0), keydown, keyup, frameStm);
+  final ph = PlayerHUD(p1.posStm);
   final t1 = TxRadio();
   final sim = Sim(p1, t1);
-  final lobc = LOBCol(keydown, sim.univLobStm);
+  final lobc = LOBCol(keydown, sim.univLobs);
   final bushes = ObjCol();
   final grid = Grid();
   final avatarlife = Avatar("#000");
   final avatarhud = Avatar("#fff");
-  final cmLife = CanvM("life", canvWidth, canvHeight, p1.posStmLV, [avatarlife, bushes, t1],);
-  final cmLob = CanvM("hud", canvWidth, canvHeight, p1.posStmLV, [avatarhud, lobc, grid],);
+  final cmLife = CanvM("life", canvWidth, canvHeight, p1.posStm, [avatarlife, bushes, t1],);
+  final cmLob = CanvM("hud", canvWidth, canvHeight, p1.posStm, [avatarhud, lobc, grid],);
   attachElems(document.body!, ph, lobc, cmLife, cmLob); 
 }
 
