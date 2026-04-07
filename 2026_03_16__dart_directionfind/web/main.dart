@@ -13,6 +13,18 @@ const canvHeight = 400;
 
 num sq(num x) => x * x;
 
+/// Returns a sublist including all items except the last item.
+/// If `orig` is empty, return it.
+List<T> withoutLast<T>(List<T> orig) =>
+  orig.isEmpty ? orig : orig.getRange(0, orig.length - 1).toList();
+
+
+extension FunctionPipe<T extends Object> on T {
+  /// Source: https://github.com/dart-lang/language/issues/1246
+  R then<R>(R Function (T) f) => f(this);
+}
+
+
 /// Methods for creating HTML elems
 class HTML {
   static HTMLButtonElement button() =>
@@ -256,27 +268,31 @@ void fillCircleRel(
 class CanvM {
   final HTMLCanvasElement _canv = HTML.canvas();
   late final CanvasRenderingContext2D _ctx;
-  final ImmuList<Drawable> _drawItems;
+  late final ImmuList<Drawable> _drawItems;
+  late final Stream<MouseEvent> click = _canv.onClick;
 
-  CanvM(String cssid, int w, int h, Stream<Pos> posStm, List<Drawable> drawItems)
-      : _drawItems = ImmuList(drawItems) {
+  CanvM(String cssid, int w, int h) {
     _canv
       ..width = w
       ..height = h
       ..id = cssid;
     _ctx = _canv.getContext('2d') as CanvasRenderingContext2D;
+  }
+  
+  /// Basically 'constructor part two'. Had to separate to avoid
+  /// a circular dependency.
+  void config(Stream<Pos> posStm, List<Drawable> drawItems) {
+    _drawItems = ImmuList(drawItems);
     posStm.listen(_frameUpdate);
   }
-
+  
   HTMLCanvasElement disp() => _canv;
 
   void _frameUpdate(Pos pos) {
     _ctx.clearRect(0, 0, _canv.width, _canv.height);
-    _ctx.save();
     for (final item in _drawItems.values) {
       item.draw(_ctx, pos);
     }
-    _ctx.restore();
   }
 }
 
@@ -391,15 +407,40 @@ class LOBCol implements Drawable {
     ..innerText = "Clear LOBs [ c ]";
   late final Stream<ImmuList<LOB>> _lobsStm;
   late final Observable<ImmuList<LOB>> _lobs;
+  /// Selected LOB
+  late final Observable<LOB?> _sellob;
 
-  LOBCol(KbStm keydown, Stream<LOB> univLobs) {
+  LOBCol(KbStm keydown, Stream<LOB> univLobs, Stream<MouseEvent> canvclick, Player p1) {
     _configGKey(keydown, _gatheringLobsCb);
     final clear = _configClearing(keydown, _clearBtn);
     final filtlobs = univLobs.where((_) => _gatheringLobsCb.checked);
     _lobsStm = _makeLobStream(clear, filtlobs);
     _lobs = Observable(ImmuList([]), _lobsStm);
+    _sellob = _configChosenLOB(_lobs, canvclick, p1);
   }
 
+  static Observable<LOB?> _configChosenLOB(Observable<ImmuList<LOB>> lobs, Stream<MouseEvent> canvclick, Player p1) {
+    final sc = StreamController<LOB?>();
+    canvclick.listen((ev) { 
+       sc.add(decideClosest(lobs.latestVal, p1.pos, ev));
+    });
+    return Observable(null, sc.stream);
+  }
+  
+  static LOB? decideClosest(ImmuList<LOB> immulobs, Pos p1pos, MouseEvent ev) {
+    final lobs = immulobs.values;
+    final shiftx = p1pos.x + ev.offsetX - canvWidth / 2;
+    final shifty = p1pos.y + ev.offsetY - canvHeight / 2;
+    num dist(LOB lob) {
+      final dx = (lob.source.x - shiftx).abs();
+      final dy = (lob.source.y - shifty).abs();
+      return dx + dy;
+    }
+    lobs.sort((a, b) => dist(a).compareTo(dist(b)));
+    final near = lobs.where((lob) => dist(lob) < 40);
+    return near.firstOrNull;
+  }
+  
   static void _configGKey(KbStm keydown, HTMLInputElement gatheringLobsCb) {
     keydown
       .where((ev) => ev.key.toLowerCase() == "g")
@@ -462,7 +503,7 @@ class LOBCol implements Drawable {
   void draw(CanvasRenderingContext2D ctx, Pos center) {
     final lobs = _lobs.latestVal.values;
 
-    void drawOne(LOB lob, String color) {
+    void drawOne(LOB lob, {String color = "orange"}) {
       const loblength = 10000;
       final endx = lob.source.x + loblength * lob.azimuth.cosresult;
       final endy = lob.source.y + loblength * lob.azimuth.sinresult;
@@ -474,11 +515,11 @@ class LOBCol implements Drawable {
       ctx.stroke();
     }
 
-    if (lobs.isNotEmpty) {
-      final [...beginning, lastlob] = lobs;
-      for (final lob in beginning) {drawOne(lob, "orange");}
-      drawOne(lastlob, "red");
+    for (final lob in withoutLast(lobs)) {
+      drawOne(lob);
     }
+    lobs.lastOrNull?.then((lob) => drawOne(lob, color: "red"));
+    _sellob.latestVal?.then((lob) => drawOne(lob, color: "blue"));
   }
 }
 
@@ -617,13 +658,15 @@ void main() {
   final ph = PlayerHUD(p1.posStm);
   final t1 = TxRadio();
   final sim = Sim(p1, t1);
-  final lobc = LOBCol(keydown, sim.univLobs);
   final bushes = ObjCol();
   final grid = Grid();
   final avatarlife = Avatar("#000");
   final avatarhud = Avatar("#fff");
-  final cmLife = CanvM("life", canvWidth, canvHeight, p1.posStm, [avatarlife, bushes, t1],);
-  final cmLob = CanvM("hud", canvWidth, canvHeight, p1.posStm, [avatarhud, lobc, grid],);
+  final cmLife = CanvM("life", canvWidth, canvHeight);
+  final cmLob = CanvM("hud", canvWidth, canvHeight);
+  final lobc = LOBCol(keydown, sim.univLobs, cmLob.click, p1);
+  cmLife.config(p1.posStm, [avatarlife, bushes, t1]);
+  cmLob.config(p1.posStm, [avatarhud, lobc, grid]);
   attachElems(document.body!, ph, lobc, cmLife, cmLob); 
 }
 
