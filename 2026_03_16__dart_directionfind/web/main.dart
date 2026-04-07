@@ -100,10 +100,10 @@ class Player {
   Player(KbStm keydown, KbStm keyup, DuStm tdeltaStm) {
     final initPos = Pos(380.0, 400.0);
     final speedStm = _speedStream(0.2, keydown, keyup);
-    final vxStmLV = _makeVxStream(keydown, keyup);
-    final vyStmLV = _makeVyStream(keydown, keyup);
-    final xStm = _makeXStream(initPos.x, vxStmLV, tdeltaStm, speedStm);
-    final yStm = _makeYStream(initPos.y, vyStmLV, tdeltaStm, speedStm);
+    final dirxStmLV = _makeDirxStream(keydown, keyup);
+    final diryStmLV = _makeDiryStream(keydown, keyup);
+    final xStm = _makeXStream(initPos.x, dirxStmLV, tdeltaStm, speedStm);
+    final yStm = _makeYStream(initPos.y, diryStmLV, tdeltaStm, speedStm);
     final posStm = StreamZip<double>([xStm, yStm])
       .map((xy) => Pos(xy[0], xy[1]))
       .asBroadcastStream();
@@ -112,54 +112,54 @@ class Player {
 
   
 
-  static Stream<double> _makeXStream(double initX, StreamLV<double> vxStm, DuStm tdeltaStm, StreamLV<double> speedStm) async* {
+  static Stream<double> _makeXStream(double initX, StreamLV<double> dirxStmLV, DuStm tdeltaStm, StreamLV<double> speedStm) async* {
     var curX = initX;
     await for(final tdelta in tdeltaStm) {
-      curX += vxStm.latestVal * speedStm.latestVal * tdelta.inMilliseconds;
+      curX += dirxStmLV.latestVal * speedStm.latestVal * tdelta.inMilliseconds;
       yield curX;
     }
   }
 
-  static Stream<double> _makeYStream(double initY, StreamLV<double> vyStm, DuStm tdeltaStm, StreamLV<double> speedStm) async* {
+  static Stream<double> _makeYStream(double initY, StreamLV<double> diryStmLV, DuStm tdeltaStm, StreamLV<double> speedStm) async* {
     var curY = initY;
     await for(final tdelta in tdeltaStm) {
-      curY += vyStm.latestVal * speedStm.latestVal * tdelta.inMilliseconds;
+      curY += diryStmLV.latestVal * speedStm.latestVal * tdelta.inMilliseconds;
       yield curY;
     }
   }
   
-  static StreamLV<double> _makeVxStream(KbStm keydown, KbStm keyup) {
-    final scx = StreamController<double>()..add(0);
+  static StreamLV<double> _makeDirxStream(KbStm keydown, KbStm keyup) {
+    final sc = StreamController<double>()..add(0);
     keydown.listen((ev) {
       if (ev.key == "ArrowLeft") {
-        scx.add(-1);
+        sc.add(-1);
       } else if (ev.key == "ArrowRight") {
-        scx.add(1);
+        sc.add(1);
       }
     });
     keyup.listen((ev) {
       if (["ArrowLeft", "ArrowRight"].contains(ev.key)) {
-        scx.add(0);
+        sc.add(0);
       }
     });
-    return StreamLV(0, scx.stream);
+    return StreamLV(0, sc.stream);
   }
   
-  static StreamLV<double> _makeVyStream(KbStm keydown, KbStm keyup) {
-    final scy = StreamController<double>()..add(0);
+  static StreamLV<double> _makeDiryStream(KbStm keydown, KbStm keyup) {
+    final sc = StreamController<double>()..add(0);
     keydown.listen((ev) {
       if (ev.key == "ArrowDown") {
-        scy.add(1);
+        sc.add(1);
       } else if (ev.key == "ArrowUp") {
-        scy.add(-1);
+        sc.add(-1);
       }
     });
     keyup.listen((ev) {
       if (["ArrowDown", "ArrowUp"].contains(ev.key)) {
-        scy.add(0);
+        sc.add(0);
       }
     });
-    return StreamLV(0, scy.stream);
+    return StreamLV(0, sc.stream);
   }
 
   static StreamLV<double> _speedStream(double initSpeed, KbStm keydown, KbStm keyup) {
