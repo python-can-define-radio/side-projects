@@ -622,3 +622,23 @@ void main() {
   final cmLob = CanvM("hud", canvWidth, canvHeight, p1.posStmLV, [avatarhud, lobc, grid],);
   attachElems(document.body!, ph, lobc, cmLife, cmLob); 
 }
+
+
+/*
+
+Next steps as of 2026 march 25
+- incorporate hud boxes into the lob view possibly add some kind of reticule?
+- Option in HUD to switch between separate map or overlay
+  - implementation: have a variable that gets set to the proper canvas
+- Zoom in/out on LOB view
+
+Player is direction finding a transmitter.
+Initially, dfing is based on line-of-sight only. (Later: add reflections, path loss, etc)
+
+- Draw a ray from the player to the transmitter.
+
+- if line of sight exists.
+  - How to determine line of sight?
+
+- elevation
+*/
