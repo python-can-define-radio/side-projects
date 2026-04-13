@@ -11,6 +11,14 @@ import 'package:async/async.dart';
 const canvWidth = 600;
 const canvHeight = 400;
 
+/// "grid Meter Base".
+/// Currently, this number of pixels corresponds to one meter,
+/// and is also the number of pixels per grid square (that is,
+/// the grid square size is one meter).
+/// We are working on being able to zoom out in the tablet view,
+/// which will cause a different ratio (to scale, of course).
+const gridMB = 22;
+
 num sq(num x) => x * x;
 
 /// Returns a sublist including all items except the last item.
@@ -49,7 +57,7 @@ class Pos {
     Pos(this.x, this.y);
 
     /// Return number with 70000 added to look more like a grid coordinate
-    String _padbig(double u) => (u + 70000).toInt().toString();
+    String _padbig(double u) => ((u / gridMB) + 70000).toInt().toString();
     String get pretty => "${_padbig(x)}, ${_padbig(y)}";
 }
 
@@ -115,7 +123,7 @@ class Player {
         
     static Stream<Pos> _makePosStm(Pos initPos, KbStm keydown, KbStm keyup, DuStm tdelta) {
         
-        final speed = _makeSpeed(0.2, keydown, keyup);
+        final speed = _makeSpeed(0.1, keydown, keyup);
         final dirx = _makeDirx(keydown, keyup);
         final diry = _makeDiry(keydown, keyup);
         final x = _makeX(initPos.x, dirx, tdelta, speed);
@@ -208,16 +216,17 @@ class Avatar implements Drawable {
     Avatar(this.color); 
 
     @override
-    void draw(CanvasRenderingContext2D ctx, Pos center) {
+    void draw(CanvasRenderingContext2D ctx, Pos _) {
         const sz = 2;
         const cenx = canvWidth / 2;
         const ceny = canvHeight / 2;
         ctx.fillStyle = color.toJS;
-        fillCircle(cenx + sz, ceny - sz * 3, sz * 3, ctx);
-        ctx.fillRect(cenx - sz * 1, ceny - sz * 2, sz * 4, sz * 12);
-        ctx.fillRect(cenx - sz * 4, ceny + sz * 2, sz * 10, sz);
-        ctx.fillRect(cenx - sz * 1, ceny + sz * 10, sz * 1.5, sz * 5);
-        ctx.fillRect(cenx + sz * 1, ceny + sz * 10, sz * 1.5, sz * 5);
+        void head() => fillCircle(cenx + sz, ceny - sz * 4, sz * 3, ctx);
+        void torso() => ctx.fillRect(cenx - sz * 1, ceny - sz * 2, sz * 4, sz * 8);
+        void arms() => ctx.fillRect(cenx - sz * 4, ceny + sz * 0, sz * 10, sz);
+        void leg1() => ctx.fillRect(cenx - sz * 1, ceny + sz * 6, sz * 1.5, sz * 5);
+        void leg2() => ctx.fillRect(cenx + sz * 1.5, ceny + sz * 6, sz * 1.5, sz * 5);
+        head(); torso(); arms(); leg1(); leg2();
     }
 }
 
@@ -301,24 +310,26 @@ class CanvM {
 class Grid implements Drawable {
     @override
     void draw(CanvasRenderingContext2D ctx, Pos center) {
-        const gridSpacing = 50;
+        final gridSpacing = gridMB;
 
         ctx.strokeStyle = "#ccc".toJS;
+        ctx.fillStyle = "#ccc".toJS;
         ctx.lineWidth = 0.5;
 
-        final px = center.x;
-        final py = center.y;
+        final startx = gridSpacing * ((center.x / gridSpacing).floor() - 1);
+        final starty = gridSpacing * ((center.y / gridSpacing).floor() - 1);
 
-        for (var x = -canvWidth ~/ 2; x <= canvWidth * 1.5; x += gridSpacing) {
-            final screenX = x - px % gridSpacing + canvWidth / 2;
+        for (var x = startx; x <= startx + 1.2*canvWidth; x += gridSpacing) {
+            final screenX = x - center.x;
             ctx.beginPath();
             ctx.moveTo(screenX, 0);
             ctx.lineTo(screenX, canvHeight);
             ctx.stroke();
+            ctx.fillText("${((x - canvWidth / 2) / gridMB).floor()}", screenX, 10);
         }
 
-        for (var y = -canvHeight ~/ 2; y <= canvHeight * 1.5; y += gridSpacing) {
-            final screenY = y - py % gridSpacing + canvHeight / 2;
+        for (var y = starty; y <= starty + 1.2*canvHeight; y += gridSpacing) {
+            final screenY = y - center.y;
             ctx.beginPath();
             ctx.moveTo(0, screenY);
             ctx.lineTo(canvWidth, screenY);
@@ -662,7 +673,7 @@ void main() {
     final cmLob = CanvM("hud", canvWidth, canvHeight);
     final lobc = LOBCol(keydown, sim.univLobs, cmLob.click, p1);
     cmLife.config(p1.posStm, [avatarlife, bushes, t1]);
-    cmLob.config(p1.posStm, [avatarhud, lobc, grid]);
+    cmLob.config(p1.posStm, [bushes, avatarhud, lobc, grid]);
     attachElems(document.body!, ph, lobc, cmLife, cmLob); 
 }
 
@@ -674,11 +685,8 @@ void main() {
 
 #### Possible simple mission
 
-
-- main screen with list of missions to choose from. choose mission; switch to dual-canvas screen.
-  - "Explore" (this is what we have now. Once we add the mission code, hide that part from the HUD)
-  - "Mission 1: Some Name Here"
 - Tablet should show mission: "Current Mission: Find location of enemy transmitter. If you go beyond the FLOT, you fail the mission."
+  - (Once we add the mission code, the mission stuff will be hidden in 'Explore' mode.)
 - Put a collection of stuff in a line-ish shape.
   - You are freely able to move past the stuff, but if you go beyond it, you immediately fail the mission. { Functional reason for adding this: you can't walk right next to transmitter to see its exact location }
 - There's a text entry field (probably on the 'tablet') for reporting up the grid coordinates of the transmitter. Minimum 6 digit grid accuracy (100 meters). If you report the correct grid coordinates, then you suceeded the mission.

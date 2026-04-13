@@ -38,8 +38,8 @@ h1 {
     display: flex;
     align-items: center;
     position: absolute;
-    top: 30px;
-    left: 30px;
+    top: 35px;
+    left: 35px;
     color: lightgreen;
     font-family: monospace;
     background-color: #0a0f1488;
@@ -52,8 +52,8 @@ h1 {
     display: flex;
     align-items: center;
     position: absolute;
-    top: 60px;
-    left: 30px;
+    top: 65px;
+    left: 35px;
     color: lightgreen;
     font-family: monospace;
     background-color: #0a0f1488;
@@ -72,8 +72,8 @@ h1 {
     color: lightgreen;
     border-radius: 5px;
     position: absolute;
-    top: 62px;
-    right: 30px;
+    top: 65px;
+    right: 35px;
     min-height: 20px;
     padding-top: 3.8px;
     padding-bottom: 3.8px;
@@ -93,14 +93,16 @@ h1 {
 
 #clear-btn:focus {
     outline: none;
+    box-shadow: 0 0 0 2px rgba(144, 238, 144, 0.25),
+                0 0 12px rgba(144, 238, 144, 0.2);
 }
 
 #lobs-cb-with-text {
     display: flex;
     align-items: center;
     position: absolute;
-    top: 30px;
-    right: 30px;
+    top: 35px;
+    right: 35px;
     color: lightgreen;
     font-family: monospace;
     background-color: #0a0f1488;
