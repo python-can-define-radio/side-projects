@@ -1,16 +1,60 @@
 <!DOCTYPE html>
-
 <html>
 <head>
     <meta charset="utf-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="scaffolded-by" content="https://github.com/dart-lang/sdk">
-    <title>Direction Finding</title>
-    <link rel="stylesheet" href="styles.css">
-    <script defer src="main.dart.js"></script>
+    <title>Mission Selection</title>
+    <link rel="stylesheet" href="shared.css">
+    <style>
+
+        h2 {
+            margin-top: 8px;
+            font-weight: 400;
+            color: #94a3b8;
+        }
+
+        ul {
+            list-style: none;
+            padding: 0;
+            margin-top: 30px;
+            width: 320px;
+        }
+
+        li {
+            margin: 12px 0;
+        }
+
+        a {
+            display: block;
+            padding: 14px 16px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            color: #e2e8f0;
+            text-decoration: none;
+            transition: 0.2s ease;
+        }
+
+        a:hover {
+            transform: translateY(-2px);
+            background: rgba(56, 189, 248, 0.15);
+            border-color: rgba(56, 189, 248, 0.4);
+        }
+
+        a:active {
+            transform: translateY(0px);
+        }
+    </style>
 </head>
+
 <body>
-    <h1>Direction finding Simulator</h1>
+    <h1>Direction Finding Simulator</h1>
+    <h2>Mission Selection</h2>
+
+    <ul>
+        <li><a href="main/?mission=explore">Exploration mode</a></li>
+        <li><a href="main/?mission=m1">Mission 1: Do the thing</a></li>
+        <li><a href="main/?mission=m2">Mission 2: Do the other thing</a></li>
+    </ul>
 </body>
 </html>

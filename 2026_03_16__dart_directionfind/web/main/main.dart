@@ -197,7 +197,9 @@ class PlayerHUD {
     HTMLDivElement disp() {
         final posEl = HTML.span();
         _posStm.listen((pos) => posEl.innerText = "pos: ${pos.pretty}");
-        return HTML.div()..appendChild(posEl);
+        return HTML.div()
+          ..id = "player-pos"
+          ..appendChild(posEl);
     }
 }
 
@@ -401,7 +403,9 @@ class ImmuList<T> {
 }
 
 class LOBCol implements Drawable {
-    final HTMLInputElement _gatheringLobsCb = HTML.checkbox()..defaultChecked = true;
+    final HTMLInputElement _gatheringLobsCb = HTML.checkbox()
+      ..id = "lob-cb"
+      ..defaultChecked = true;
     final HTMLButtonElement _clearBtn = HTML.button()
         ..id = "clear-btn"
         ..innerText = "Clear LOBs [ c ]";
@@ -419,10 +423,14 @@ class LOBCol implements Drawable {
         _sellob = _configChosenLOB(_lobs, canvclick, p1);
     }
 
-    static Observable<LOB?> _configChosenLOB(Observable<ImmuList<LOB>> lobs, Stream<MouseEvent> canvclick, Player p1) {
+    static Observable<LOB?> _configChosenLOB(Observable<ImmuList<LOB>> lobs, Stream<MouseEvent> canvclick, Player p1,) {
         final sc = StreamController<LOB?>();
-        canvclick.listen((ev) { 
-             sc.add(decideClosest(lobs.latestVal, p1.pos, ev));
+        canvclick.listen((ev) {
+            final chosen = decideClosest(lobs.latestVal, p1.pos, ev);
+            if (chosen != null) {
+                print("I am the selected lob");
+            }
+            sc.add(chosen);
         });
         return Observable(null, sc.stream);
     }
@@ -482,22 +490,19 @@ class LOBCol implements Drawable {
     }
 
     HTMLDivElement dispInfo() {
-        final lobPowEl = HTML.div();
+        final lobPowEl = HTML.div()..id = "lob-power";
         _lobsStm.listen((lobs) => lobPowEl.innerText = _fmtpow(lobs.values.lastOrNull));
         return lobPowEl;
     }
 
     HTMLDivElement dispCtl() {
     return HTML.div()
-        ..style.display = "flex"
-        ..style.flexDirection = "column"
-        ..style.alignItems = "right"
         ..appendChild(_clearBtn)
-        ..appendChild(HTML.div()
+        ..appendChild(HTML.div()..id = "lobs-cb-with-text"
             ..appendChild(HTML.span()..innerText = "Gathering LOBs [ g ]: ")
             ..appendChild(_gatheringLobsCb)
         );
-}
+    }
 
     @override
     void draw(CanvasRenderingContext2D ctx, Pos center) {
@@ -597,28 +602,11 @@ void attachElems(HTMLElement root, PlayerHUD ph, LOBCol lobc, CanvM cmLife, Canv
             ..appendChild(cmLife.disp())
             ..appendChild(HTML.div()
                 ..style.position = "relative"
-                ..appendChild(cmLob.disp())
-                ..appendChild(ph.disp()
-                    ..style.position = "absolute"
-                    ..style.top = "20px"
-                    ..style.left = "25px"
-                    ..style.color = "lightgreen"
-                    ..style.fontFamily = "monospace"
-                )
-                ..appendChild(lobc.dispInfo()
-                    ..style.position = "absolute"
-                    ..style.top = "35px"
-                    ..style.left = "25px"
-                    ..style.color = "lightgreen"
-                    ..style.fontFamily = "monospace"
-                )
-                ..appendChild(lobc.dispCtl()
-                    ..style.position = "absolute"
-                    ..style.top = "20px"
-                    ..style.right = "20px"
-                    ..style.color = "lightgreen"
-                    ..style.fontFamily = "monospace"
-                )
+                ..appendChild(HTML.div()..id = "hudwrap"
+                    ..appendChild(cmLob.disp())) 
+                ..appendChild(ph.disp())
+                ..appendChild(lobc.dispInfo())
+                ..appendChild(lobc.dispCtl())
             )
         );
 }
@@ -651,6 +639,14 @@ class ObjCol implements Drawable {
 }
 
 void main() {
+    void printUrlArgs() {
+        final uri = Uri.parse(window.location.href);
+
+        uri.queryParameters.forEach((key, value) {
+            print("$key = $value");
+        });
+    }
+    printUrlArgs();
     final keydown = document.body!.onKeyDown;
     final keyup = document.body!.onKeyUp;
     final frameStm = makeFrameStm();
@@ -673,8 +669,55 @@ void main() {
 
 /*
 
+### Brainstorming 2026 April 13
+
+
+#### Possible simple mission
+
+
+- main screen with list of missions to choose from. choose mission; switch to dual-canvas screen.
+  - "Explore" (this is what we have now. Once we add the mission code, hide that part from the HUD)
+  - "Mission 1: Some Name Here"
+- Tablet should show mission: "Current Mission: Find location of enemy transmitter. If you go beyond the FLOT, you fail the mission."
+- Put a collection of stuff in a line-ish shape.
+  - You are freely able to move past the stuff, but if you go beyond it, you immediately fail the mission. { Functional reason for adding this: you can't walk right next to transmitter to see its exact location }
+- There's a text entry field (probably on the 'tablet') for reporting up the grid coordinates of the transmitter. Minimum 6 digit grid accuracy (100 meters). If you report the correct grid coordinates, then you suceeded the mission.
+- How to see it?
+  - Probably need zooming in and out on the tablet interface because right now the cut/fix would be too far away to see if you can't walk up to it
+  - Probably need map labels along edges of tablet grid view so there's a correlation between the location and the grid
+    Like this:
+       3    4    5
+       |    |    |
+       |    |    |
+- Right canvas would have the dotted line for the FLOT
+- Left canvas would have stick figures or whatever troops and equipment maybe
+  
+
+
+
+
+
+
+#### Brief history review
+
+- What led to J wanting rewrites in the past?
+  - 2d game version 1 (tiles, Python server, small Javascript client)
+    Status: we had started adding missions
+    RFL: We decided multiplayer was not worth the extra effort that we were having to put into synchronizing locations and such
+  - 2d game version 2 (tiles, all client side, pyodide)
+    RFL: Switched to 3D 
+  - 3d game (Three JS, Pyodide, etc):
+    RFL: 
+      1. J thought code was not manageable -- too much was organized by AI
+      2. Changed our focus from accurate physics to ray-based DFing simulation
+
+
+
+
+
+
+
 Next steps as of 2026 march 25
-- incorporate hud boxes into the lob view possibly add some kind of reticule?
 - Option in HUD to switch between separate map or overlay
     - implementation: have a variable that gets set to the proper canvas
 - Zoom in/out on LOB view
