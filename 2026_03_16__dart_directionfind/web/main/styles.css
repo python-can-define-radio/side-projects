@@ -65,36 +65,9 @@ h1 {
 #clear-btn {
     display: flex;
     align-items: center;
-    border: 2px solid rgba(255, 255, 255, 0.25);
-    background-color: #0a0f1488; 
-    font-family: monospace;
-    font-size: 13px;
-    color: lightgreen;
-    border-radius: 5px;
     position: absolute;
     top: 65px;
     right: 35px;
-    min-height: 20px;
-    padding-top: 3.8px;
-    padding-bottom: 3.8px;
-}
-
-#clear-btn:hover {
-    background-color: #aaa;
-}
-
-#clear-btn.button-active {
-    background-color: #fff;
-}
-
-#clear-btn:active {
-    background-color: #fff;
-}
-
-#clear-btn:focus {
-    outline: none;
-    box-shadow: 0 0 0 2px rgba(144, 238, 144, 0.25),
-                0 0 12px rgba(144, 238, 144, 0.2);
 }
 
 #lobs-cb-with-text {
@@ -115,6 +88,45 @@ h1 {
     outline: none;
 }
 
+#grid-input {
+    position: absolute;
+    bottom: 32px;
+    left: 45px;
+}
 
+#submit-btn {
+    position: absolute;
+    bottom: 30px;
+    left: 230px;
+}
 
+.game-btn {
+    border: 2px solid rgba(255, 255, 255, 0.25);
+    background-color: #0a0f1488; 
+    font-family: monospace;
+    font-size: 13px;
+    color: lightgreen;
+    border-radius: 5px;
+    min-height: 20px;
+    padding-top: 3.8px;
+    padding-bottom: 3.8px;
+}
+
+.game-btn:hover {
+    background-color: #aaa;
+}
+
+.game-btn.button-active {
+    background-color: #fff;
+}
+
+.game-btn:active {
+    background-color: #fff;
+}
+
+.game-btn:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(144, 238, 144, 0.25),
+                0 0 12px rgba(144, 238, 144, 0.2);
+}
 

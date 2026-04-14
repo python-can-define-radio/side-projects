@@ -58,7 +58,7 @@ class Pos {
 
     /// Return number with 70000 added to look more like a grid coordinate
     String _padbig(double u) => ((u / gridMB) + 70000).toInt().toString();
-    String get pretty => "${_padbig(x)}, ${_padbig(-y)}";
+    String get pretty => "${_padbig(x)} ${_padbig(-y)}";
 }
 
 
@@ -204,7 +204,7 @@ class PlayerHUD {
     PlayerHUD(this._posStm);
     HTMLDivElement disp() {
         final posEl = HTML.span();
-        _posStm.listen((pos) => posEl.innerText = "pos: ${pos.pretty}");
+        _posStm.listen((pos) => posEl.innerText = "grid: 55P DE ${pos.pretty}");
         return HTML.div()
           ..id = "player-pos"
           ..appendChild(posEl);
@@ -541,7 +541,7 @@ class LOBCol implements Drawable {
 
     HTMLDivElement dispCtl() {
     return HTML.div()
-        ..appendChild(_clearBtn)
+        ..appendChild(_clearBtn..className = "game-btn")
         ..appendChild(HTML.div()..id = "lobs-cb-with-text"
             ..appendChild(HTML.span()..innerText = "Gathering LOBs [ g ]: ")
             ..appendChild(_gatheringLobsCb)
@@ -634,7 +634,48 @@ class Sim {
     }
 }
 
-void attachElems(HTMLElement root, PlayerHUD phud, LOBCol lobc, CanvM cmLife, CanvM cmLob){
+class MissionUI {
+    late final String? missionName;
+
+    MissionUI(String href) {
+        final uri = Uri.parse(href);
+        missionName = uri.queryParameters["mission"];
+    }
+
+    HTMLElement build() {
+        if (missionName == "m1") {
+            return _form();
+        }
+        return HTML.div();
+    }
+
+    HTMLInputElement _gridInput() {
+        return HTMLInputElement()
+            ..id = "grid-input"
+            ..placeholder = "Enter grid coordinates";
+    }
+    HTMLFormElement _form() {
+        final form = document.createElement('form') as HTMLFormElement;
+
+        final input = _gridInput();
+        final btn = HTML.button()
+            ..id = "submit-btn"
+            ..className = "game-btn"
+            ..innerText = "Submit";
+
+        form.appendChild(input);
+        form.appendChild(btn);
+
+        form.onSubmit.listen((e) {
+            e.preventDefault();
+            print("Submitted: ${input.value}");
+        });
+
+        return form;
+    }
+}
+
+void attachElems(HTMLElement root, PlayerHUD phud, LOBCol lobc, CanvM cmLife, CanvM cmLob, MissionUI mui){
     root
         ..style.display = "flex"
         ..style.flexDirection = "column"
@@ -651,6 +692,7 @@ void attachElems(HTMLElement root, PlayerHUD phud, LOBCol lobc, CanvM cmLife, Ca
                 ..appendChild(phud.disp())
                 ..appendChild(lobc.dispInfo())
                 ..appendChild(lobc.dispCtl())
+                ..appendChild(mui.build())
             )
         );
 }
@@ -683,14 +725,6 @@ class ObjCol implements Drawable {
 }
 
 void main() {
-    void printUrlArgs() {
-        final uri = Uri.parse(window.location.href);
-
-        uri.queryParameters.forEach((key, value) {
-            print("$key = $value");
-        });
-    }
-    printUrlArgs();
     final keydown = document.body!.onKeyDown;
     final keyup = document.body!.onKeyUp;
     final frameStm = makeFrameStm();
@@ -705,9 +739,10 @@ void main() {
     final cmLife = CanvM("life", canvWidth, canvHeight);
     final cmLob = CanvM("hud", canvWidth, canvHeight);
     final lobc = LOBCol(keydown, sim.univLobs, cmLob.click, p1);
+    final mui = MissionUI(window.location.href);
     cmLife.config(p1.posStm, [avatarlife, bushes, t1]);
     cmLob.config(p1.posStm, [bushes, avatarhud, lobc, grid]);
-    attachElems(document.body!, ph, lobc, cmLife, cmLob); 
+    attachElems(document.body!, ph, lobc, cmLife, cmLob, mui); 
 }
 
 
