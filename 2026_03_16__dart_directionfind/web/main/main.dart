@@ -58,7 +58,7 @@ class Pos {
 
     /// Return number with 70000 added to look more like a grid coordinate
     String _padbig(double u) => ((u / gridMB) + 70000).toInt().toString();
-    String get pretty => "${_padbig(x)}, ${_padbig(y)}";
+    String get pretty => "${_padbig(x)}, ${_padbig(-y)}";
 }
 
 
@@ -230,6 +230,34 @@ class Avatar implements Drawable {
     }
 }
 
+class Reticle implements Drawable {
+    final String color;
+    Reticle(this.color);
+
+    @override
+    void draw(CanvasRenderingContext2D ctx, Pos _) {
+        const cenx = canvWidth / 2;
+        const ceny = canvHeight / 2;
+
+        ctx.globalAlpha = 0.5; // semi-transparent
+        ctx.strokeStyle = color.toJS;
+        ctx.fillStyle = color.toJS;
+        ctx.lineWidth = 1.5;
+
+        // outer circle
+        ctx.beginPath();
+        ctx.arc(cenx, ceny, 6, 0, 2 * pi);
+        ctx.stroke();
+
+        // center dot
+        ctx.beginPath();
+        ctx.arc(cenx, ceny, 1.5, 0, 2 * pi);
+        ctx.fill();
+
+        ctx.globalAlpha = 1.0; // reset
+    }
+}
+
 void fillRectRel(
     num x,
     num y,
@@ -325,7 +353,9 @@ class Grid implements Drawable {
             ctx.moveTo(screenX, 0);
             ctx.lineTo(screenX, canvHeight);
             ctx.stroke();
-            ctx.fillText("${((x - canvWidth / 2) / gridMB).floor()}", screenX, 10);
+            int gridVal = ((x - canvWidth / 2) / gridMB).floor();
+            int wrapped = ((gridVal % 100) + 100) % 100; 
+            ctx.fillText("$wrapped", screenX, 10);
         }
 
         for (var y = starty; y <= starty + 1.2*canvHeight; y += gridSpacing) {
@@ -334,6 +364,9 @@ class Grid implements Drawable {
             ctx.moveTo(0, screenY);
             ctx.lineTo(canvWidth, screenY);
             ctx.stroke();
+            int gridValY = ((-y + canvHeight / 2) / gridMB).floor();
+            int wrappedY = ((gridValY % 100) + 100) % 100;
+            ctx.fillText("$wrappedY", 2, screenY);
         }
     }
 }
@@ -601,7 +634,7 @@ class Sim {
     }
 }
 
-void attachElems(HTMLElement root, PlayerHUD ph, LOBCol lobc, CanvM cmLife, CanvM cmLob){
+void attachElems(HTMLElement root, PlayerHUD phud, LOBCol lobc, CanvM cmLife, CanvM cmLob){
     root
         ..style.display = "flex"
         ..style.flexDirection = "column"
@@ -615,7 +648,7 @@ void attachElems(HTMLElement root, PlayerHUD ph, LOBCol lobc, CanvM cmLife, Canv
                 ..style.position = "relative"
                 ..appendChild(HTML.div()..id = "hudwrap"
                     ..appendChild(cmLob.disp())) 
-                ..appendChild(ph.disp())
+                ..appendChild(phud.disp())
                 ..appendChild(lobc.dispInfo())
                 ..appendChild(lobc.dispCtl())
             )
@@ -668,7 +701,7 @@ void main() {
     final bushes = ObjCol();
     final grid = Grid();
     final avatarlife = Avatar("#000");
-    final avatarhud = Avatar("#fff");
+    final avatarhud = Reticle("#fff");
     final cmLife = CanvM("life", canvWidth, canvHeight);
     final cmLob = CanvM("hud", canvWidth, canvHeight);
     final lobc = LOBCol(keydown, sim.univLobs, cmLob.click, p1);
@@ -681,7 +714,6 @@ void main() {
 /*
 
 ### Brainstorming 2026 April 13
-
 
 #### Possible simple mission
 
@@ -700,11 +732,7 @@ void main() {
 - Right canvas would have the dotted line for the FLOT
 - Left canvas would have stick figures or whatever troops and equipment maybe
   
-
-
-
-
-
+#############################################################################
 
 #### Brief history review
 
@@ -719,13 +747,10 @@ void main() {
       1. J thought code was not manageable -- too much was organized by AI
       2. Changed our focus from accurate physics to ray-based DFing simulation
 
+#############################################################################
 
+Next steps 
 
-
-
-
-
-Next steps as of 2026 march 25
 - Option in HUD to switch between separate map or overlay
     - implementation: have a variable that gets set to the proper canvas
 - Zoom in/out on LOB view
@@ -739,4 +764,6 @@ Initially, dfing is based on line-of-sight only. (Later: add reflections, path l
     - How to determine line of sight?
 
 - elevation
+
+- selected lob not showing
 */

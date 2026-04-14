@@ -39,7 +39,7 @@ h1 {
     align-items: center;
     position: absolute;
     top: 35px;
-    left: 35px;
+    left: 45px;
     color: lightgreen;
     font-family: monospace;
     background-color: #0a0f1488;
@@ -53,7 +53,7 @@ h1 {
     align-items: center;
     position: absolute;
     top: 65px;
-    left: 35px;
+    left: 45px;
     color: lightgreen;
     font-family: monospace;
     background-color: #0a0f1488;
