@@ -33,22 +33,86 @@ extension FunctionPipe<T extends Object> on T {
 }
 
 
+sealed class Result<S, F> {
+    // ifsucc(U Function<S> f);
+}
+class Success<S, F> extends Result<S, F> {
+    final S val;
+    Success(this.val);
+}
+class Failure<S, F> extends Result<S, F> {
+    final F val;
+    Failure(this.val);
+}
+
+
+
+extension Flickerable on HTMLElement {
+    void addFlicker(Stream<Object> stm) {
+        stm.listen((_) {
+            classList.add("button-active");
+            Future.delayed(Duration(milliseconds: 100), () => classList.remove("button-active"));
+        });
+    }
+}
+
+
 /// Methods for creating HTML elems
 class HTML {
     static HTMLButtonElement button() =>
             document.createElement('button') as HTMLButtonElement;
+    static HTMLCanvasElement canvas() =>
+            document.createElement('canvas') as HTMLCanvasElement;
     static HTMLInputElement checkbox() {
         final el = document.createElement('input') as HTMLInputElement;
         el.setAttribute("type", "checkbox");
         return el;
     }
 
-    static HTMLCanvasElement canvas() =>
-            document.createElement('canvas') as HTMLCanvasElement;
     static HTMLDivElement div() =>
             document.createElement('div') as HTMLDivElement;
+    static HTMLFormElement form() =>
+            document.createElement('form') as HTMLFormElement;
+    static HTMLDialogElement dialog() =>
+            document.createElement('dialog') as HTMLDialogElement;
+    static HTMLParagraphElement p() =>
+            document.createElement('p') as HTMLParagraphElement;        
+    static HTMLInputElement inputsubmit() {
+        final el = document.createElement('input') as HTMLInputElement;
+        el.setAttribute("type", "submit");
+        return el;
+    }
     static HTMLSpanElement span() =>
             document.createElement('span') as HTMLSpanElement;
+}
+
+Future<bool> showGameDialog(String message) {
+  final dialog = HTML.dialog()..id = 'game-dialog';
+  final text = HTML.p()..textContent = message;
+  final okButton = HTML.button()
+      ..textContent = 'OK'
+      ..classList.add('game-btn');
+  final cancelButton = HTML.button()
+      ..textContent = 'Cancel'
+      ..classList.add('game-btn');
+  final buttonRow = HTML.div()
+      ..id = 'game-dialog-buttons'
+      ..appendChild(okButton)
+      ..appendChild(cancelButton);
+  final completer = Completer<bool>();
+  okButton.onClick.listen((_) {
+    dialog.close();
+    completer.complete(true);
+  });
+  cancelButton.onClick.listen((_) {
+    dialog.close();
+    completer.complete(false);
+  });
+  dialog.append(text);
+  dialog.append(buttonRow);
+  document.body!.append(dialog);
+  dialog.show();
+  return completer.future;
 }
 
 class Pos {
@@ -486,20 +550,17 @@ class ImmuList<T> {
 }
 
 class LOBCol implements Drawable {
-    final HTMLInputElement _gatheringLobsCb = HTML.checkbox()
-      ..id = "lob-cb"
-      ..defaultChecked = true;
-    final HTMLButtonElement _clearBtn = HTML.button()
-        ..id = "clear-btn"
-        ..innerText = "Clear LOBs [ c ]";
+    late final HTMLInputElement _gatheringLobsCb;
+    late final HTMLButtonElement _clearBtn;
     late final Stream<ImmuList<LOB>> _lobsStm;
     late final Observable<ImmuList<LOB>> _lobs;
     /// Selected LOB
     late final Observable<LOB?> _sellob;
 
     LOBCol(KbStm keydown, Stream<LOB> univLobs, Stream<MouseEvent> canvclick, Player p1) {
-        _configGKey(keydown, _gatheringLobsCb);
-        final clear = _configClearing(keydown, _clearBtn);
+        _gatheringLobsCb = _configGath(keydown);
+        final (clear, cbtn) = _configClearing(keydown);
+        _clearBtn = cbtn;
         final filtlobs = univLobs.where((_) => _gatheringLobsCb.checked);
         _lobsStm = _makeLobStream(clear, filtlobs);
         _lobs = Observable(ImmuList([]), _lobsStm);
@@ -532,25 +593,24 @@ class LOBCol implements Drawable {
         return near.firstOrNull;
     }
     
-    static void _configGKey(KbStm keydown, HTMLInputElement gatheringLobsCb) {
+    static HTMLInputElement _configGath(KbStm keydown) {
+        final gcb = HTML.checkbox()
+            ..id = "lob-cb"
+            ..defaultChecked = true;
         keydown
             .where((ev) => ev.key.toLowerCase() == "g")
-            .listen((_) => gatheringLobsCb.checked = !gatheringLobsCb.checked);
+            .listen((_) => gcb.checked = !gcb.checked);
+        return gcb;
     }
     
-    static Stream<Event> _configClearing(KbStm keydown, HTMLButtonElement clearBtn) {
+    static (Stream<Event>, HTMLButtonElement) _configClearing(KbStm keydown) {
         final cDown = keydown.where((ev) => ev.key.toLowerCase() == "c").asBroadcastStream();
-        _buttonAesthetic(cDown, clearBtn);
-        return StreamGroup.merge([cDown, clearBtn.onClick]);
+        final cbtn = HTML.button()
+            ..addFlicker(cDown)
+            ..id = "clear-btn"
+            ..innerText = "Clear LOBs [ c ]";
+        return (StreamGroup.merge([cDown, cbtn.onClick]), cbtn);
     }
-
-    static void _buttonAesthetic(Stream<Event> cDown, HTMLElement btn) {
-        cDown.listen((_) {
-            btn.classList.add("button-active");
-            Future.delayed(Duration(milliseconds: 100), () => btn.classList.remove("button-active"));
-        });
-    }
-
     /// Makes a stream of the lobs saved on the simulated DFing equipment,
     /// not to be confused with the stream of lobs coming from the universe.
     static Stream<ImmuList<LOB>> _makeLobStream(Stream<Object> clear, Stream<LOB> filtlobs)    {
@@ -677,41 +737,59 @@ class Sim {
 
 class MissionUI {
     late final String? missionName;
+    final Pos txpos;
 
-    MissionUI(String href) {
+    MissionUI(String href, this.txpos) {
         final uri = Uri.parse(href);
         missionName = uri.queryParameters["mission"];
     }
 
-    HTMLElement build() {
+    HTMLElement disp() {
         if (missionName == "m1") {
             return _form();
         }
         return HTML.div();
     }
 
-    HTMLInputElement _gridInput() {
-        return HTMLInputElement()
+    static void _handleSubmit(String submission) {
+        Result<({double? easting, double? northing}), String> validateOneSpace(String val) {
+            final preproc = val
+                .trim()
+                .split(" ")
+                .map(double.tryParse)
+                .toList();
+            switch (preproc) {
+                case [double easting, double northing]:
+                    return Success((easting: easting, northing: northing));
+                case _:
+                    return Failure("You must enter two numbers separated by a space.\nExample: 12345 45678");
+                    // TODO // return Failure("That's too many spaces. Submission must be in this format: 12345 45678");
+            }
+        }
+        final r = validateOneSpace(submission);
+        showGameDialog(r.toString()).then((goToHomeScreen) {
+            if (goToHomeScreen) {
+                window.open("..", "_self");
+            }
+        });
+    }
+
+    static HTMLFormElement _form() {
+        final form = HTML.form();
+        final inpEl = HTMLInputElement()
             ..id = "grid-input"
             ..placeholder = "Enter grid coordinates";
-    }
-    HTMLFormElement _form() {
-        final form = document.createElement('form') as HTMLFormElement;
-
-        final input = _gridInput();
-        final btn = HTML.button()
+        final subbtn = HTML.inputsubmit()
+            ..addFlicker(form.onSubmit)
             ..id = "submit-btn"
-            ..className = "game-btn"
-            ..innerText = "Submit";
-
-        form.appendChild(input);
-        form.appendChild(btn);
-
+            ..className = "game-btn";
+        form
+            ..appendChild(inpEl)
+            ..appendChild(subbtn);
         form.onSubmit.listen((e) {
             e.preventDefault();
-            print("Submitted: ${input.value}");
+            Future.delayed(Duration(milliseconds: 1), () => _handleSubmit(inpEl.value));
         });
-
         return form;
     }
 }
@@ -733,7 +811,7 @@ void attachElems(HTMLElement root, PlayerHUD phud, LOBCol lobc, CanvM cmLife, Ca
                 ..appendChild(phud.disp())
                 ..appendChild(lobc.dispInfo())
                 ..appendChild(lobc.dispCtl())
-                ..appendChild(mui.build())
+                ..appendChild(mui.disp())
             )
         );
 }
@@ -780,7 +858,7 @@ void main() {
     final cmLife = CanvM("life", canvWidth, canvHeight);
     final cmLob = CanvM("hud", canvWidth, canvHeight);
     final lobc = LOBCol(keydown, sim.univLobs, cmLob.click, p1);
-    final mui = MissionUI(window.location.href);
+    final mui = MissionUI(window.location.href, t1.pos);
     cmLife.config(p1.posStm, [avatarlife, bushes, t1]);
     cmLob.config(p1.posStm, [lobc, grid, reticle]);
     attachElems(document.body!, ph, lobc, cmLife, cmLob, mui); 
@@ -842,4 +920,5 @@ Initially, dfing is based on line-of-sight only. (Later: add reflections, path l
 - elevation
 
 - selected lob not showing
+- alerts should be shown on the tablet (cmlob canvas) and should be tailored as a response from you unit
 */

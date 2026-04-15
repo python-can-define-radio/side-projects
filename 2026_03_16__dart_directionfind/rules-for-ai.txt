@@ -7,7 +7,7 @@ D1. Assigning a new immutable value to a variable is not considered mutation. Fo
 D2. Fields that are marked `final` cannot be reassigned. (This is intrinsic to Dart, but I am providing it as a reminder.)
 
 Rules:
-R1. When evaluating all following rules, ignore the class StreamLV.
+R1. Never use the `dart:html` library, as it is deprecated.
 R2. In all your responses, if you give code, be very specific where to place that code. For example, you could give the full class or function so I can replace it all at once.
 R3. Respond in less than 100 words (not including code) or tell me than you can not reasonably answer that question in so few words.
 R4. All instance attributes of a class must be immutable except for HTML Elements. Reassignment of instance attributes is permitted as long as the types are immutable types. Mutable types (such as List) are allowed only if they are created in a way that makes them effectively immutable. For example, in the case of a List, every list must be created using `List.unmodifiable`.
