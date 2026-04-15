@@ -52,13 +52,26 @@ class HTML {
 }
 
 class Pos {
-    final double x;
-    final double y;
-    Pos(this.x, this.y);
+    static final _gridorigin = (x: 70000, y: 40000);
+    
+    /// x expressed in canvas units
+    final double xcu;
+    /// y expressed in canvas units
+    final double ycu;
+    /// x expressed in grid units
+    double get xgrid => xCUToGrid(xcu);
+    /// y expressed in grid units
+    double get ygrid => yCUToGrid(ycu);
 
-    /// Return number with 70000 added to look more like a grid coordinate
-    String _padbig(double u) => ((u / gridMB) + 70000).toInt().toString();
-    String get pretty => "${_padbig(x)} ${_padbig(-y)}";
+    Pos.fromCanvUnits(this.xcu, this.ycu);
+    Pos.fromGridCoords(double xgrid, double ygrid) :
+      xcu = xgridToCU(xgrid),
+      ycu = ygridToCU(ygrid);
+
+    static double xgridToCU(double xgrid) => (xgrid - _gridorigin.x) * gridMB;
+    static double ygridToCU(double ygrid) => -(ygrid - _gridorigin.y) * gridMB;
+    static double xCUToGrid(double xcu) => ((xcu / gridMB) + _gridorigin.x);
+    static double yCUToGrid(double ycu) => ((-ycu / gridMB) + _gridorigin.y);
 }
 
 
@@ -122,14 +135,14 @@ class Player {
         }
         
     static Stream<Pos> _makePosStm(Pos initPos, KbStm keydown, KbStm keyup, DuStm tdelta) {
-        
-        final speed = _makeSpeed(0.1, keydown, keyup);
+        const speedMetersPerSecond = 2.0;
+        final speed = _makeSpeed(speedMetersPerSecond * 0.001, keydown, keyup);
         final dirx = _makeDirx(keydown, keyup);
         final diry = _makeDiry(keydown, keyup);
-        final x = _makeX(initPos.x, dirx, tdelta, speed);
-        final y = _makeY(initPos.y, diry, tdelta, speed);
+        final x = _makeX(initPos.xgrid, dirx, tdelta, speed);
+        final y = _makeY(initPos.ygrid, diry, tdelta, speed);
         return StreamZip<double>([x, y])
-            .map((xypair) => Pos(xypair[0], xypair[1]))
+            .map((xypair) => Pos.fromGridCoords(xypair[0], xypair[1]))
             .asBroadcastStream();
     }
 
@@ -170,9 +183,9 @@ class Player {
         final sc = StreamController<double>();
         keydown.listen((ev) {
             if (ev.key == "ArrowDown") {
-                sc.add(1);
-            } else if (ev.key == "ArrowUp") {
                 sc.add(-1);
+            } else if (ev.key == "ArrowUp") {
+                sc.add(1);
             }
         });
         keyup.listen((ev) {
@@ -203,11 +216,9 @@ class PlayerHUD {
     final Stream<Pos> _posStm;
     PlayerHUD(this._posStm);
     HTMLDivElement disp() {
-        final posEl = HTML.span();
-        _posStm.listen((pos) => posEl.innerText = "grid: 55P DE ${pos.pretty}");
-        return HTML.div()
-          ..id = "player-pos"
-          ..appendChild(posEl);
+        final posEl = HTML.div()..id = "player-pos";
+        _posStm.listen((pos) => posEl.innerText = "grid: 55P DE ${pos.xgrid.toStringAsFixed(0)} ${pos.ygrid.toStringAsFixed(0)}");
+        return posEl;
     }
 }
 
@@ -238,6 +249,8 @@ class Reticle implements Drawable {
     void draw(CanvasRenderingContext2D ctx, Pos _) {
         const cenx = canvWidth / 2;
         const ceny = canvHeight / 2;
+        final rbig = 6;
+        final rsmall = 1.5;
 
         ctx.globalAlpha = 0.5; // semi-transparent
         ctx.strokeStyle = color.toJS;
@@ -246,12 +259,12 @@ class Reticle implements Drawable {
 
         // outer circle
         ctx.beginPath();
-        ctx.arc(cenx, ceny, 6, 0, 2 * pi);
+        ctx.arc(cenx, ceny, rbig, 0, 2 * pi);
         ctx.stroke();
 
         // center dot
         ctx.beginPath();
-        ctx.arc(cenx, ceny, 1.5, 0, 2 * pi);
+        ctx.arc(cenx, ceny, rsmall, 0, 2 * pi);
         ctx.fill();
 
         ctx.globalAlpha = 1.0; // reset
@@ -267,19 +280,23 @@ void fillRectRel(
     Pos relpos,
 ) {
     ctx.fillRect(
-        x - relpos.x + canvWidth / 2,
-        y - relpos.y + canvHeight / 2,
+        x - relpos.xcu + canvWidth / 2,
+        y - relpos.ycu + canvHeight / 2,
         w,
         h,
     );
 }
 
 void moveToRel(num x, num y, CanvasRenderingContext2D ctx, Pos relpos) {
-    ctx.moveTo(x - relpos.x + canvWidth / 2, y - relpos.y + canvHeight / 2);
+    ctx.moveTo(x - relpos.xcu + canvWidth / 2, y - relpos.ycu + canvHeight / 2);
 }
 
 void lineToRel(num x, num y, CanvasRenderingContext2D ctx, Pos relpos) {
-    ctx.lineTo(x - relpos.x + canvWidth / 2, y - relpos.y + canvHeight / 2);
+    ctx.lineTo(x - relpos.xcu + canvWidth / 2, y - relpos.ycu + canvHeight / 2);
+}
+
+void fillTextRel(String text, num x, num y, CanvasRenderingContext2D ctx, Pos relpos) {
+    ctx.fillText(text, x - relpos.xcu + canvWidth / 2, y - relpos.ycu + canvHeight / 2);
 }
 
 void fillCircle(num x, num y, num radius, CanvasRenderingContext2D ctx) {
@@ -296,8 +313,8 @@ void fillCircleRel(
     Pos relpos,
 ) {
     fillCircle(
-        x - relpos.x + canvWidth / 2,
-        y - relpos.y + canvHeight / 2,
+        x - relpos.xcu + canvWidth / 2,
+        y - relpos.ycu + canvHeight / 2,
         radius,
         ctx,
     );
@@ -338,48 +355,70 @@ class CanvM {
 class Grid implements Drawable {
     @override
     void draw(CanvasRenderingContext2D ctx, Pos center) {
-        final gridSpacing = gridMB;
+        /// Space between gridlines in meters
+        const gridUnitSpc = 1;
+        /// Space between gridlines in canvas units
+        const gridSpacing = gridMB * gridUnitSpc;
+        /// this is an empirical guess. Eventually we should use a monospace
+        /// font and fetch the width of it if possible.
+        const charWidth = 6;
+        /// see note on charWidth
+        const charHeight = 3;
+        /// center to x edge, in grid units
+        const ctoxeg = 0.7 * canvWidth / gridMB;
+        /// center to y edge, in grid units
+        const ctoyeg = 0.7 * canvHeight / gridMB;
+
+        double toGrid(double v) => (v / gridUnitSpc).floorToDouble() * gridUnitSpc;
 
         ctx.strokeStyle = "#ccc".toJS;
         ctx.fillStyle = "#ccc".toJS;
         ctx.lineWidth = 0.5;
+        
+        final startx = Pos.xgridToCU(toGrid(center.xgrid - ctoxeg));
+        final starty = Pos.ygridToCU(toGrid(center.ygrid + ctoyeg));
 
-        final startx = gridSpacing * ((center.x / gridSpacing).floor() - 1);
-        final starty = gridSpacing * ((center.y / gridSpacing).floor() - 1);
-
-        for (var x = startx; x <= startx + 1.2*canvWidth; x += gridSpacing) {
-            final screenX = x - center.x;
+        for (var x = startx; x <= startx + 1.5*canvWidth; x += gridSpacing) {
             ctx.beginPath();
-            ctx.moveTo(screenX, 0);
-            ctx.lineTo(screenX, canvHeight);
+            moveToRel(x, center.ycu + canvHeight, ctx, center);
+            lineToRel(x, center.ycu - canvHeight, ctx, center);
             ctx.stroke();
-            int gridVal = ((x - canvWidth / 2) / gridMB).floor();
-            int wrapped = ((gridVal % 100) + 100) % 100; 
-            ctx.fillText("$wrapped", screenX, 10);
+            final gridVal = Pos.xCUToGrid(x).toString().substring(3);
+            fillTextRel(
+                gridVal,
+                x - charWidth,
+                center.ycu - (canvHeight/2) + 10,
+                ctx,
+                center
+            );
         }
 
-        for (var y = starty; y <= starty + 1.2*canvHeight; y += gridSpacing) {
-            final screenY = y - center.y;
+        for (var y = starty; y <= starty + 1.5*canvHeight; y += gridSpacing) {
             ctx.beginPath();
-            ctx.moveTo(0, screenY);
-            ctx.lineTo(canvWidth, screenY);
+            moveToRel(center.xcu + canvWidth, y, ctx, center);
+            lineToRel(center.xcu - canvWidth, y, ctx, center);
             ctx.stroke();
-            int gridValY = ((-y + canvHeight / 2) / gridMB).floor();
-            int wrappedY = ((gridValY % 100) + 100) % 100;
-            ctx.fillText("$wrappedY", 2, screenY);
+            final gridVal = Pos.yCUToGrid(y).toString().substring(3);
+            fillTextRel(
+                gridVal,
+                center.xcu - (canvWidth/2),
+                y + charHeight,
+                ctx,
+                center
+            );
         }
     }
 }
 
 
 class TxRadio implements Drawable {
-    final pos = Pos(400, 370);
+    final pos = Pos.fromGridCoords(70008, 40012);
     final txpower = Power(mW: 100);
     
     @override
     void draw(CanvasRenderingContext2D ctx, Pos center) {
         ctx.fillStyle = "#00f".toJS;
-        fillRectRel(pos.x - 5, pos.y - 5, 10, 10, ctx, center);
+        fillRectRel(pos.xcu - 5, pos.ycu - 5, 10, 10, ctx, center);
     }
 }
 
@@ -396,43 +435,43 @@ class Bush implements Drawable {
     final String _color;
     final int _size;
     Bush(double x, double y, this._color, this._size)
-    : _pos = Pos(x, y);
+    : _pos = Pos.fromGridCoords(x, y);
     
 
     @override
     void draw(CanvasRenderingContext2D ctx, Pos center) {
-        final xd = _pos.x - center.x;
-        final yd = _pos.y - center.y;
+        final xd = _pos.xcu - center.xcu;
+        final yd = _pos.ycu - center.ycu;
         
         if (yd.abs() > (0.7 * canvHeight) || xd.abs() > (0.7 * canvWidth)) {
             return;
         }
         ctx.fillStyle = "#440".toJS;
         fillRectRel(
-            _pos.x - _size,
-            _pos.y + _size * 0.7,
+            _pos.xcu - _size,
+            _pos.ycu + _size * 0.7,
             _size * 0.9,
             6,
             ctx,
             center,
         );
-        fillRectRel(_pos.x, _pos.y + _size * 0.7, _size * 0.9, 6, ctx, center);
+        fillRectRel(_pos.xcu, _pos.ycu + _size * 0.7, _size * 0.9, 6, ctx, center);
         fillRectRel(
-            _pos.x + _size * 0.7,
-            _pos.y + _size * 0.7,
+            _pos.xcu + _size * 0.7,
+            _pos.ycu + _size * 0.7,
             _size * 0.9,
             6,
             ctx,
             center,
         );
         ctx.fillStyle = _color.toJS;
-        fillCircleRel(_pos.x - _size, _pos.y, _size, ctx, center);
-        fillCircleRel(_pos.x, _pos.y, _size, ctx, center);
-        fillCircleRel(_pos.x, _pos.y - _size, _size, ctx, center);
-        fillCircleRel(_pos.x + _size, _pos.y, _size, ctx, center);
-        fillCircleRel(_pos.x, _pos.y - _size, _size, ctx, center);
-        fillCircleRel(_pos.x + 2 * _size, _pos.y, _size, ctx, center);
-        fillCircleRel(_pos.x + 1.5 * _size, _pos.y - _size, _size, ctx, center);
+        fillCircleRel(_pos.xcu - _size, _pos.ycu, _size, ctx, center);
+        fillCircleRel(_pos.xcu, _pos.ycu, _size, ctx, center);
+        fillCircleRel(_pos.xcu, _pos.ycu - _size, _size, ctx, center);
+        fillCircleRel(_pos.xcu + _size, _pos.ycu, _size, ctx, center);
+        fillCircleRel(_pos.xcu, _pos.ycu - _size, _size, ctx, center);
+        fillCircleRel(_pos.xcu + 2 * _size, _pos.ycu, _size, ctx, center);
+        fillCircleRel(_pos.xcu + 1.5 * _size, _pos.ycu - _size, _size, ctx, center);
     }
 }
 
@@ -481,11 +520,11 @@ class LOBCol implements Drawable {
     
     static LOB? decideClosest(ImmuList<LOB> immulobs, Pos p1pos, MouseEvent ev) {
         final lobs = immulobs.values;
-        final shiftx = p1pos.x + ev.offsetX - canvWidth / 2;
-        final shifty = p1pos.y + ev.offsetY - canvHeight / 2;
+        final shiftx = p1pos.xcu + ev.offsetX - canvWidth / 2;
+        final shifty = p1pos.ycu + ev.offsetY - canvHeight / 2;
         num dist(LOB lob) {
-            final dx = (lob.source.x - shiftx).abs();
-            final dy = (lob.source.y - shifty).abs();
+            final dx = (lob.source.xcu - shiftx).abs();
+            final dy = (lob.source.ycu - shifty).abs();
             return dx + dy;
         }
         lobs.sort((a, b) => dist(a).compareTo(dist(b)));
@@ -554,12 +593,12 @@ class LOBCol implements Drawable {
 
         void drawOne(LOB lob, {String color = "orange"}) {
             const loblength = 10000;
-            final endx = lob.source.x + loblength * lob.azimuth.cosresult;
-            final endy = lob.source.y + loblength * lob.azimuth.sinresult;
+            final endx = lob.source.xcu + loblength * lob.azimuth.cosresult;
+            final endy = lob.source.ycu + loblength * lob.azimuth.sinresult;
             ctx.beginPath();
             ctx.lineWidth = 2;
             ctx.strokeStyle = color.toJS;
-            moveToRel(lob.source.x, lob.source.y, ctx, center);
+            moveToRel(lob.source.xcu, lob.source.ycu, ctx, center);
             lineToRel(endx, endy, ctx, center);
             ctx.stroke();
         }
@@ -576,9 +615,11 @@ class LOBCol implements Drawable {
 class Azimuth {
     late final double sinresult;
     late final double cosresult;
+    /// Given the player (receiver) position and the transmitter position
+    /// compute the azimuth from the player's perspective.
     Azimuth.fromPositions(Player p, TxRadio t) {
-        final xd = t.pos.x - p.pos.x;
-        final yd = t.pos.y - p.pos.y;
+        final xd = t.pos.xcu - p.pos.xcu;
+        final yd = t.pos.ycu - p.pos.ycu;
         final dist = sqrt(xd * xd + yd * yd);
         sinresult = yd / dist;
         cosresult = xd / dist;
@@ -627,8 +668,8 @@ class Sim {
 
     /// A very rudimentary path loss computation
     Power _distLoss(TxRadio t, Player p1) {
-        final xd = t.pos.x - p1.pos.x;
-        final yd = t.pos.y - p1.pos.y;
+        final xd = t.pos.xgrid - p1.pos.xgrid;
+        final yd = t.pos.ygrid - p1.pos.ygrid;
         final dist = sqrt(xd * xd + yd * yd);
         return t.txpower * 0.1 * (1 / sq(dist)) * (_random.nextDouble() * 0.1 + 0.9);
     }
@@ -706,14 +747,14 @@ class ObjCol implements Drawable {
             final green = "${random.nextInt(5) + 5}";
             final size = random.nextInt(6) + 2;
             return Bush(
-                (random.nextDouble() - 0.5) * 10000,
-                (random.nextDouble() - 0.5) * 10000,
+                69900 + (random.nextDouble() * 200),
+                39900 + (random.nextDouble() * 200),
                 "#$redandblue$green$redandblue",
                 size,
             );
         }
 
-        _objs = List.unmodifiable([for (var i = 0; i < 10000; i++) makebush()]);
+        _objs = List.unmodifiable([for (var i = 0; i < 2000; i++) makebush()]);
     }
 
     @override
@@ -728,20 +769,20 @@ void main() {
     final keydown = document.body!.onKeyDown;
     final keyup = document.body!.onKeyUp;
     final frameStm = makeFrameStm();
-    final p1 = Player(Pos(380.0, 400.0), keydown, keyup, frameStm);
+    final p1 = Player(Pos.fromGridCoords(70005, 40008), keydown, keyup, frameStm);
     final ph = PlayerHUD(p1.posStm);
     final t1 = TxRadio();
     final sim = Sim(p1, t1);
     final bushes = ObjCol();
     final grid = Grid();
     final avatarlife = Avatar("#000");
-    final avatarhud = Reticle("#fff");
+    final reticle = Reticle("#fff");
     final cmLife = CanvM("life", canvWidth, canvHeight);
     final cmLob = CanvM("hud", canvWidth, canvHeight);
     final lobc = LOBCol(keydown, sim.univLobs, cmLob.click, p1);
     final mui = MissionUI(window.location.href);
     cmLife.config(p1.posStm, [avatarlife, bushes, t1]);
-    cmLob.config(p1.posStm, [bushes, avatarhud, lobc, grid]);
+    cmLob.config(p1.posStm, [lobc, grid, reticle]);
     attachElems(document.body!, ph, lobc, cmLife, cmLob, mui); 
 }
 
