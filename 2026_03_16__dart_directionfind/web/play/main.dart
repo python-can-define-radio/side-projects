@@ -34,18 +34,24 @@ extension FunctionPipe<T extends Object> on T {
 
 
 sealed class Result<S, F> {
-    // ifsucc(U Function<S> f);
+    Result<U, F> map<U>(U Function(S) f);
 }
 class Success<S, F> extends Result<S, F> {
     final S val;
     Success(this.val);
+    @override
+    Result<U, F> map<U>(U Function(S) f) {
+        return Success(f(val));
+    }
 }
 class Failure<S, F> extends Result<S, F> {
     final F val;
     Failure(this.val);
+    @override
+    Result<U, F> map<U>(_) {
+        return Failure(val);
+    }
 }
-
-
 
 extension Flickerable on HTMLElement {
     void addFlicker(Stream<Object> stm) {
