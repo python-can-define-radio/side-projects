@@ -795,14 +795,8 @@ class MissionUI {
 }
 
 void attachElems(HTMLElement root, PlayerHUD phud, LOBCol lobc, CanvM cmLife, CanvM cmLob, MissionUI mui){
-    root
-        ..style.display = "flex"
-        ..style.flexDirection = "column"
-        ..style.alignItems = "center"
-        ..appendChild(HTML.div()
-            ..style.display = "flex"
-            ..style.flexDirection = "row"
-            ..style.gap = "16px"
+    root..id = "root"
+        ..appendChild(HTML.div()..id = "two-canvasses"
             ..appendChild(cmLife.disp())
             ..appendChild(HTML.div()
                 ..style.position = "relative"
@@ -813,7 +807,15 @@ void attachElems(HTMLElement root, PlayerHUD phud, LOBCol lobc, CanvM cmLife, Ca
                 ..appendChild(lobc.dispCtl())
                 ..appendChild(mui.disp())
             )
-        );
+        )
+        ..appendChild(HTML.div()..id = "directions"
+            ..innerText =
+                "\nDirections: Find the transmitter using Lines of Bearing.\n"
+                "- Arrow keys to move\n"
+                "- 'Shift' to run\n"
+                "- 'g' to toggle LOB gathering\n"
+                "- 'c' to clear LOBs\n"
+            );
 }
 
 class ObjCol implements Drawable {
@@ -905,6 +907,11 @@ void main() {
 
 Next steps 
 
+- Add a compass.
+  We need to discuss different execution possibilities.
+  - G N with a vertical line?
+  - magnetic north too? 
+  
 - Option in HUD to switch between separate map or overlay
     - implementation: have a variable that gets set to the proper canvas
 - Zoom in/out on LOB view
