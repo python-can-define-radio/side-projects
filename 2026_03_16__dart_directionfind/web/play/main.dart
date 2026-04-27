@@ -82,14 +82,16 @@ class HTML {
     static HTMLDialogElement dialog() =>
             document.createElement('dialog') as HTMLDialogElement;
     static HTMLParagraphElement p() =>
-            document.createElement('p') as HTMLParagraphElement;        
+            document.createElement('p') as HTMLParagraphElement;    
+    static HTMLHeadingElement h2() =>
+            document.createElement("h2") as HTMLHeadingElement;    
+    static HTMLSpanElement span() =>
+            document.createElement('span') as HTMLSpanElement;
     static HTMLInputElement inputsubmit() {
         final el = document.createElement('input') as HTMLInputElement;
         el.setAttribute("type", "submit");
         return el;
     }
-    static HTMLSpanElement span() =>
-            document.createElement('span') as HTMLSpanElement;
 }
 
 Future<bool> showGameDialog(String message) {
@@ -769,7 +771,6 @@ class MissionUI {
                     return Success((easting: easting, northing: northing));
                 case _:
                     return Failure("You must enter two numbers separated by a space.\nExample: 12345 45678");
-                    // TODO // return Failure("That's too many spaces. Submission must be in this format: 12345 45678");
             }
         }
         final r = validateOneSpace(submission);
@@ -800,11 +801,11 @@ class MissionUI {
     }
 }
 
-void attachElems(HTMLElement root, PlayerHUD phud, LOBCol lobc, CanvM cmLife, CanvM cmLob, MissionUI mui){
+void attachElems(HTMLElement root, PlayerHUD phud, LOBCol lobc, CanvM cmLife, CanvM cmLob, MissionUI mui, Messages msgs){
     root..id = "root"
         ..appendChild(HTML.div()..id = "two-canvasses"
             ..appendChild(cmLife.disp())
-            ..appendChild(HTML.div()
+            ..appendChild(HTML.div()..id = "cmlobparent"
                 ..style.position = "relative"
                 ..appendChild(HTML.div()..id = "hudwrap"
                     ..appendChild(cmLob.disp())) 
@@ -812,6 +813,8 @@ void attachElems(HTMLElement root, PlayerHUD phud, LOBCol lobc, CanvM cmLife, Ca
                 ..appendChild(lobc.dispInfo())
                 ..appendChild(lobc.dispCtl())
                 ..appendChild(mui.disp())
+                ..appendChild(msgs.dispenv())
+                ..appendChild(msgs.dispoverlay())
             )
         )
         ..appendChild(HTML.div()..id = "directions"
@@ -822,6 +825,55 @@ void attachElems(HTMLElement root, PlayerHUD phud, LOBCol lobc, CanvM cmLife, Ca
                 "- 'g' to toggle LOB gathering\n"
                 "- 'c' to clear LOBs\n"
             );
+}
+
+class Messages {
+    var _incmsg = true;
+    final _shown = StreamController<bool>(); 
+    
+    HTMLElement dispenv() {
+        final messagetext = HTML.p()
+            ..className = "fa-regular fa-2x msgs-text";
+
+        final msgbutton = HTML.button()
+            ..className = "game-btn"..id = "msgs-position"
+            ..appendChild(messagetext);
+
+        if (_incmsg) {
+            messagetext.classList.add("fa-envelope");
+            msgbutton.classList.add("msgs-style");
+        } else {
+            messagetext.classList.add("fa-envelope-open");
+            msgbutton.classList.remove("msgs-style");
+        }
+        msgbutton.onClick.listen((_) => _shown.add(true));
+        return msgbutton;
+        }
+    
+    HTMLElement dispoverlay() {
+        final buttontext = HTML.p()
+            ..className = "fa-solid fa-chevron-left fa-2x msgs-text";
+        final overlay = HTML.div()
+            ..id = "overlay"
+            ..className = "hidden"
+            ..appendChild(HTML.h2()
+                ..innerText = "Messages")
+            ..appendChild(HTML.button()
+                ..className = "game-btn"
+                ..id = "backbtn"
+                ..appendChild(buttontext)
+                ..onClick.listen((_) => _shown.add(false))
+            );
+        _shown.stream.listen((visible) {
+            if (visible) {
+                overlay.classList.remove("hidden");
+            }
+            else {
+                overlay.classList.add("hidden");
+            }
+        });
+        return overlay;
+    }
 }
 
 class ObjCol implements Drawable {
@@ -867,9 +919,10 @@ void main() {
     final cmLob = CanvM("hud", canvWidth, canvHeight);
     final lobc = LOBCol(keydown, sim.univLobs, cmLob.click, p1);
     final mui = MissionUI(window.location.href, t1.pos);
+    final msg = Messages();
     cmLife.config(p1.posStm, [avatarlife, bushes, t1]);
     cmLob.config(p1.posStm, [lobc, grid, reticle]);
-    attachElems(document.body!, ph, lobc, cmLife, cmLob, mui); 
+    attachElems(document.body!, ph, lobc, cmLife, cmLob, mui, msg); 
 }
 
 
@@ -922,10 +975,7 @@ Next steps
     - implementation: have a variable that gets set to the proper canvas
 - Zoom in/out on LOB view
 
-Player is direction finding a transmitter.
-Initially, dfing is based on line-of-sight only. (Later: add reflections, path loss, etc)
-
-- Draw a ray from the player to the transmitter.
+- add reflections, refractions etc.
 
 - if line of sight exists.
     - How to determine line of sight?
@@ -933,5 +983,5 @@ Initially, dfing is based on line-of-sight only. (Later: add reflections, path l
 - elevation
 
 - selected lob not showing
-- alerts should be shown on the tablet (cmlob canvas) and should be tailored as a response from you unit
+- alerts should be _shown on the tablet (cmlob canvas) and should be tailored as a response from you unit
 */

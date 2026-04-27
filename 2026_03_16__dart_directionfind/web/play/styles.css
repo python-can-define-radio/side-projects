@@ -14,6 +14,9 @@ h1 {
     margin-bottom: 10px;
 }
 
+h2 {
+    text-align: center;
+}
 
 #life {
     background-color: #cfc;
@@ -26,7 +29,6 @@ h1 {
     border: 20px solid #000;
     border-radius: 8px;
     box-shadow: 0 0 30px #000 inset, 0 0 12px #000;
-    color: lightgreen;
 }
 
 #hudwrap {
@@ -40,7 +42,6 @@ h1 {
     position: absolute;
     top: 35px;
     left: 45px;
-    color: lightgreen;
     font-family: monospace;
     background-color: #0a0f1488;
     border-radius: 5px;
@@ -54,7 +55,6 @@ h1 {
     position: absolute;
     top: 65px;
     left: 45px;
-    color: lightgreen;
     font-family: monospace;
     background-color: #0a0f1488;
     border-radius: 5px;
@@ -66,6 +66,7 @@ h1 {
     position: absolute;
     top: 65px;
     right: 35px;
+    border: none;
 }
 
 #lobs-cb-with-text {
@@ -74,7 +75,6 @@ h1 {
     position: absolute;
     top: 35px;
     right: 35px;
-    color: lightgreen;
     font-family: monospace;
     background-color: #0a0f1488;
     border-radius: 5px;
@@ -108,6 +108,7 @@ h1 {
     min-height: 20px;
     padding-top: 3.8px;
     padding-bottom: 3.8px;
+    cursor: pointer;
 }
 
 .game-btn:hover {
@@ -128,7 +129,7 @@ h1 {
                 0 0 12px rgba(144, 238, 144, 0.2);
 }
 
-#game-dialog {
+.game-dialog {
     background-color: #0a0f14;
     color: white;
     border: 2px solid lightgrey;
@@ -143,6 +144,17 @@ h1 {
     justify-content: space-between;
     gap: 10px;
     margin-top: 12px;
+}
+
+.mission-instructions {
+    background-color: #0a0f14;
+    color: white;
+    border: 2px solid lightgrey;
+    border-radius: 8px;
+    padding: 16px;
+    box-shadow: 0 0 30px #000 inset, 0 0 12px #000;
+    bottom: 295px;
+    right: -1085px;
 }
 
 #directions { 
@@ -161,4 +173,41 @@ h1 {
     flex-direction: row;
     flex-wrap: wrap;
     gap: 16px;
+}
+
+#cmlobparent {
+    color: lightgreen;
+}
+
+#msgs-position {
+    position: absolute;
+    bottom: 30px;
+    right: 25px;
+}
+
+.msgs-text {
+    margin: 0%
+}
+
+.msgs-style {
+    background-color: rgb(13, 54, 96);
+}
+
+#overlay {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    width: 605px;
+    height: 405px;
+    background-color: #0a0f14;
+}
+
+.hidden {
+    display: none;
+}
+
+#backbtn {
+    position: absolute;
+    top: 0px;
+    left: 0px;
 }
