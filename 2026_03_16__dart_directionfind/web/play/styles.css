@@ -136,7 +136,7 @@ h2 {
     border-radius: 8px;
     padding: 16px;
     box-shadow: 0 0 30px #000 inset, 0 0 12px #000;
-    left: 700px
+    bottom: 200px;
 }
 
 #game-dialog-buttons {

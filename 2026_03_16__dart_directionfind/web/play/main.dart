@@ -27,13 +27,14 @@ List<T> withoutLast<T>(List<T> orig) =>
     orig.isEmpty ? orig : orig.getRange(0, orig.length - 1).toList();
 
 
-extension FunctionPipe<T extends Object> on T {
+extension FunctionPipe<T> on T {
     /// Source: https://github.com/dart-lang/language/issues/1246
     R then<R>(R Function (T) f) => f(this);
 }
 
 
 sealed class Result<S, F> {
+    /// Apply the function if the result is a success.
     Result<U, F> map<U>(U Function(S) f);
 }
 class Success<S, F> extends Result<S, F> {
@@ -43,6 +44,7 @@ class Success<S, F> extends Result<S, F> {
     Result<U, F> map<U>(U Function(S) f) {
         return Success(f(val));
     }
+    
 }
 class Failure<S, F> extends Result<S, F> {
     final F val;
@@ -52,6 +54,15 @@ class Failure<S, F> extends Result<S, F> {
         return Failure(val);
     }
 }
+
+/// Un-nest Result{Result}. Does only one layer of flattening.
+Result<T, U> flatten<T, U>(Result<Result<T, U>, U> r) =>
+    switch (r) { 
+        Failure(val: final errmsg) => Failure(errmsg),
+        Success(val: Failure(val: final errmsg)) => Failure(errmsg),
+        Success(val: Success(val: final succval)) => Success(succval),
+    };
+
 
 extension Flickerable on HTMLElement {
     void addFlicker(Stream<Object> stm) {
@@ -69,24 +80,23 @@ class HTML {
             document.createElement('button') as HTMLButtonElement;
     static HTMLCanvasElement canvas() =>
             document.createElement('canvas') as HTMLCanvasElement;
+    static HTMLDialogElement dialog() =>
+            document.createElement('dialog') as HTMLDialogElement;
+    static HTMLDivElement div() =>
+            document.createElement('div') as HTMLDivElement;
+    static HTMLFormElement form() =>
+            document.createElement('form') as HTMLFormElement;
+    static HTMLHeadingElement h2() =>
+            document.createElement("h2") as HTMLHeadingElement;    
+    static HTMLParagraphElement p() =>
+            document.createElement('p') as HTMLParagraphElement;    
+    static HTMLSpanElement span() =>
+            document.createElement('span') as HTMLSpanElement;
     static HTMLInputElement checkbox() {
         final el = document.createElement('input') as HTMLInputElement;
         el.setAttribute("type", "checkbox");
         return el;
     }
-
-    static HTMLDivElement div() =>
-            document.createElement('div') as HTMLDivElement;
-    static HTMLFormElement form() =>
-            document.createElement('form') as HTMLFormElement;
-    static HTMLDialogElement dialog() =>
-            document.createElement('dialog') as HTMLDialogElement;
-    static HTMLParagraphElement p() =>
-            document.createElement('p') as HTMLParagraphElement;    
-    static HTMLHeadingElement h2() =>
-            document.createElement("h2") as HTMLHeadingElement;    
-    static HTMLSpanElement span() =>
-            document.createElement('span') as HTMLSpanElement;
     static HTMLInputElement inputsubmit() {
         final el = document.createElement('input') as HTMLInputElement;
         el.setAttribute("type", "submit");
@@ -94,33 +104,38 @@ class HTML {
     }
 }
 
-Future<bool> showGameDialog(String message) {
-  final dialog = HTML.dialog()..id = 'game-dialog';
-  final text = HTML.p()..textContent = message;
-  final okButton = HTML.button()
-      ..textContent = 'OK'
-      ..classList.add('game-btn');
-  final cancelButton = HTML.button()
-      ..textContent = 'Cancel'
-      ..classList.add('game-btn');
-  final buttonRow = HTML.div()
-      ..id = 'game-dialog-buttons'
-      ..appendChild(okButton)
-      ..appendChild(cancelButton);
-  final completer = Completer<bool>();
-  okButton.onClick.listen((_) {
-    dialog.close();
-    completer.complete(true);
-  });
-  cancelButton.onClick.listen((_) {
-    dialog.close();
-    completer.complete(false);
-  });
-  dialog.append(text);
-  dialog.append(buttonRow);
-  document.body!.append(dialog);
-  dialog.show();
-  return completer.future;
+
+
+class OkCancelDialog {
+    final _dialogWrap = HTML.div();
+    Future<bool> showWith(String msg) {
+        final dialog = HTML.dialog()..className = "game-dialog";
+        dialog.innerText = msg;
+        final okButton = HTML.button()
+            ..textContent = 'OK'
+            ..classList.add('game-btn');
+        final cancelButton = HTML.button()
+            ..textContent = 'Cancel'
+            ..classList.add('game-btn');
+        final buttonRow = HTML.div()
+            ..id = 'game-dialog-buttons'
+            ..appendChild(okButton)
+            ..appendChild(cancelButton);
+        final completer = Completer<bool>();
+        okButton.onClick.listen((_) {
+            dialog.close();
+            completer.complete(true);
+        });
+        cancelButton.onClick.listen((_) {
+            dialog.close();
+            completer.complete(false);
+        });
+        dialog.appendChild(buttonRow);
+        _dialogWrap.replaceChildren(dialog);
+        dialog.show();
+        return completer.future;
+    }
+    HTMLElement disp() => _dialogWrap;
 }
 
 class Pos {
@@ -743,45 +758,79 @@ class Sim {
     }
 }
 
+enum Mission { explore, tutorial, m1 }
+
+Mission strToMission(String? missionName) { 
+    for (final m in Mission.values) {
+        if (m.name == missionName) {
+            return m;
+        }
+    }
+    print("Invalid mission name '$missionName'. Choices: ${Mission.values}. Defaulting to 'explore' mode.");
+    return Mission.explore;
+}
+
+Result<T, String> succIf<T>(T val, bool cond, String errmsg) {
+    if (cond) {
+        return Success(val);
+    } else {
+        return Failure(errmsg);
+    }
+}
+
 class MissionUI {
-    late final String? missionName;
+    final Mission mission;
     final Pos txpos;
+    final _dialog = OkCancelDialog();
 
-    MissionUI(String href, this.txpos) {
+    MissionUI(String href, this.txpos) :
+      mission = _parseMission(href);
+
+    static Mission _parseMission(String href) {
         final uri = Uri.parse(href);
-        missionName = uri.queryParameters["mission"];
+        return strToMission(uri.queryParameters["mission"]);
     }
 
-    HTMLElement disp() {
-        if (missionName == "m1") {
-            return _form();
-        }
-        return HTML.div();
+    HTMLElement disp() => 
+        switch (mission) {
+            Mission.explore =>  HTML.div(),
+            Mission.tutorial => _form(),
+            Mission.m1 => _form(),
+        };
+        
+    static Result<(int, int), String> parseSubmission(String submission) {
+        const errmsg = "You must enter two numbers separated by one space.\nExample: 12345 45678";
+        
+        /// If `val` is a list of exactly two integers, return them wrapped in `Success`.
+        /// Else, return a Failure.
+        Result<(int, int), String> twoInts(List<int?> val) => 
+            switch (val) {
+                [int easting, int northing] => Success((easting, northing)),
+                _ => Failure(errmsg),
+            };
+
+        return submission
+            .trim()
+            .then((x) => succIf(x, x.length == 11, errmsg))
+            .map((x) => x.split(" "))
+            .map((x) => x.map(int.tryParse).toList())
+            .map((x) => twoInts(x))
+            .then((x) => flatten(x));
+    }
+    
+    void _handleSubmit(String submission) {
+        final p = parseSubmission(submission);
+        final msg = switch (p) { Success(val: final coords) => "you submitted $coords. Not sure if correct.", Failure(val: final errmsg) => "Error: $errmsg" };
+        _dialog
+            .showWith(msg)
+            .then((response) {
+                if (response) {
+                    window.open("..", "_self");
+                }
+            });   
     }
 
-    static void _handleSubmit(String submission) {
-        Result<({double? easting, double? northing}), String> validateOneSpace(String val) {
-            final preproc = val
-                .trim()
-                .split(" ")
-                .map(double.tryParse)
-                .toList();
-            switch (preproc) {
-                case [double easting, double northing]:
-                    return Success((easting: easting, northing: northing));
-                case _:
-                    return Failure("You must enter two numbers separated by a space.\nExample: 12345 45678");
-            }
-        }
-        final r = validateOneSpace(submission);
-        showGameDialog(r.toString()).then((goToHomeScreen) {
-            if (goToHomeScreen) {
-                window.open("..", "_self");
-            }
-        });
-    }
-
-    static HTMLFormElement _form() {
+    HTMLFormElement _form() {
         final form = HTML.form();
         final inpEl = HTMLInputElement()
             ..id = "grid-input"
@@ -799,6 +848,8 @@ class MissionUI {
         });
         return form;
     }
+    /// The result of submitting the form
+    HTMLElement dispResult() => _dialog.disp();
 }
 
 void attachElems(HTMLElement root, PlayerHUD phud, LOBCol lobc, CanvM cmLife, CanvM cmLob, MissionUI mui, Messages msgs){
@@ -813,6 +864,7 @@ void attachElems(HTMLElement root, PlayerHUD phud, LOBCol lobc, CanvM cmLife, Ca
                 ..appendChild(lobc.dispInfo())
                 ..appendChild(lobc.dispCtl())
                 ..appendChild(mui.disp())
+                ..appendChild(mui.dispResult())
                 ..appendChild(msgs.dispenv())
                 ..appendChild(msgs.dispoverlay())
             )
@@ -949,39 +1001,24 @@ void main() {
   
 #############################################################################
 
-#### Brief history review
-
-- What led to J wanting rewrites in the past?
-  - 2d game version 1 (tiles, Python server, small Javascript client)
-    Status: we had started adding missions
-    RFL: We decided multiplayer was not worth the extra effort that we were having to put into synchronizing locations and such
-  - 2d game version 2 (tiles, all client side, pyodide)
-    RFL: Switched to 3D 
-  - 3d game (Three JS, Pyodide, etc):
-    RFL: 
-      1. J thought code was not manageable -- too much was organized by AI
-      2. Changed our focus from accurate physics to ray-based DFing simulation
-
-#############################################################################
-
 Next steps 
 
-- Add a compass.
-  We need to discuss different execution possibilities.
-  - G N with a vertical line?
-  - magnetic north too? 
+- Mission 1:
+     In game, commander says something like this:
+       "The adversary's scouts are watching in force.
+       To avoid capture, stay behind the FLOT -- don't go any further North than grid 40100 northing.
+       Once you have determined the transmitter's grid location to within 3 meters, send it to me using
+       your tablet's grid coordinate submission form."
   
 - Option in HUD to switch between separate map or overlay
     - implementation: have a variable that gets set to the proper canvas
+- Add a full tutorial to introduce UI, controls, and have them submit a grid coordinate (no constraints in the tutorial; they can walk right up to the transmitter)
 - Zoom in/out on LOB view
-
 - add reflections, refractions etc.
-
-- if line of sight exists.
-    - How to determine line of sight?
-
 - elevation
-
 - selected lob not showing
-- alerts should be _shown on the tablet (cmlob canvas) and should be tailored as a response from you unit
+- clean up css remove unused ids and classes
+- Add a compass. We need to discuss different execution possibilities.
+  - G N with a vertical line?
+  - magnetic north too? 
 */
