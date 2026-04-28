@@ -170,6 +170,7 @@ h2 {
 
 .msgs-position {
     position: absolute;
+    border: none;
     bottom: 30px;
     right: 25px;
 }
@@ -199,4 +200,18 @@ h2 {
     position: absolute;
     top: 0px;
     left: 0px;
+}
+
+#zoomin {
+    position: absolute;
+    border: none;
+    bottom: 120px;
+    right: 25px;
+}
+
+#zoomout {
+    position: absolute;
+    border: none;
+    bottom: 75px;
+    right: 25px;
 }
