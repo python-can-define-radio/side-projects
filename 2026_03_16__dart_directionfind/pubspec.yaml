@@ -9,6 +9,7 @@ environment:
 # Add regular dependencies here.
 dependencies:
   async: ^2.13.1
+  meta: ^1.18.2
   web: ^1.1.1
 
 dev_dependencies:
