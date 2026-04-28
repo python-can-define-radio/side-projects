@@ -146,17 +146,6 @@ h2 {
     margin-top: 12px;
 }
 
-.mission-instructions {
-    background-color: #0a0f14;
-    color: white;
-    border: 2px solid lightgrey;
-    border-radius: 8px;
-    padding: 16px;
-    box-shadow: 0 0 30px #000 inset, 0 0 12px #000;
-    bottom: 295px;
-    right: -1085px;
-}
-
 #directions { 
     align-items: left;
     font-size: 1.3em;
@@ -179,7 +168,7 @@ h2 {
     color: lightgreen;
 }
 
-#msgs-position {
+.msgs-position {
     position: absolute;
     bottom: 30px;
     right: 25px;
@@ -189,7 +178,7 @@ h2 {
     margin: 0%
 }
 
-.msgs-style {
+.msgs-unread {
     background-color: rgb(13, 54, 96);
 }
 

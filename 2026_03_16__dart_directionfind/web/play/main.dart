@@ -888,15 +888,15 @@ class Messages {
             ..className = "fa-regular fa-2x msgs-text";
 
         final msgbutton = HTML.button()
-            ..className = "game-btn"..id = "msgs-position"
+            ..className = "game-btn msgs-position"
             ..appendChild(messagetext);
 
         if (_incmsg) {
             messagetext.classList.add("fa-envelope");
-            msgbutton.classList.add("msgs-style");
+            msgbutton.classList.add("msgs-unread");
         } else {
             messagetext.classList.add("fa-envelope-open");
-            msgbutton.classList.remove("msgs-style");
+            msgbutton.classList.remove("msgs-unread");
         }
         msgbutton.onClick.listen((_) => _shown.add(true));
         return msgbutton;
@@ -1017,7 +1017,6 @@ Next steps
 - add reflections, refractions etc.
 - elevation
 - selected lob not showing
-- clean up css remove unused ids and classes
 - Add a compass. We need to discuss different execution possibilities.
   - G N with a vertical line?
   - magnetic north too? 
