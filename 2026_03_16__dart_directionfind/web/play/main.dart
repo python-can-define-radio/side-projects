@@ -59,6 +59,17 @@ Result<T, U> flatten<T, U>(Result<Result<T, U>, U> r) =>
     };
 
 
+/// Metadata to mark something as doing some side effect.
+/// Unlike Haskell, we're not actively tracking these; it's just
+/// a reminder.
+class Eff {
+    final String desc;
+    const Eff(this.desc);
+}
+
+
+
+
 extension Flickerable on HTMLElement {
     void addFlicker(Stream<Object> stm) {
         stm.listen((_) {
@@ -100,36 +111,11 @@ class HTML {
 }
 
 
-// class SpriteSheet {
-//   final HTMLImageElement img;
-//   final int frameW;
-//   final int frameH;
-
-//   SpriteSheet(this.img, this.frameW, this.frameH);
-// }
-
-
-class ImgStore {
-  static late final HTMLImageElement bush1;
-  static late final HTMLImageElement bush2;
-  static late final HTMLImageElement avatarSheet;
-
-  static final _ready = Completer<void>();
-
-  static Future<void> load() async {
-    bush1 = HTMLImageElement()..src = "../assets/bush_1.png";
-    bush2 = HTMLImageElement()..src = "../assets/bush_2.png";
-    avatarSheet = HTMLImageElement()..src = "../assets/avatar_sheet.png";
-
-    await Future.wait([
-      bush1.decode().toDart,
-      bush2.decode().toDart,
-    ]);
-
-    _ready.complete();
-  }
-
-  static Future<void> get ready => _ready.future;
+@Eff("http-req")
+Future<HTMLImageElement> imageload(String path) async {
+    final el = HTMLImageElement()..src = path;
+    await el.decode().toDart;
+    return el;
 }
 
 
@@ -403,9 +389,13 @@ class PlayerHUD {
 }
 
 class Avatar implements Drawable {
-    final HTMLImageElement sheet;
+    late final HTMLImageElement _avatarSheet;
+    Avatar(this._avatarSheet);
 
-    Avatar(this.sheet);
+    @Eff("http-req")
+    static Future<Avatar> create() async { 
+        return Avatar(await imageload("../assets/avatar_sheet.png"));
+    }
 
     @override
     void draw(Cctx ctx, GridCC _) {
@@ -415,7 +405,7 @@ class Avatar implements Drawable {
         final sheetslice = 256;
         final avsize = sheetslice * scale;
 
-        ctx.drawImage(sheet, 0, 0, sheetslice, sheetslice, cenx - avsize / 2, 
+        ctx.drawImage(_avatarSheet, 0, 0, sheetslice, sheetslice, cenx - avsize / 2, 
             ceny - avsize / 2, avsize, avsize);
     }
 }
@@ -1024,13 +1014,22 @@ class Messages {
     }
 }
 
+
 class ObjCol implements Drawable {
-    late final List<Bush> _objs;
-    ObjCol() {
+    final List<Bush> _objs;
+
+    ObjCol(this._objs);
+
+    @Eff("http-req")
+    static Future<ObjCol> create() async {
         final random = Random();
+
+        final bush1 = await imageload("../assets/bush_1.png");
+        final bush2 = await imageload("../assets/bush_2.png");
+
         Bush makebush() {
             final size = random.nextInt(6) * 5 + 20;
-            final img = random.nextBool() ? ImgStore.bush1 : ImgStore.bush2;
+            final img = random.nextBool() ? bush1 : bush2;
             return Bush(
                 69900 + (random.nextDouble() * 200),
                 39900 + (random.nextDouble() * 200),
@@ -1039,7 +1038,7 @@ class ObjCol implements Drawable {
             );
         }
 
-        _objs = List.unmodifiable([for (var i = 0; i < 2000; i++) makebush()]);
+        return ObjCol(List.unmodifiable([for (var i = 0; i < 2000; i++) makebush()]));
     }
 
     @override
@@ -1050,8 +1049,8 @@ class ObjCol implements Drawable {
     }
 }
 
+
 void main() async {
-    await ImgStore.load();
     final keydown = document.body!.onKeyDown;
     final keyup = document.body!.onKeyUp;
     final frameStm = makeFrameStm();
@@ -1059,9 +1058,9 @@ void main() async {
     final ph = PlayerHUD(p1.posStm);
     final t1 = TxRadio();
     final sim = Sim(p1, t1);
-    final bushes = ObjCol();
+    final bushes = await ObjCol.create();
     final grid = Grid();
-    final avatarlife = Avatar(ImgStore.avatarSheet);
+    final avatarlife = await Avatar.create();
     final reticle = Reticle("#fff");
     final cmLife = CanvM("life", canvWidth, canvHeight, 1);
     final cmLob = CanvM("hud", canvWidth, canvHeight, .5);
@@ -1116,6 +1115,11 @@ Next steps
 - Add a compass. We need to discuss different execution possibilities.
   - G N with a vertical line?
   - magnetic north too? 
+- pushing shift + up + right does not move diagonally if i press up + right first it moves diagonally but will not run when shift is pressed
+
+
+
+
 - Art:
   - Source: One of...
     - find licensed-for-our-use
