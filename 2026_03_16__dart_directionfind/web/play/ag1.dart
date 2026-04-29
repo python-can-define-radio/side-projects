@@ -2,8 +2,10 @@
 /// The main.dart file was getting big, so we moved some arbitrary stuff to this file.
 library;
 
-import 'package:web/web.dart';
+
+import 'dart:async';
 import 'dart:js_interop';
+import 'package:web/web.dart';
 
 
 
@@ -106,4 +108,21 @@ class Observable<T> {
     Observable(this._latestVal, Stream<T> stream) {
         stream.listen((val) => _latestVal = val);
     }
+}
+
+
+Result<T, String> succIf<T>(T val, bool cond, String errmsg) {
+    if (cond) {
+        return Success(val);
+    } else {
+        return Failure(errmsg);
+    }
+}
+
+
+
+Stream<Duration> makeFrameStm() {
+    final timeDiffSC = StreamController<Duration>();
+    runEachFrame((Duration tdelta) => timeDiffSC.add(tdelta));
+    return timeDiffSC.stream.asBroadcastStream();
 }

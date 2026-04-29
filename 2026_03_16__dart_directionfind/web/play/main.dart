@@ -2,20 +2,14 @@
 library;
 
 
-/// TODO  2026 April 29 12:43 :
-/// TODO  I am going to bring back the 
-/// TODO  player position Observable in the places where it is currently commented.
-/// TODO  Initially, I was thinking it should be avoided so that all data is passed using streams,
-/// TODO  but I think the use is valid and won't cause negative effects.
-
-import 'dart:js_interop';
-import 'package:web/web.dart';
 import 'dart:async';
+import 'dart:js_interop';
 import 'dart:math';
 import 'package:async/async.dart' hide Result;
 import 'package:meta/meta.dart';
+import 'package:web/web.dart';
 import './ag1.dart';
-
+import './htmlhelp.dart';
 
 
 const canvWidth = 600;
@@ -28,23 +22,6 @@ typedef DuStm = Stream<Duration>;
 
 
 num sq(num x) => x * x;
-
-
-
-
-extension Flickerable on HTMLElement {
-    /// Temporarily adds "button-active" to the classList.
-    /// Debugging note: this assumes that...
-    /// - the element still exists after `milliseconds`
-    /// - nothing else is adding/removing the "button-active" class
-    @Mut(["this.classList"])
-    void addFlicker(Stream<Object> stm, [int milliseconds = 100]) {
-        stm.listen((_) {
-            classList.add("button-active");
-            Future.delayed(Duration(milliseconds: milliseconds), () => classList.remove("button-active"));
-        });
-    }
-}
 
 
 /// Methods for creating HTML elems
@@ -133,52 +110,87 @@ class GridCC {
     /// that corresponds to one meter when scale is `1.0`.
     static const _gridMB = 22;
     /// Zoom scale. Example: scale = 0.5 would be zoomed out by a factor of 2.
-    final double _scale;
-    final Pos _center;
-    GridCC(this._scale, this._center);
+    final double scale;
+    final Pos center;
+    GridCC(this.scale, this.center);
     
     /// Returns (x, y) in canvas units
     (double, double) cu(Pos p) => (
-        p.x.val * _gridMB * _scale,
-        p.y.val * _gridMB * _scale,
+        p.x.val * _gridMB * scale,
+        p.y.val * _gridMB * scale,
     );
 
     /// Given a position (which uses Grid Coordinates),
     /// - converts to canvas units
-    /// - shifts based on `_center` and the size of the canvas
+    /// - shifts based on `center` and the size of the canvas
     /// Returns a pair that is suitable for canvas draw functions.
-    ({double left, double top}) lefttop(Pos p) {
-        final (xcu, ycu) = cu(p);
-        final (xcentcu, ycentcu) = cu(_center);
+    ({double xcu, double ycu}) cush(Pos p) {
+        final (xcuUnshifted, ycuUnshifted) = cu(p);
+        final (xcentcu, ycentcu) = cu(center);
         /// Notice that the vertical formula is inverted 
         /// because canvases use down as positive y direction
         return (
-            left: xcu - xcentcu + canvWidth / 2,
-            top: ycentcu - ycu + canvHeight / 2,
+            xcu: xcuUnshifted - xcentcu + canvWidth / 2,
+            ycu: ycentcu - ycuUnshifted + canvHeight / 2,
         );
     }
 
     /// Fill rectangle, but `p` specifies the center, not the top-left corner.
     @Mut(["ctx"])
     void fillRectCent(Pos p, num wcu, num hcu, Cctx ctx) {
-        final (:left, :top) = lefttop(p);
-        ctx.fillRect(left - wcu/2, top - hcu/2, wcu, hcu);
+        final (:xcu, :ycu) = cush(p);
+        ctx.fillRect(xcu - wcu/2, ycu - hcu/2, wcu, hcu);
     }
 
     /// `p` specifies the center, not the top-left corner.
     @Mut(["ctx"])
     void drawImage(Pos p, HTMLImageElement img, num wcu, num hcu, Cctx ctx) {
-        final (:left, :top) = lefttop(p);
-        ctx.drawImage(img, left - wcu/2, top - hcu/2, wcu, hcu);
+        final (:xcu, :ycu) = cush(p);
+        ctx.drawImage(img, xcu - wcu/2, ycu - hcu/2, wcu, hcu);
+    }
+
+    /// Line from `pos1` to `pos2`
+    @Mut(["ctx"])
+    void drawLine(Pos pos1, Pos pos2, Cctx ctx) {
+        final one = cush(pos1);
+        final two = cush(pos2);
+        ctx.beginPath();
+        ctx.moveTo(one.xcu, one.ycu);
+        ctx.lineTo(two.xcu, two.ycu);
+        ctx.stroke();
+    }
+
+    /// Line from `pos1` to `pos2`
+    @Mut(["ctx"])
+    void fillText(String text, Pos p, Cctx ctx) {
+        final (:xcu, :ycu) = cush(p);
+        ctx.fillText(text, xcu, ycu);
+    }
+
+    /// Line from `rp1` to `rp2`.
+    /// Both are relative to `center`.
+    /// Example: given
+    ///   - center x is 70030
+    ///   - rp1 x is -5
+    ///   - rp2 x is 10
+    ///   it would draw the line from x=70025 to x=70040.
+    /// (The same logic applies for y.)
+    @Mut(["ctx"])
+    void drawLineRel(Pos rp1, Pos rp2, Cctx ctx) {
+        drawLine(center + rp1, center + rp2, ctx);
     }
 }
 
 /// Grid Coordinates
 @immutable
 class GC {
-    final double val;
+    final num val;
     GC(this.val);
     GC operator +(GC other) => GC(val + other.val);
+    GC operator -(GC other) => GC(val - other.val);
+    GC operator *(GC other) => GC(val * other.val);
+    GC operator /(GC other) => GC(val / other.val);
+    String get asfivedig => val.round().toString().padLeft(5, '0');
 }
 
 @immutable
@@ -293,7 +305,9 @@ class PlayerHUD {
         final posEl = HTML.div()..id = "player-pos";
         _posStm.listen((pos) =>
             posEl.innerText =
-                "grid: 55P DE ${pos.x.val.toStringAsFixed(0)} ${pos.y.val.toStringAsFixed(0)}"
+                "grid: 55P DE "
+                "${pos.x.asfivedig} "
+                "${pos.y.asfivedig}"
         );
         return posEl;
     }
@@ -418,7 +432,7 @@ class CanvM {
     late final Cctx _ctx;
     late final ImmuList<Drawable> _drawItems;
     late final Stream<MouseEvent> click = _canv.onClick;
-    double _scale;
+    final Observable<double> _scale;
 
     CanvM(String cssid, int w, int h, this._scale) {
         _canv
@@ -438,7 +452,7 @@ class CanvM {
     HTMLCanvasElement disp() => _canv;
 
     void _frameUpdate(Pos center) {
-        final gridcc = GridCC(_scale, center);
+        final gridcc = GridCC(_scale.latestVal, center);
         _ctx.clearRect(0, 0, _canv.width, _canv.height);
         for (final item in _drawItems.values) {
             item.draw(_ctx, gridcc);
@@ -447,62 +461,64 @@ class CanvM {
 }
 
 class Grid implements Drawable {
+    final Observable<double> _scale;
+    Grid(this._scale);
     @override
     void draw(Cctx ctx, GridCC gridcc) {
 
-        /// TODO
-        // /// Space between gridlines in meters
-        // final gridUnitSpc = 5;
-        // /// Space between gridlines in canvas units
-        // final gridSpacing = 22 * gridUnitSpc;
-        // /// this is an empirical guess. Eventually we should use a monospace
-        // /// font and fetch the width of it if possible.
-        // const charWidth = 6;
-        // /// see note on charWidth
-        // const charHeight = 3;
-        // /// center to x edge, in grid units
-        // const ctoxeg = 0.7 * canvWidth / 22;
-        // /// center to y edge, in grid units
-        // const ctoyeg = 0.7 * canvHeight / 22;
+        /// Space between gridlines in meters
+        final gridUnitSpcExponent = switch(_scale.latestVal) {
+            <0.0099  => 3,
+            <0.099  => 2,
+            <0.99  => 1,
+            _  => 0,
+        };
 
-        // double toGrid(double v) => (v / gridUnitSpc).floorToDouble() * gridUnitSpc;
+        final gridUnitSpc = pow(10, gridUnitSpcExponent);
 
-        // ctx.strokeStyle = "#ccc".toJS;
-        // ctx.fillStyle = "#ccc".toJS;
-        // ctx.lineWidth = 0.5;
+        GC toGrid(GC gc) =>
+            GC((gc.val / gridUnitSpc).floorToDouble() * gridUnitSpc);
+
+        ctx.strokeStyle = "#ccc".toJS;
+        ctx.fillStyle = "#ccc".toJS;
+        ctx.lineWidth = 0.5;
+
+        final far = GC(gridUnitSpc * 20);
+        final doublefar = far * GC(2);
+        final xstart = toGrid(gridcc.center.x - far);
+        final xstop = xstart + doublefar;
+        final ystart = toGrid(gridcc.center.y - far);
+        final ystop = ystart + doublefar;
+        final xtext = gridcc.center.x - GC(13.6 / gridcc.scale);
+        final ytext = gridcc.center.y + GC(8.7 / gridcc.scale);
+
+        /// this is an empirical guess. Eventually we should use a monospace
+        /// font and fetch the width of it if possible.
+        final charWidth = 0.3 / gridcc.scale;
+        /// see note on charWidth
+        final charHeight = 0.2 / gridcc.scale;
+
+        String lastDigits(GC gc) {
+            final numdig = max(2, gridUnitSpcExponent + 1);
+            return gc.asfivedig.substring(5 - numdig, 5);
+        }
         
-        // final startx = Pos.xgridToCU(toGrid(center.xgrid - ctoxeg));
-        // final starty = Pos.ygridToCU(toGrid(center.ygrid + ctoyeg));
-
-        // for (var x = startx; x <= startx + 1.5*canvWidth; x += gridSpacing) {
-        //     ctx.beginPath();
-        //     moveToRel(x, center.ycu + canvHeight, ctx, center);
-        //     lineToRel(x, center.ycu - canvHeight, ctx, center);
-        //     ctx.stroke();
-        //     final gridVal = Pos.xCUToGrid(x).toString().substring(3);
-        //     fillTextRel(
-        //         gridVal,
-        //         x - charWidth,
-        //         center.ycu - (canvHeight/2) + 10,
-        //         ctx,
-        //         center
-        //     );
-        // }
-
-        // for (var y = starty; y <= starty + 1.5*canvHeight; y += gridSpacing) {
-        //     ctx.beginPath();
-        //     moveToRel(center.xcu + canvWidth, y, ctx, center);
-        //     lineToRel(center.xcu - canvWidth, y, ctx, center);
-        //     ctx.stroke();
-        //     final gridVal = Pos.yCUToGrid(y).toString().substring(3);
-        //     fillTextRel(
-        //         gridVal,
-        //         center.xcu - (canvWidth/2),
-        //         y + charHeight,
-        //         ctx,
-        //         center
-        //     );
-        // }
+        for (var x = xstart.val; x <= xstop.val; x += gridUnitSpc) {
+            gridcc.drawLine(Pos(GC(x), ystart), Pos(GC(x), ystop), ctx);
+            gridcc.fillText(
+                "${lastDigits(GC(x))}",
+                Pos(GC(x - charWidth), ytext),
+                ctx
+            );
+        }
+        for (var y = ystart.val; y <= ystop.val; y += gridUnitSpc) {
+            gridcc.drawLine(Pos(xstart, GC(y)), Pos(xstop, GC(y)), ctx);
+            gridcc.fillText(
+                "${lastDigits(GC(y))}",
+                Pos(xtext, GC(y - charHeight)),
+                ctx
+            );
+        }
     }
 }
 
@@ -516,13 +532,6 @@ class TxRadio implements Drawable {
         ctx.fillStyle = "#00f".toJS;
         gridcc.fillRectCent(pos, 10, 10, ctx);
     }
-}
-
-
-Stream<Duration> makeFrameStm() {
-    final timeDiffSC = StreamController<Duration>();
-    runEachFrame((Duration tdelta) => timeDiffSC.add(tdelta));
-    return timeDiffSC.stream.asBroadcastStream();
 }
 
 
@@ -562,33 +571,31 @@ class LOBCol implements Drawable {
     /// Selected LOB
     late final Observable<LOB?> _sellob;
 
-    LOBCol(KbStm keydown, Stream<LOB> univLobs, Stream<MouseEvent> canvclick, Stream<Pos> p1pos) {
-        /// TODO
-        // _gatheringLobsCb = _configGath(keydown);
-        // final (clear, cbtn) = _configClearing(keydown);
-        // _clearBtn = cbtn;
-        // final filtlobs = univLobs.where((_) => _gatheringLobsCb.checked);
-        // _lobsStm = _makeLobStream(clear, filtlobs);
-        // _lobs = Observable(ImmuList([]), _lobsStm);
-        // _sellob = _configChosenLOB(_lobs, canvclick, p1pos);
+    LOBCol(KbStm keydown, Stream<LOB> univLobs, Stream<MouseEvent> canvclick, Observable<Pos> p1po, Observable<double> scale) {
+        _gatheringLobsCb = _configGath(keydown);
+        final (clear, cbtn) = _configClearing(keydown);
+        _clearBtn = cbtn;
+        final filtlobs = univLobs.where((_) => _gatheringLobsCb.checked);
+        _lobsStm = _makeLobStream(clear, filtlobs);
+        _lobs = Observable(ImmuList([]), _lobsStm);
+        _sellob = _configChosenLOB(_lobs, canvclick, p1po, scale);
     }
 
-    static Observable<LOB?> _configChosenLOB(Observable<ImmuList<LOB>> lobs, Stream<MouseEvent> canvclick, Stream<Pos> p1pos) {
+    static Observable<LOB?> _configChosenLOB(Observable<ImmuList<LOB>> lobs, Stream<MouseEvent> canvclick, Observable<Pos> p1po, Observable<double> scale) {
         final sc = StreamController<LOB?>();
-        /// TODO
-        // canvclick.listen((ev) {
-        //     final chosen = decideClosest(lobs.latestVal, p1.pos, ev);
-        //     if (chosen != null) {
-        //         print("I am the selected lob");
-        //     }
-        //     sc.add(chosen);
-        // });
+        canvclick.listen((ev) {
+            final gridcc = GridCC(scale.latestVal, p1po.latestVal);
+            final chosen = decideClosest(lobs.latestVal, gridcc, ev);
+            print("Selected lob: $chosen");
+            sc.add(chosen);
+        });
         return Observable(null, sc.stream);
     }
     
-    static LOB? decideClosest(ImmuList<LOB> immulobs, Pos p1pos, MouseEvent ev) {
-        final lobs = immulobs.values;
+    static LOB? decideClosest(ImmuList<LOB> immulobs, GridCC gridcc, MouseEvent ev) {
         /// TODO
+        window.alert("${gridcc.cush(gridcc.center)}");
+        // final lobs = immulobs.values;
         // final shiftx = p1pos.xcu + ev.offsetX - canvWidth / 2;
         // final shifty = p1pos.ycu + ev.offsetY - canvHeight / 2;
         // num dist(LOB lob) {
@@ -604,6 +611,8 @@ class LOBCol implements Drawable {
         return immulobs.values.firstOrNull;
     }
     
+    /// Creates and returns a checkbox.
+    /// The checkbox's `checked` attribute is mutated by the keydown stream.
     static HTMLInputElement _configGath(KbStm keydown) {
         final gcb = HTML.checkbox()
             ..id = "lob-cb"
@@ -614,7 +623,9 @@ class LOBCol implements Drawable {
         return gcb;
     }
     
-    static (Stream<Event>, HTMLButtonElement) _configClearing(KbStm keydown) {
+    /// Returns a stream and the clear button.
+    /// Events in the stream (both clicks and keypresses) should cause a clear.
+    static (Stream<Object>, HTMLButtonElement) _configClearing(KbStm keydown) {
         final cDown = keydown.where((ev) => ev.key.toLowerCase() == "c").asBroadcastStream();
         final cbtn = HTML.button()
             ..addFlicker(cDown)
@@ -622,6 +633,7 @@ class LOBCol implements Drawable {
             ..innerText = "Clear LOBs [ c ]";
         return (StreamGroup.merge([cDown, cbtn.onClick]), cbtn);
     }
+
     /// Makes a stream of the lobs saved on the simulated DFing equipment,
     /// not to be confused with the stream of lobs coming from the universe.
     static Stream<ImmuList<LOB>> _makeLobStream(Stream<Object> clear, Stream<LOB> filtlobs)    {
@@ -645,43 +657,40 @@ class LOBCol implements Drawable {
 
     HTMLDivElement dispInfo() {
         final lobPowEl = HTML.div()..id = "lob-power";
-        /// TODO
-        // _lobsStm.listen((lobs) => lobPowEl.innerText = _fmtpow(lobs.values.lastOrNull));
+        _lobsStm.listen((lobs) => lobPowEl.innerText = _fmtpow(lobs.values.lastOrNull));
         return lobPowEl;
     }
 
     HTMLDivElement dispCtl() {
-    return HTML.div();
-    /// TODO
-        // ..appendChild(_clearBtn..className = "game-btn")
-        // ..appendChild(HTML.div()..id = "lobs-cb-with-text"
-        //     ..appendChild(HTML.span()..innerText = "Gathering LOBs [ g ]: ")
-        //     ..appendChild(_gatheringLobsCb)
-        // );
+        return HTML.div()
+        ..appendChild(_clearBtn..className = "game-btn")
+        ..appendChild(HTML.div()..id = "lobs-cb-with-text"
+            ..appendChild(HTML.span()..innerText = "Gathering LOBs [ g ]: ")
+            ..appendChild(_gatheringLobsCb)
+        );
     }
 
     @override
+    @Mut(["ctx"])
     void draw(Cctx ctx, GridCC gridcc) {
-        /// TODO
-        // final lobs = _lobs.latestVal.values;
+        final lobs = _lobs.latestVal.values;
 
-        // void drawOne(LOB lob, {String color = "orange"}) {
-        //     const loblength = 10000;
-        //     final endx = lob.source.xcu + loblength * lob.azimuth.cosresult;
-        //     final endy = lob.source.ycu + loblength * lob.azimuth.sinresult;
-        //     ctx.beginPath();
-        //     ctx.lineWidth = 2;
-        //     ctx.strokeStyle = color.toJS;
-        //     moveToRel(lob.source.xcu, lob.source.ycu, ctx, center);
-        //     lineToRel(endx, endy, ctx, center);
-        //     ctx.stroke();
-        // }
+        void drawOne(LOB lob, {String color = "orange"}) {
+            const arbitrarilyLargeLobLength = 1000;
+            final dest = lob.source + Pos(
+                GC(arbitrarilyLargeLobLength * lob.azimuth.cosresult),
+                GC(arbitrarilyLargeLobLength * lob.azimuth.sinresult)
+            );
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = color.toJS;
+            gridcc.drawLine(lob.source, dest, ctx);
+        }
 
-        // for (final lob in withoutLast(lobs)) {
-        //     drawOne(lob);
-        // }
-        // lobs.lastOrNull?.then((lob) => drawOne(lob, color: "red"));
-        // _sellob.latestVal?.then((lob) => drawOne(lob, color: "blue"));
+        for (final lob in withoutLast(lobs)) {
+            drawOne(lob);
+        }
+        lobs.lastOrNull?.then((lob) => drawOne(lob, color: "red"));
+        _sellob.latestVal?.then((lob) => drawOne(lob, color: "blue"));
     }
 }
 
@@ -691,9 +700,9 @@ class Azimuth {
     late final double cosresult;
     /// Given the player (receiver) position and the transmitter position
     /// compute the azimuth from the player's perspective.
-    Azimuth.fromPositions(Pos p1pos, TxRadio t) {
-        final xd = t.pos.x.val - p1pos.x.val;
-        final yd = t.pos.y.val - p1pos.y.val;
+    Azimuth.fromPositions(Pos p1pos, Pos txpos) {
+        final xd = txpos.x.val - p1pos.x.val;
+        final yd = txpos.y.val - p1pos.y.val;
         final dist = sqrt(xd * xd + yd * yd);
         sinresult = yd / dist;
         cosresult = xd / dist;
@@ -717,23 +726,20 @@ class Sim {
     final _random = Random();
     /// LOBs coming from the universe (as opposed to those which we have gathered)
     late final Stream<LOB> univLobs;
-    Sim(Stream<Pos> p1pos, TxRadio t1) {
-        /// TODO
-        /// TEMP FIX:
-        univLobs = Stream<LOB>.empty();
-        // univLobs = 
-        //     Stream<Null>.periodic(Duration(milliseconds: 50))
-        //         .where((_) => _random.nextInt(5) == 0)
-        //         .map((_) => _makelob(p1, t1))
-        //         .asBroadcastStream();
+    /// p1po: Player 1 Position Observable
+    Sim(Observable<Pos> p1po, Pos txpos, Power txpower) {
+        univLobs = 
+            Stream<Null>.periodic(Duration(milliseconds: 50))
+                .where((_) => _random.nextInt(5) == 0)
+                .map((_) => _makelob(p1po.latestVal, txpos, txpower))
+                .asBroadcastStream();
     }
 
-    /// TODO
-    // LOB _makelob(Player p1, TxRadio t1) => (
-    //     source: p1.pos,
-    //     azimuth: _noi(Azimuth.fromPositions(p1, t1)),
-    //     rxpow: _distLoss(t1, p1),
-    // );
+    LOB _makelob(Pos p1pos, Pos txpos, Power txpower) => (
+        source: p1pos,
+        azimuth: _noi(Azimuth.fromPositions(p1pos, txpos)),
+        rxpow: _distLoss(p1pos, txpos, txpower),
+    );
 
     /// add random noise. Need to figure out whether this is typical distribution
     Azimuth _noi(Azimuth a) {
@@ -744,14 +750,13 @@ class Sim {
         );
     }
 
-    /// TODO
     /// A very rudimentary path loss computation
-    // Power _distLoss(TxRadio t, Player p1) {
-    //     final xd = t.pos.x.val - p1.pos.x.val;
-    //     final yd = t.pos.y.val - p1.pos.y.val;
-    //     final dist = sqrt(xd * xd + yd * yd);
-    //     return t.txpower * 0.1 * (1 / sq(dist)) * (_random.nextDouble() * 0.1 + 0.9);
-    // }
+    Power _distLoss(Pos p1pos, Pos txpos, Power txpower) {
+        final xd = txpos.x.val - p1pos.x.val;
+        final yd = txpos.y.val - p1pos.y.val;
+        final dist = sqrt(xd * xd + yd * yd);
+        return txpower * 0.1 * (1 / sq(dist)) * (_random.nextDouble() * 0.1 + 0.9);
+    }
 }
 
 enum Mission { explore, tutorial, m1 }
@@ -766,13 +771,6 @@ Mission strToMission(String? missionName) {
     return Mission.explore;
 }
 
-Result<T, String> succIf<T>(T val, bool cond, String errmsg) {
-    if (cond) {
-        return Success(val);
-    } else {
-        return Failure(errmsg);
-    }
-}
 
 class MissionUI {
     final Mission mission;
@@ -787,6 +785,7 @@ class MissionUI {
         return strToMission(uri.queryParameters["mission"]);
     }
 
+    @Eff("window.open")
     HTMLElement disp() => 
         switch (mission) {
             Mission.explore =>  HTML.div(),
@@ -814,6 +813,7 @@ class MissionUI {
             .then((x) => flatten(x));
     }
     
+    @Eff("window.open")
     void _handleSubmit(String submission) {
         final p = parseSubmission(submission);
         final msg = switch (p) { Success(val: final coords) => "you submitted $coords. Not sure if correct.", Failure(val: final errmsg) => "Error: $errmsg" };
@@ -826,6 +826,7 @@ class MissionUI {
             });   
     }
 
+    @Eff("window.open")
     HTMLFormElement _form() {
         final form = HTML.form();
         final inpEl = HTMLInputElement()
@@ -876,7 +877,33 @@ void attachElems(HTMLElement root, PlayerHUD phud, LOBCol lobc, CanvM cmLife, Ca
             );
 }
 class Zoom {
-    HTMLElement disp() {
+    late final Observable<double> scale;
+    late final HTMLElement _dispElem;
+
+    Zoom() {
+        const initzoom = 1.0;
+        final (elem, stm) = makePlusMinus();
+        _dispElem = elem;
+        scale = Observable(initzoom, makeScale(initzoom, stm));
+    }
+
+    /// Return a stream of the current zoom level.
+    /// The stream `stm` controls the output stream:
+    ///   `true` => zoom in by a factor of 2
+    ///   `false` => zoom out by a factor of 2
+    /// Example:
+    ///  If initzoom = 1 and stm produces [true, false, false, true],
+    /// then the output stream would be 1, 2, 1, 0.5, 1.
+    static Stream<double> makeScale(double initzoom, Stream<bool> stm) {
+        return stm.scan<double>(
+            initzoom,
+            (prev, zoomIn) => zoomIn ? prev * 2 : prev / 2,
+        );
+    }
+
+    HTMLElement disp() => _dispElem;
+    
+    static (HTMLElement, Stream<bool>) makePlusMinus() {
         final zoomintext = HTML.p()
             ..className = "fa-solid fa-magnifying-glass-plus fa-2x msgs-text";
 
@@ -893,11 +920,22 @@ class Zoom {
             ..id = "zoomout"
             ..appendChild(zoomouttext);
 
-        return HTML.div()
+        final wrapperdiv = HTML.div()
             ..appendChild(zoomin)
             ..appendChild(zoomout);
+
+        final inoutstm = combineInOut(zoomin.onClick, zoomout.onClick);
+        return (wrapperdiv, inoutstm);
+    }
+
+    static Stream<bool> combineInOut(Stream<Object> instm, Stream<Object> outstm) {
+        final t = instm.map((_) => true);
+        final f = outstm.map((_) => false);
+        return StreamGroup.merge([t, f]);
     }
 }
+
+
 class Messages {
     var _incmsg = true;
     final _shown = StreamController<bool>(); 
@@ -978,6 +1016,9 @@ class Objs implements Drawable {
 
         return Objs(ImmuList(
             [for (var i = 0; i < 2000; i++) makebush()]
+            + [SimpleOb(GC(70000), GC(40000), bush1, 10),
+               SimpleOb(GC(70005), GC(40000), bush1, 10),
+               SimpleOb(GC(70010), GC(40000), bush1, 10)]
         ));
     }
 
@@ -995,20 +1036,20 @@ void main() async {
     final keydown = document.body!.onKeyDown;
     final keyup = document.body!.onKeyUp;
     final frameStm = makeFrameStm();
-    final p1 = PlayerPos(Pos(GC(70005), GC(40008)), keydown, keyup, frameStm);
+    final p1 = PlayerPos(Pos(GC(70012), GC(40008)), keydown, keyup, frameStm);
     final ph = PlayerHUD(p1.posStm);
     final t1 = TxRadio();
-    final sim = Sim(p1.posStm, t1);
+    final sim = Sim(p1.posObs, t1.pos, t1.txpower);
     final bushes = await Objs.create();
-    final grid = Grid();
     final avatarlife = await Avatar.create();
     final reticle = Reticle("#fff");
-    final cmLife = CanvM("life", canvWidth, canvHeight, 1);
-    final cmLob = CanvM("hud", canvWidth, canvHeight, .5);
-    final lobc = LOBCol(keydown, sim.univLobs, cmLob.click, p1.posStm);
+    final zoom = Zoom();
+    final grid = Grid(zoom.scale);
+    final cmLife = CanvM("life", canvWidth, canvHeight, Observable(1, Stream.empty()));
+    final cmLob = CanvM("hud", canvWidth, canvHeight, zoom.scale);
+    final lobc = LOBCol(keydown, sim.univLobs, cmLob.click, p1.posObs, zoom.scale);
     final mui = MissionUI(window.location.href, t1.pos);
     final msg = Messages();
-    final zoom = Zoom();
     cmLife.config(p1.posStm, [avatarlife, bushes, t1]);
     cmLob.config(p1.posStm, [lobc, grid, reticle]);
     attachElems(document.body!, ph, lobc, cmLife, cmLob, mui, zoom, msg); 
