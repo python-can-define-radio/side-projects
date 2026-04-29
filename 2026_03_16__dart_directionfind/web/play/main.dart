@@ -1,80 +1,47 @@
-/// Beginning to migrate JS code to Dart.
+/// LOBSTER Game.
 library;
+
+
+/// TODO  2026 April 29 12:43 :
+/// TODO  I am going to bring back the 
+/// TODO  player position Observable in the places where it is currently commented.
+/// TODO  Initially, I was thinking it should be avoided so that all data is passed using streams,
+/// TODO  but I think the use is valid and won't cause negative effects.
 
 import 'dart:js_interop';
 import 'package:web/web.dart';
 import 'dart:async';
 import 'dart:math';
-import 'package:async/async.dart';
+import 'package:async/async.dart' hide Result;
 import 'package:meta/meta.dart';
+import './ag1.dart';
+
 
 
 const canvWidth = 600;
 const canvHeight = 400;
 
-num sq(num x) => x * x;
 
 typedef Cctx = CanvasRenderingContext2D;
-
-/// Returns a sublist including all items except the last item.
-/// If `orig` is empty, return it.
-List<T> withoutLast<T>(List<T> orig) =>
-    orig.isEmpty ? orig : orig.getRange(0, orig.length - 1).toList();
+typedef KbStm = ElementStream<KeyboardEvent>;
+typedef DuStm = Stream<Duration>;
 
 
-extension FunctionPipe<T> on T {
-    /// Source: https://github.com/dart-lang/language/issues/1246
-    R then<R>(R Function (T) f) => f(this);
-}
-
-
-sealed class Result<S, F> {
-    /// Apply the function if the result is a success.
-    Result<U, F> map<U>(U Function(S) f);
-}
-class Success<S, F> extends Result<S, F> {
-    final S val;
-    Success(this.val);
-    @override
-    Result<U, F> map<U>(U Function(S) f) {
-        return Success(f(val));
-    }
-    
-}
-class Failure<S, F> extends Result<S, F> {
-    final F val;
-    Failure(this.val);
-    @override
-    Result<U, F> map<U>(_) {
-        return Failure(val);
-    }
-}
-
-/// Un-nest Result{Result}. Does only one layer of flattening.
-Result<T, U> flatten<T, U>(Result<Result<T, U>, U> r) =>
-    switch (r) { 
-        Failure(val: final errmsg) => Failure(errmsg),
-        Success(val: Failure(val: final errmsg)) => Failure(errmsg),
-        Success(val: Success(val: final succval)) => Success(succval),
-    };
-
-
-/// Metadata to mark something as doing some side effect.
-/// Unlike Haskell, we're not actively tracking these; it's just
-/// a reminder.
-class Eff {
-    final String desc;
-    const Eff(this.desc);
-}
+num sq(num x) => x * x;
 
 
 
 
 extension Flickerable on HTMLElement {
-    void addFlicker(Stream<Object> stm) {
+    /// Temporarily adds "button-active" to the classList.
+    /// Debugging note: this assumes that...
+    /// - the element still exists after `milliseconds`
+    /// - nothing else is adding/removing the "button-active" class
+    @Mut(["this.classList"])
+    void addFlicker(Stream<Object> stm, [int milliseconds = 100]) {
         stm.listen((_) {
             classList.add("button-active");
-            Future.delayed(Duration(milliseconds: 100), () => classList.remove("button-active"));
+            Future.delayed(Duration(milliseconds: milliseconds), () => classList.remove("button-active"));
         });
     }
 }
@@ -111,6 +78,7 @@ class HTML {
 }
 
 
+/// Load an image. Wait for it to decode before returning.
 @Eff("http-req")
 Future<HTMLImageElement> imageload(String path) async {
     final el = HTMLImageElement()..src = path;
@@ -121,6 +89,11 @@ Future<HTMLImageElement> imageload(String path) async {
 
 class OkCancelDialog {
     final _dialogWrap = HTML.div();
+
+    /// Return value:
+    ///  `true` => user clicked `OK`
+    ///  `false` => user clicked `Cancel`
+    @Mut(["this._dialogWrap"])
     Future<bool> showWith(String msg) {
         final dialog = HTML.dialog()..className = "game-dialog";
         dialog.innerText = msg;
@@ -166,30 +139,38 @@ class GridCC {
     
     /// Returns (x, y) in canvas units
     (double, double) cu(Pos p) => (
-        (p.x.val - _center.x.val) * _gridMB * _scale,
-        (p.y.val - _center.y.val) * _gridMB * _scale,
+        p.x.val * _gridMB * _scale,
+        p.y.val * _gridMB * _scale,
     );
-    void fillRect(Pos p, num wcu, num hcu, Cctx ctx) {
+
+    /// Given a position (which uses Grid Coordinates),
+    /// - converts to canvas units
+    /// - shifts based on `_center` and the size of the canvas
+    /// Returns a pair that is suitable for canvas draw functions.
+    ({double left, double top}) lefttop(Pos p) {
         final (xcu, ycu) = cu(p);
         final (xcentcu, ycentcu) = cu(_center);
-        final left = xcu - xcentcu + canvWidth / 2;
-        /// intentionally inverted because canvases use down as their positive y
-        final top = ycentcu - ycu + canvHeight / 2;
-        ctx.fillRect(left, top, wcu, hcu);
+        /// Notice that the vertical formula is inverted 
+        /// because canvases use down as positive y direction
+        return (
+            left: xcu - xcentcu + canvWidth / 2,
+            top: ycentcu - ycu + canvHeight / 2,
+        );
     }
 
-    void drawImage(Pos p, HTMLImageElement img, num wcu, num hcu, Cctx ctx) {
-        final (xcu, ycu) = cu(p);
-        final (xcentcu, ycentcu) = cu(_center);
-        final left = xcu - xcentcu + canvWidth / 2;
-        final top = ycentcu - ycu + canvHeight / 2;
+    /// Fill rectangle, but `p` specifies the center, not the top-left corner.
+    @Mut(["ctx"])
+    void fillRectCent(Pos p, num wcu, num hcu, Cctx ctx) {
+        final (:left, :top) = lefttop(p);
+        ctx.fillRect(left - wcu/2, top - hcu/2, wcu, hcu);
+    }
 
+    /// `p` specifies the center, not the top-left corner.
+    @Mut(["ctx"])
+    void drawImage(Pos p, HTMLImageElement img, num wcu, num hcu, Cctx ctx) {
+        final (:left, :top) = lefttop(p);
         ctx.drawImage(img, left - wcu/2, top - hcu/2, wcu, hcu);
     }
-    
-    // double ygridToCU(double ygrid) => -(ygrid - _gridorigin.y) * gridMB;
-    // double xCUToGrid(double xcu) => ((xcu / gridMB) + _gridorigin.x);
-    // double yCUToGrid(double ycu) => ((-ycu / gridMB) + _gridorigin.y);
 }
 
 /// Grid Coordinates
@@ -210,90 +191,20 @@ class Pos {
         Pos(x + other.x, y + other.y);
 }
 
-// class Pos {
-//     static final _gridorigin = (x: 70000, y: 40000);
-    
-//     /// x expressed in canvas units
-//     final double xcu;
-//     /// y expressed in canvas units
-//     final double ycu;
-//     /// x expressed in grid units
-//     double get xgrid => xCUToGrid(xcu);
-//     /// y expressed in grid units
-//     double get ygrid => yCUToGrid(ycu);
-
-//     Pos.fromCanvUnits(this.xcu, this.ycu);
-//     Pos.fromGridCoords(double xgrid, double ygrid) :
-//       xcu = xgridToCU(xgrid),
-//       ycu = ygridToCU(ygrid);
-
-//     static double xgridToCU(double xgrid) => (xgrid - _gridorigin.x) * gridMB;
-//     static double ygridToCU(double ygrid) => -(ygrid - _gridorigin.y) * gridMB;
-//     static double xCUToGrid(double xcu) => ((xcu / gridMB) + _gridorigin.x);
-//     static double yCUToGrid(double ycu) => ((-ycu / gridMB) + _gridorigin.y);
-// }
-
-
-
 
 abstract class Drawable {
     void draw(Cctx ctx, GridCC gridcc);
 }
 
 
-/// Repeatedly call requestAnimationFrame; pass the time delta as an argument to `frameUpdate`
-void runEachFrame(void Function(Duration) frameUpdate) {
-    void dartRAF(void Function(double) callback) {
-        window.requestAnimationFrame(callback.toJS);
-    }
-
-    double tlast = 0;
-    void animate(double timems) {
-        final deltams = timems - tlast;
-        tlast = timems;
-        frameUpdate(Duration(milliseconds: deltams.toInt()));
-        dartRAF(animate);
-    }
-
-    dartRAF(animate);
-}
-
-
-extension Scanner<T> on Stream<T> {
-    Stream<S> scan<S>(S initial, S Function(S, T) combine) async* {
-        S prevIteration = initial;
-        yield prevIteration;
-        await for(final current in this) {
-            prevIteration = combine(prevIteration, current);
-            yield prevIteration;
-        }
-    }
-}
-
-
-/// A wrapped stream that keeps a record of the most recent stream value.
-class Observable<T> {
-    T _latestVal;
-    T get latestVal => _latestVal;
-    Observable(this._latestVal, Stream<T> stream) {
-        stream.listen((val) => _latestVal = val);
-    }
-}
-
-
-typedef KbStm = ElementStream<KeyboardEvent>;
-typedef DuStm = Stream<Duration>;
-
-
-class Player {
+class PlayerPos {
     final Stream<Pos> posStm;
-    late final Observable<Pos> _posObs;
-    Pos get pos => _posObs.latestVal;
+    late final Observable<Pos> posObs;
 
-    Player(Pos initPos, KbStm keydown, KbStm keyup, DuStm tdelta) :
+    PlayerPos(Pos initPos, KbStm keydown, KbStm keyup, DuStm tdelta) :
         posStm = _makePosStm(initPos, keydown, keyup, tdelta) {
-            _posObs = Observable(initPos, posStm);    
-        }
+        posObs = Observable(initPos, posStm);
+    }
         
     static Stream<Pos> _makePosStm(Pos initPos, KbStm keydown, KbStm keyup, DuStm tdelta) {
         const speedMetersPerSecond = 2.0;
@@ -389,24 +300,36 @@ class PlayerHUD {
 }
 
 class Avatar implements Drawable {
-    late final HTMLImageElement _avatarSheet;
+    final HTMLImageElement _avatarSheet;
+    final int _horizFrames = 4;
+    final int _vertFrames = 4;
+    double _curFrame = 0;
+
     Avatar(this._avatarSheet);
 
     @Eff("http-req")
+    @factory
     static Future<Avatar> create() async { 
         return Avatar(await imageload("../assets/avatar_sheet.png"));
     }
 
+    @Mut(["ctx"])
+    void _drawSlice(Cctx ctx, int xidx, int yidx, num xpos, num ypos, num size) {
+        final fw = _avatarSheet.width / _horizFrames;
+        final fh = _avatarSheet.height / _vertFrames;
+        ctx.drawImage(_avatarSheet,
+            xidx * fw, yidx * fh, fw, fh,
+            xpos, ypos, size, size);
+    }
+
     @override
+    @Mut(["this._curFrame", "ctx"])
     void draw(Cctx ctx, GridCC _) {
         const cenx = canvWidth / 2;
         const ceny = canvHeight / 2;
-        final scale = 0.25;
-        final sheetslice = 256;
-        final avsize = sheetslice * scale;
-
-        ctx.drawImage(_avatarSheet, 0, 0, sheetslice, sheetslice, cenx - avsize / 2, 
-            ceny - avsize / 2, avsize, avsize);
+        final avsize = 50;
+        _drawSlice(ctx, _curFrame.floor(), 0, cenx - avsize / 2, ceny - avsize / 2, avsize);
+        _curFrame = (_curFrame + 0.1) % _horizFrames;
     }
 }
 
@@ -591,9 +514,7 @@ class TxRadio implements Drawable {
     @override
     void draw(Cctx ctx, GridCC gridcc) {
         ctx.fillStyle = "#00f".toJS;
-        /// slightly shifted so that the box is centered on its position
-        final shifted = pos;  // TODO
-        gridcc.fillRect(shifted, 10, 10, ctx);
+        gridcc.fillRectCent(pos, 10, 10, ctx);
     }
 }
 
@@ -605,18 +526,21 @@ Stream<Duration> makeFrameStm() {
 }
 
 
-class Bush implements Drawable {
+class SimpleOb implements Drawable {
     final Pos _pos;
     final HTMLImageElement _img;
-    final int _size;
+    late final num _width;
+    late final num _height;
 
-    Bush(double x, double y, this._img, this._size)
-        : _pos = Pos(GC(x), GC(y));
+    SimpleOb(GC x, GC y, this._img, num size)
+        : _pos = Pos(x, y) {
+        _height = size;
+        _width = size * _img.width / _img.height;
+    }
 
     @override
     void draw(Cctx ctx, GridCC gridcc) {
-        if (!_img.complete) return;
-        gridcc.drawImage(_pos, _img, _size, _size, ctx);
+        gridcc.drawImage(_pos, _img, _width, _height, ctx);
     }
 }
 
@@ -638,25 +562,27 @@ class LOBCol implements Drawable {
     /// Selected LOB
     late final Observable<LOB?> _sellob;
 
-    LOBCol(KbStm keydown, Stream<LOB> univLobs, Stream<MouseEvent> canvclick, Player p1) {
-        _gatheringLobsCb = _configGath(keydown);
-        final (clear, cbtn) = _configClearing(keydown);
-        _clearBtn = cbtn;
-        final filtlobs = univLobs.where((_) => _gatheringLobsCb.checked);
-        _lobsStm = _makeLobStream(clear, filtlobs);
-        _lobs = Observable(ImmuList([]), _lobsStm);
-        _sellob = _configChosenLOB(_lobs, canvclick, p1);
+    LOBCol(KbStm keydown, Stream<LOB> univLobs, Stream<MouseEvent> canvclick, Stream<Pos> p1pos) {
+        /// TODO
+        // _gatheringLobsCb = _configGath(keydown);
+        // final (clear, cbtn) = _configClearing(keydown);
+        // _clearBtn = cbtn;
+        // final filtlobs = univLobs.where((_) => _gatheringLobsCb.checked);
+        // _lobsStm = _makeLobStream(clear, filtlobs);
+        // _lobs = Observable(ImmuList([]), _lobsStm);
+        // _sellob = _configChosenLOB(_lobs, canvclick, p1pos);
     }
 
-    static Observable<LOB?> _configChosenLOB(Observable<ImmuList<LOB>> lobs, Stream<MouseEvent> canvclick, Player p1,) {
+    static Observable<LOB?> _configChosenLOB(Observable<ImmuList<LOB>> lobs, Stream<MouseEvent> canvclick, Stream<Pos> p1pos) {
         final sc = StreamController<LOB?>();
-        canvclick.listen((ev) {
-            final chosen = decideClosest(lobs.latestVal, p1.pos, ev);
-            if (chosen != null) {
-                print("I am the selected lob");
-            }
-            sc.add(chosen);
-        });
+        /// TODO
+        // canvclick.listen((ev) {
+        //     final chosen = decideClosest(lobs.latestVal, p1.pos, ev);
+        //     if (chosen != null) {
+        //         print("I am the selected lob");
+        //     }
+        //     sc.add(chosen);
+        // });
         return Observable(null, sc.stream);
     }
     
@@ -719,17 +645,19 @@ class LOBCol implements Drawable {
 
     HTMLDivElement dispInfo() {
         final lobPowEl = HTML.div()..id = "lob-power";
-        _lobsStm.listen((lobs) => lobPowEl.innerText = _fmtpow(lobs.values.lastOrNull));
+        /// TODO
+        // _lobsStm.listen((lobs) => lobPowEl.innerText = _fmtpow(lobs.values.lastOrNull));
         return lobPowEl;
     }
 
     HTMLDivElement dispCtl() {
-    return HTML.div()
-        ..appendChild(_clearBtn..className = "game-btn")
-        ..appendChild(HTML.div()..id = "lobs-cb-with-text"
-            ..appendChild(HTML.span()..innerText = "Gathering LOBs [ g ]: ")
-            ..appendChild(_gatheringLobsCb)
-        );
+    return HTML.div();
+    /// TODO
+        // ..appendChild(_clearBtn..className = "game-btn")
+        // ..appendChild(HTML.div()..id = "lobs-cb-with-text"
+        //     ..appendChild(HTML.span()..innerText = "Gathering LOBs [ g ]: ")
+        //     ..appendChild(_gatheringLobsCb)
+        // );
     }
 
     @override
@@ -763,9 +691,9 @@ class Azimuth {
     late final double cosresult;
     /// Given the player (receiver) position and the transmitter position
     /// compute the azimuth from the player's perspective.
-    Azimuth.fromPositions(Player p, TxRadio t) {
-        final xd = t.pos.x.val - p.pos.x.val;
-        final yd = t.pos.y.val - p.pos.y.val;
+    Azimuth.fromPositions(Pos p1pos, TxRadio t) {
+        final xd = t.pos.x.val - p1pos.x.val;
+        final yd = t.pos.y.val - p1pos.y.val;
         final dist = sqrt(xd * xd + yd * yd);
         sinresult = yd / dist;
         cosresult = xd / dist;
@@ -789,19 +717,23 @@ class Sim {
     final _random = Random();
     /// LOBs coming from the universe (as opposed to those which we have gathered)
     late final Stream<LOB> univLobs;
-    Sim(Player p1, TxRadio t1) {
-        univLobs = 
-            Stream<Null>.periodic(Duration(milliseconds: 50))
-                .where((_) => _random.nextInt(5) == 0)
-                .map((_) => _makelob(p1, t1))
-                .asBroadcastStream();
+    Sim(Stream<Pos> p1pos, TxRadio t1) {
+        /// TODO
+        /// TEMP FIX:
+        univLobs = Stream<LOB>.empty();
+        // univLobs = 
+        //     Stream<Null>.periodic(Duration(milliseconds: 50))
+        //         .where((_) => _random.nextInt(5) == 0)
+        //         .map((_) => _makelob(p1, t1))
+        //         .asBroadcastStream();
     }
 
-    LOB _makelob(Player p1, TxRadio t1) => (
-        source: p1.pos,
-        azimuth: _noi(Azimuth.fromPositions(p1, t1)),
-        rxpow: _distLoss(t1, p1),
-    );
+    /// TODO
+    // LOB _makelob(Player p1, TxRadio t1) => (
+    //     source: p1.pos,
+    //     azimuth: _noi(Azimuth.fromPositions(p1, t1)),
+    //     rxpow: _distLoss(t1, p1),
+    // );
 
     /// add random noise. Need to figure out whether this is typical distribution
     Azimuth _noi(Azimuth a) {
@@ -812,13 +744,14 @@ class Sim {
         );
     }
 
+    /// TODO
     /// A very rudimentary path loss computation
-    Power _distLoss(TxRadio t, Player p1) {
-        final xd = t.pos.x.val - p1.pos.x.val;
-        final yd = t.pos.y.val - p1.pos.y.val;
-        final dist = sqrt(xd * xd + yd * yd);
-        return t.txpower * 0.1 * (1 / sq(dist)) * (_random.nextDouble() * 0.1 + 0.9);
-    }
+    // Power _distLoss(TxRadio t, Player p1) {
+    //     final xd = t.pos.x.val - p1.pos.x.val;
+    //     final yd = t.pos.y.val - p1.pos.y.val;
+    //     final dist = sqrt(xd * xd + yd * yd);
+    //     return t.txpower * 0.1 * (1 / sq(dist)) * (_random.nextDouble() * 0.1 + 0.9);
+    // }
 }
 
 enum Mission { explore, tutorial, m1 }
@@ -1015,35 +948,43 @@ class Messages {
 }
 
 
-class ObjCol implements Drawable {
-    final List<Bush> _objs;
+@immutable
+class Objs implements Drawable {
+    final ImmuList<SimpleOb> _objs;
 
-    ObjCol(this._objs);
+    Objs(this._objs);
 
+    /// Create randomly-distributed bushes
     @Eff("http-req")
-    static Future<ObjCol> create() async {
+    @factory
+    static Future<Objs> create() async {
+        /// the top-left end of the random distribution 
+        final (x, y) = (GC(69900), GC(39900));
+        
         final random = Random();
-
         final bush1 = await imageload("../assets/bush_1.png");
         final bush2 = await imageload("../assets/bush_2.png");
 
-        Bush makebush() {
+        SimpleOb makebush() {
             final size = random.nextInt(6) * 5 + 20;
             final img = random.nextBool() ? bush1 : bush2;
-            return Bush(
-                69900 + (random.nextDouble() * 200),
-                39900 + (random.nextDouble() * 200),
+            return SimpleOb(
+                x + GC(random.nextDouble() * 200),
+                y + GC(random.nextDouble() * 200),
                 img,
                 size,
             );
         }
 
-        return ObjCol(List.unmodifiable([for (var i = 0; i < 2000; i++) makebush()]));
+        return Objs(ImmuList(
+            [for (var i = 0; i < 2000; i++) makebush()]
+        ));
     }
 
     @override
+    @Mut(["ctx"])
     void draw(Cctx ctx, GridCC gridcc) {
-        for (final obj in _objs) {
+        for (final obj in _objs.values) {
             obj.draw(ctx, gridcc);
         }
     }
@@ -1054,17 +995,17 @@ void main() async {
     final keydown = document.body!.onKeyDown;
     final keyup = document.body!.onKeyUp;
     final frameStm = makeFrameStm();
-    final p1 = Player(Pos(GC(70005), GC(40008)), keydown, keyup, frameStm);
+    final p1 = PlayerPos(Pos(GC(70005), GC(40008)), keydown, keyup, frameStm);
     final ph = PlayerHUD(p1.posStm);
     final t1 = TxRadio();
-    final sim = Sim(p1, t1);
-    final bushes = await ObjCol.create();
+    final sim = Sim(p1.posStm, t1);
+    final bushes = await Objs.create();
     final grid = Grid();
     final avatarlife = await Avatar.create();
     final reticle = Reticle("#fff");
     final cmLife = CanvM("life", canvWidth, canvHeight, 1);
     final cmLob = CanvM("hud", canvWidth, canvHeight, .5);
-    final lobc = LOBCol(keydown, sim.univLobs, cmLob.click, p1);
+    final lobc = LOBCol(keydown, sim.univLobs, cmLob.click, p1.posStm);
     final mui = MissionUI(window.location.href, t1.pos);
     final msg = Messages();
     final zoom = Zoom();
@@ -1128,7 +1069,6 @@ Next steps
     - tell PapaB to stop shamming (ha)
   - Needed assets:
     - sooner:
-      - Bush we used a 250 x 250 bush image
       - Avatar we used a 1024 x 1024 spritesheet would be good if that didnt have to change
       - transmitter
 
