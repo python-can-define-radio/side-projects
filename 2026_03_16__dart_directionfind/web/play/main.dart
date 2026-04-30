@@ -294,9 +294,12 @@ class Avatar implements Drawable {
     final int _vertFrames = 4;
     late final Observable<int> _curFrame;
 
+    Pos? _lastPos;
+    int _directionRow = 0;
+
     Avatar(this._avatarSheet) {
         final stm = Stream.periodic(
-            Duration(milliseconds: 200),
+            const Duration(milliseconds: 200),
             (c) => c % _horizFrames
         );
         _curFrame = Observable(0, stm);
@@ -304,7 +307,7 @@ class Avatar implements Drawable {
 
     @Eff("http-req")
     @factory
-    static Future<Avatar> create() async { 
+    static Future<Avatar> create() async {
         return Avatar(await imageload("../assets/avatar_sheet.png"));
     }
 
@@ -312,18 +315,55 @@ class Avatar implements Drawable {
     void _drawSlice(Cctx ctx, int xidx, int yidx, num xpos, num ypos, num size) {
         final fw = _avatarSheet.width / _horizFrames;
         final fh = _avatarSheet.height / _vertFrames;
-        ctx.drawImage(_avatarSheet,
-            xidx * fw, yidx * fh, fw, fh,
-            xpos, ypos, size, size);
+
+        ctx.drawImage(_avatarSheet, xidx * fw, yidx * fh,  fw, fh, xpos, ypos, size, size);
     }
 
     @override
     @Mut(["ctx"])
-    void draw(Cctx ctx, GridCC _) {
+    void draw(Cctx ctx, GridCC gridcc) {
         const cenx = canvWidth / 2;
         const ceny = canvHeight / 2;
-        final avsize = 50;
-        _drawSlice(ctx, _curFrame.latestVal, 0, cenx - avsize / 2, ceny - avsize / 2, avsize);
+        const avsize = 50;
+        final curPos = gridcc.center;
+
+        // Default: idle frame
+        int frame = 0;
+
+        if (_lastPos != null) {
+            final dx = curPos.x.val - _lastPos!.x.val;
+            final dy = curPos.y.val - _lastPos!.y.val;
+
+            final moving = dx != 0 || dy != 0;
+
+            if (moving) {
+                // Horizontal dominates
+                if (dx.abs() > dy.abs()) {
+                    if (dx > 0) {
+                        _directionRow = 3; 
+                    } else {
+                        _directionRow = 2; 
+                    }
+                }
+                // Vertical dominates
+                else {
+                    if (dy > 0) {
+                        _directionRow = 1; 
+                    } else {
+                        _directionRow = 0; 
+                    }
+                }
+
+                frame = _curFrame.latestVal;
+            } else {
+                // idle → freeze on first frame of direction
+                frame = 0;
+            }
+        }
+
+        _lastPos = curPos;
+
+        _drawSlice(ctx, frame, _directionRow, cenx - avsize / 2, ceny - avsize / 2, avsize);
     }
 }
 
@@ -843,13 +883,9 @@ HTMLElement assembleElems(CanvM cmLife, CanvM cmLob, PlayerHUD phud, LOBCol lobc
         msgs.dispenv(),
         msgs.dispoverlay(),
     ]);
-    final directions = HTML.div(id: "directions")..innerText =
-        "\nDirections: Find the transmitter using Lines of Bearing.\n"
-        "- 'W', 'A', 'S', 'D' to move\n"
-        "- 'Shift' to run\n";
+    
     return HTML.div(children: [
-        HTML.div(id: "two-canvasses", children: [cmLife.disp(), cmLobAndAssociated]),
-        directions,
+        HTML.div(id: "two-canvasses", children: [cmLife.disp(), cmLobAndAssociated])
     ]);
 }
 
@@ -1078,7 +1114,6 @@ Next steps
 - Add a compass. We need to discuss different execution possibilities.
   - G N with a vertical line?
   - magnetic north too? 
-- full spritesheet functionality
 - Friday 2026 May 1 Morning: Move repo, add mit license, link to it from index.html link
 
 
