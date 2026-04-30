@@ -122,7 +122,7 @@ class GridCC {
     /// "grid Meter Base".
     /// An arbitrarily chosen number of pixels
     /// that corresponds to one meter when scale is `1.0`.
-    static const _gridMB = 22;
+    static const gridMB = 22;
     /// Zoom scale. Example: scale = 0.5 would be zoomed out by a factor of 2.
     final double scale;
     final Pos center;
@@ -130,8 +130,13 @@ class GridCC {
     
     /// Returns (x, y) in canvas units
     (double, double) cu(Pos p) => (
-        p.x.val * _gridMB * scale,
-        p.y.val * _gridMB * scale,
+        p.x.val * gridMB * scale,
+        p.y.val * gridMB * scale,
+    );
+
+    Pos gc(num x, num y) => Pos(
+        GC(x / gridMB / scale),
+        GC(y / gridMB / scale),
     );
 
     /// Given a position (which uses Grid Coordinates),
@@ -368,30 +373,28 @@ class Avatar implements Drawable {
 }
 
 class Reticle implements Drawable {
-    final String color;
-    Reticle(this.color);
+    final Observable<Pos> _p1pob;
+    Reticle(this._p1pob);
 
     @override
-    void draw(Cctx ctx, GridCC _) {
-        const cenx = canvWidth / 2;
-        const ceny = canvHeight / 2;
-        final rbig = 6;
-        final rsmall = 1.5;
-
+    void draw(Cctx ctx, GridCC gridCC) {
+        final color = "#fff".toJS;
         ctx.globalAlpha = 0.5; // semi-transparent
-        ctx.strokeStyle = color.toJS;
-        ctx.fillStyle = color.toJS;
+        ctx.strokeStyle = color;
+        ctx.fillStyle = color;
         ctx.lineWidth = 1.5;
+        gridCC.drawLine(_p1pob.latestVal, _p1pob.latestVal + Pos(GC(0.5), GC(0.5)), ctx);
+        // const cenx = canvWidth / 2;
+        // const ceny = canvHeight / 2;
 
         // outer circle
-        ctx.beginPath();
-        ctx.arc(cenx, ceny, rbig, 0, 2 * pi);
-        ctx.stroke();
+        // ctx.arc(cenx, ceny, 6, 0, 2 * pi);
+        // ctx.stroke();
 
-        // center dot
-        ctx.beginPath();
-        ctx.arc(cenx, ceny, rsmall, 0, 2 * pi);
-        ctx.fill();
+        // // center dot
+        // ctx.beginPath();
+        // ctx.arc(cenx, ceny, 1.5, 0, 2 * pi);
+        // ctx.fill();
 
         ctx.globalAlpha = 1.0; // reset
     }
@@ -453,26 +456,32 @@ class CanvM {
     late final ImmuList<Drawable> _drawItems;
     late final Stream<MouseEvent> click = _canv.onClick;
     final Observable<double> _scale;
+    late final Observable<Pos>? _panCenter;
+    late final Stream<MEv> mevStm;
 
-    CanvM(String cssid, int w, int h, this._scale) {
+    CanvM(String cssid, int w, int h, this._scale, Stream<MouseEvent> docMouseUp) {
         _canv
             ..width = w
             ..height = h
             ..id = cssid;
         _ctx = _canv.getContext('2d') as Cctx;
+        /// as per AI recommendation, the mouseUp should be from the document in case the cursor leaves the canvas
+        mevStm = makeMouseMoveStm(_canv.onMouseDown, _canv.onMouseMove, docMouseUp);
     }
     
     /// Basically 'constructor part two'. Had to separate to avoid
     /// a circular dependency.
-    void config(Stream<Pos> posStm, List<Drawable> drawItems) {
+    void config(Stream<Pos> posStm, List<Drawable> drawItems, [Observable<Pos>? panCenter]) {
         _drawItems = ImmuList(drawItems);
+        _panCenter = panCenter;
         posStm.listen(_frameUpdate);
     }
     
     HTMLCanvasElement disp() => _canv;
 
     void _frameUpdate(Pos center) {
-        final gridcc = GridCC(_scale.latestVal, center);
+        final panCent = _panCenter == null ? center : _panCenter.latestVal;
+        final gridcc = GridCC(_scale.latestVal, panCent);
         _ctx.clearRect(0, 0, _canv.width, _canv.height);
         for (final item in _drawItems.values) {
             item.draw(_ctx, gridcc);
@@ -519,14 +528,14 @@ class Grid implements Drawable {
         final charHeight = 0.2 / gridcc.scale;
 
         String lastDigits(GC gc) {
-            final numdig = max(2, gridUnitSpcExponent + 1);
+            final numdig = (gridUnitSpcExponent + 2).clamp(2, 5);
             return gc.asfivedig.substring(5 - numdig, 5);
         }
         
         for (var x = xstart.val; x <= xstop.val; x += gridUnitSpc) {
             gridcc.drawLine(Pos(GC(x), ystart), Pos(GC(x), ystop), ctx);
             gridcc.fillText(
-                "${lastDigits(GC(x))}",
+                lastDigits(GC(x)),
                 Pos(GC(x - charWidth), ytext),
                 ctx
             );
@@ -534,7 +543,7 @@ class Grid implements Drawable {
         for (var y = ystart.val; y <= ystop.val; y += gridUnitSpc) {
             gridcc.drawLine(Pos(xstart, GC(y)), Pos(xstop, GC(y)), ctx);
             gridcc.fillText(
-                "${lastDigits(GC(y))}",
+                lastDigits(GC(y)),
                 Pos(xtext, GC(y - charHeight)),
                 ctx
             );
@@ -591,20 +600,20 @@ class LOBCol implements Drawable {
     /// Selected LOB
     late final Observable<LOB?> _sellob;
 
-    LOBCol(KbStm keydown, Stream<LOB> univLobs, Stream<MouseEvent> canvclick, Observable<Pos> p1po, Observable<double> scale) {
+    LOBCol(KbStm keydown, Stream<LOB> univLobs, Stream<MouseEvent> canvclick, Observable<Pos> p1pob, Observable<double> scale) {
         _gatheringLobsCb = _configGath(keydown);
         final (clear, cbtn) = _configClearing(keydown);
         _clearBtn = cbtn;
         final filtlobs = univLobs.where((_) => _gatheringLobsCb.checked);
         _lobsStm = _makeLobStream(clear, filtlobs);
         _lobs = Observable(ImmuList([]), _lobsStm);
-        _sellob = _configChosenLOB(_lobs, canvclick, p1po, scale);
+        _sellob = _configChosenLOB(_lobs, canvclick, p1pob, scale);
     }
 
-    static Observable<LOB?> _configChosenLOB(Observable<ImmuList<LOB>> lobs, Stream<MouseEvent> canvclick, Observable<Pos> p1po, Observable<double> scale) {
+    static Observable<LOB?> _configChosenLOB(Observable<ImmuList<LOB>> lobs, Stream<MouseEvent> canvclick, Observable<Pos> p1pob, Observable<double> scale) {
         final sc = StreamController<LOB?>();
         canvclick.listen((ev) {
-            final gridcc = GridCC(scale.latestVal, p1po.latestVal);
+            final gridcc = GridCC(scale.latestVal, p1pob.latestVal);
             final chosen = decideClosest(lobs.latestVal, gridcc, ev);
             print("Selected lob: $chosen");
             sc.add(chosen);
@@ -614,7 +623,7 @@ class LOBCol implements Drawable {
     
     static LOB? decideClosest(ImmuList<LOB> immulobs, GridCC gridcc, MouseEvent ev) {
         /// TODO
-        window.alert("${gridcc.cush(gridcc.center)}");
+        // window.alert("${gridcc.cush(gridcc.center)}");
         // final lobs = immulobs.values;
         // final shiftx = p1pos.xcu + ev.offsetX - canvWidth / 2;
         // final shifty = p1pos.ycu + ev.offsetY - canvHeight / 2;
@@ -746,12 +755,12 @@ class Sim {
     final _random = Random();
     /// LOBs coming from the universe (as opposed to those which we have gathered)
     late final Stream<LOB> univLobs;
-    /// p1po: Player 1 Position Observable
-    Sim(Observable<Pos> p1po, Pos txpos, Power txpower) {
+    /// p1pob: Player 1 Position Observable
+    Sim(Observable<Pos> p1pob, Pos txpos, Power txpower) {
         univLobs = 
             Stream<Null>.periodic(Duration(milliseconds: 50))
                 .where((_) => _random.nextInt(5) == 0)
-                .map((_) => _makelob(p1po.latestVal, txpos, txpower))
+                .map((_) => _makelob(p1pob.latestVal, txpos, txpower))
                 .asBroadcastStream();
     }
 
@@ -952,6 +961,66 @@ class Zoom {
 }
 
 
+/// A custom Mouse Event record for use with makeMouseMoveStm because I don't like how JS handles mouse events.
+typedef MEv = ({bool isDown, num dx, num dy});
+
+/// Given the mouseDown, mouseMove, and mouseUp streams from the browser,
+/// return a stream of `MEv`. Example:
+/// Mouse is not clicked. Mouse moves from 30, 90 to 35, 92.
+/// This stream will contain (isdown: false, dx: 5, dy: 2).
+/// Mouse is clicked. Mouse moves to 37, 100.
+/// This stream will contain (isdown: true, dx: 2, dy: 8).
+Stream<MEv> makeMouseMoveStm(Stream<MouseEvent> mouseDown, Stream<MouseEvent> mouseMove, Stream<MouseEvent> mouseUp) {
+    final sc = StreamController<MEv>();
+    ({num x, num y})? prev;
+    var isDown = false;
+    mouseDown.listen((e) {
+        isDown = true;
+        prev = (x: e.clientX, y: e.clientY);
+    });
+    mouseUp.listen((_) {
+        isDown = false;
+        prev = null;
+    });
+    mouseMove.listen((e) {
+        final p = prev;
+        // First move after down OR first ever move → no delta
+        if (p == null) {
+            prev = (x: e.clientX, y: e.clientY);
+            return;
+        }
+        final dx = e.clientX - p.x;
+        final dy = e.clientY - p.y;
+        prev = (x: e.clientX, y: e.clientY);
+        sc.add((isDown: isDown, dx: dx, dy: dy));
+    });
+    return sc.stream.asBroadcastStream();
+}
+
+
+class Pan {
+    late final Observable<Pos> center;
+    final resetBtn = HTML.button()..innerText = "ZR";
+
+    Pan(Stream<MEv> mevStm, Observable<Pos> p1pob, Observable<double> scale) {
+        final sc = StreamController<Pos>();
+        final initCenter = p1pob.latestVal;
+        var current = initCenter;
+        mevStm.where((mev) => mev.isDown).listen((mev) {
+            current += GridCC(scale.latestVal, current).gc(-mev.dx, mev.dy);
+            sc.add(current);
+        });
+
+        center = Observable(initCenter, sc.stream);
+    }
+
+    // /// Recenter camera back to origin (player center handled by CanvM)
+    // void recenter() {
+    //     final zero = Pos(GC(0), GC(0));
+    //     _offsetController.add(zero);
+    // }
+}
+
 class Messages {
     var _incmsg = true;
     final _shown = StreamController<bool>(); 
@@ -1058,16 +1127,17 @@ void main() async {
     final sim = Sim(p1.posObs, t1.pos, t1.txpower);
     final bushes = await Objs.create();
     final avatarlife = await Avatar.create();
-    final reticle = Reticle("#fff");
+    final reticle = Reticle(p1.posObs);
     final zoom = Zoom();
     final grid = Grid(zoom.scale);
-    final cmLife = CanvM("life", canvWidth, canvHeight, Observable(1, Stream.empty()));
-    final cmLob = CanvM("hud", canvWidth, canvHeight, zoom.scale);
+    final cmLife = CanvM("life", canvWidth, canvHeight, Observable(1, Stream.empty()), document.body!.onMouseUp);
+    final cmLob = CanvM("hud", canvWidth, canvHeight, zoom.scale, document.body!.onMouseUp);
     final lobc = LOBCol(keydown, sim.univLobs, cmLob.click, p1.posObs, zoom.scale);
     final mui = MissionUI(window.location.href, t1.pos);
     final msg = Messages();
+    final pan = Pan(cmLob.mevStm, p1.posObs, zoom.scale);
     cmLife.config(p1.posStm, [avatarlife, bushes, t1]);
-    cmLob.config(p1.posStm, [lobc, grid, reticle]);
+    cmLob.config(p1.posStm, [lobc, grid, reticle], pan.center);
     document.getElementById("gameroot")!.replaceChildren(
         assembleElems(cmLife, cmLob, ph, lobc, mui, zoom, msg)
     ); 
@@ -1114,7 +1184,12 @@ Next steps
 - Add a compass. We need to discuss different execution possibilities.
   - G N with a vertical line?
   - magnetic north too? 
-- Friday 2026 May 1 Morning: Move repo, add mit license, link to it from index.html link
+- Friday 2026 May 1 Morning: Move repo, add mit license, link to it from index.html link fix Reticle
+- Note from conversation with coworker:
+  - grid lines are typically 1 km apart
+  - Discuss:
+    - Could have a checkbox option (maybe in a new settings menu on the tablet) to
+      choose between gridlines on 1km only versus gridlines that adjust based on zoom level (current behavior)
 
 
 - Art:

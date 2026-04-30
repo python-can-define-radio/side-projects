@@ -41,7 +41,7 @@ h2 {
     align-items: center;
     position: absolute;
     top: 35px;
-    left: 45px;
+    left: 50px;
     font-family: monospace;
     background-color: #0a0f1488;
     border-radius: 5px;
@@ -54,7 +54,7 @@ h2 {
     align-items: center;
     position: absolute;
     top: 65px;
-    left: 45px;
+    left: 50px;
     font-family: monospace;
     background-color: #0a0f1488;
     border-radius: 5px;
@@ -65,7 +65,7 @@ h2 {
 #clear-btn {
     position: absolute;
     top: 65px;
-    right: 35px;
+    right: 50px;
     border: none;
 }
 
@@ -74,7 +74,7 @@ h2 {
     align-items: center;
     position: absolute;
     top: 35px;
-    right: 35px;
+    right: 50px;
     font-family: monospace;
     background-color: #0a0f1488;
     border-radius: 5px;
@@ -89,7 +89,7 @@ h2 {
 #grid-input {
     position: absolute;
     bottom: 32px;
-    left: 45px;
+    left: 50px;
 }
 
 #submit-btn {
