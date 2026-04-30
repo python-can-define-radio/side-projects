@@ -4,9 +4,10 @@ library;
 
 
 import 'dart:async';
-import 'dart:js_interop';
-import 'package:web/web.dart';
 
+
+/// Square a number
+num sq(num x) => x * x;
 
 
 /// Returns a sublist including all items except the last item.
@@ -61,31 +62,11 @@ class Eff {
 }
 
 /// Metadata to mark something as mutating either its arguments or instance attributes.
-/// I also use this to indicate things being reassigned (just to avoid having an additional metadata class)
 /// Unlike Haskell, we're not actively tracking these; it's just
 /// a reminder.
 class Mut {
     final List<String> mutated;
     const Mut(this.mutated);
-}
-
-
-
-/// Repeatedly call requestAnimationFrame; pass the time delta as an argument to `frameUpdate`
-void runEachFrame(void Function(Duration) frameUpdate) {
-    void dartRAF(void Function(double) callback) {
-        window.requestAnimationFrame(callback.toJS);
-    }
-
-    double tlast = 0;
-    void animate(double timems) {
-        final deltams = timems - tlast;
-        tlast = timems;
-        frameUpdate(Duration(milliseconds: deltams.toInt()));
-        dartRAF(animate);
-    }
-
-    dartRAF(animate);
 }
 
 
@@ -117,12 +98,4 @@ Result<T, String> succIf<T>(T val, bool cond, String errmsg) {
     } else {
         return Failure(errmsg);
     }
-}
-
-
-
-Stream<Duration> makeFrameStm() {
-    final timeDiffSC = StreamController<Duration>();
-    runEachFrame((Duration tdelta) => timeDiffSC.add(tdelta));
-    return timeDiffSC.stream.asBroadcastStream();
 }

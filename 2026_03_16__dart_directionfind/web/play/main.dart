@@ -21,8 +21,6 @@ typedef KbStm = ElementStream<KeyboardEvent>;
 typedef DuStm = Stream<Duration>;
 
 
-num sq(num x) => x * x;
-
 
 /// Methods for creating HTML elems
 class HTML {
@@ -32,8 +30,6 @@ class HTML {
             document.createElement('canvas') as HTMLCanvasElement;
     static HTMLDialogElement dialog() =>
             document.createElement('dialog') as HTMLDialogElement;
-    static HTMLDivElement div() =>
-            document.createElement('div') as HTMLDivElement;
     static HTMLFormElement form() =>
             document.createElement('form') as HTMLFormElement;
     static HTMLHeadingElement h2() =>
@@ -46,6 +42,24 @@ class HTML {
         final el = document.createElement('input') as HTMLInputElement;
         el.setAttribute("type", "checkbox");
         return el;
+    }
+    // static HTMLDivElement div() {
+    //     return document.createElement('div') as HTMLDivElement;
+    // }
+    static HTMLDivElement div({String? id, String? className, List<HTMLElement>? children}) {
+        final e = document.createElement('div') as HTMLDivElement;
+        if (id != null) {
+            e.id = id;
+        }
+        if (className != null) {
+            e.className = className;
+        }
+        if (children != null) {
+            for (final c in children) {
+                e.appendChild(c);
+            }
+        }
+        return e;
     }
     static HTMLInputElement inputsubmit() {
         final el = document.createElement('input') as HTMLInputElement;
@@ -213,88 +227,49 @@ class PlayerPos {
     final Stream<Pos> posStm;
     late final Observable<Pos> posObs;
 
-    PlayerPos(Pos initPos, KbStm keydown, KbStm keyup, DuStm tdelta) :
-        posStm = _makePosStm(initPos, keydown, keyup, tdelta) {
+    PlayerPos(Pos initPos, KbStm keydown, KbStm keyup, DuStm tdelta)
+        : posStm = _makePosStm(initPos, keydown, keyup, tdelta) {
         posObs = Observable(initPos, posStm);
     }
-        
+
     static Stream<Pos> _makePosStm(Pos initPos, KbStm keydown, KbStm keyup, DuStm tdelta) {
-        const speedMetersPerSecond = 2.0;
-        final speed = _makeSpeed(speedMetersPerSecond * 0.001, keydown, keyup);
-        final dirx = _makeDirx(keydown, keyup);
-        final diry = _makeDiry(keydown, keyup);
-        final x = _makeX(initPos.x, dirx, tdelta, speed);
-        final y = _makeY(initPos.y, diry, tdelta, speed);
-        return StreamZip<GC>([x, y])
-            .map((xypair) => Pos(xypair[0], xypair[1]))
-            .asBroadcastStream();
-    }
-
-    static Stream<GC> _makeX(GC initX, Observable<double> dirx, DuStm tdelta, Observable<double> speed) async* {
-        var curX = initX;
-        await for(final tdeltaVal in tdelta) {
-            final change = dirx.latestVal * speed.latestVal * tdeltaVal.inMilliseconds;
-            curX = GC(curX.val + change);
-            yield curX;
-        }
-    }
-
-    static Stream<GC> _makeY(GC initY, Observable<double> diry, DuStm tdelta, Observable<double> speed) async* {
-        var curY = initY;
-        await for(final tdeltaVal in tdelta) {
-            final change = diry.latestVal * speed.latestVal * tdeltaVal.inMilliseconds;
-            curY = GC(curY.val + change);
-            yield curY;
-        }
-    }
-    
-    static Observable<double> _makeDirx(KbStm keydown, KbStm keyup) {
-        final sc = StreamController<double>();
-        keydown.listen((ev) {
-            if (ev.key == "ArrowLeft") {
-                sc.add(-1);
-            } else if (ev.key == "ArrowRight") {
-                sc.add(1);
+        const baseSpeed = 2.0 * 0.001;
+        final pressed = <String>{};
+        final sc = StreamController<Pos>();
+        keydown.listen((e) {
+            if (!e.repeat) {
+                pressed.add(e.code);
             }
         });
-        keyup.listen((ev) {
-            if (["ArrowLeft", "ArrowRight"].contains(ev.key)) {
-                sc.add(0);
-            }
+        keyup.listen((e) {
+            pressed.remove(e.code);
         });
-        return Observable(0, sc.stream);
-    }
-    
-    static Observable<double> _makeDiry(KbStm keydown, KbStm keyup) {
-        final sc = StreamController<double>();
-        keydown.listen((ev) {
-            if (ev.key == "ArrowDown") {
-                sc.add(-1);
-            } else if (ev.key == "ArrowUp") {
-                sc.add(1);
+        var cur = initPos;
+        tdelta.listen((dt) {
+            var dx = 0.0;
+            var dy = 0.0;
+            if (pressed.contains("KeyA")) dx -= 1;
+            if (pressed.contains("KeyD")) dx += 1;
+            if (pressed.contains("KeyW")) dy += 1;
+            if (pressed.contains("KeyS")) dy -= 1;
+            /// Normalize diagonal movement so that movement speed is always 1.
+            /// Without this, diagonal would be faster
+            final mag = sqrt(dx * dx + dy * dy);
+            if (mag > 0) {
+                dx /= mag;
+                dy /= mag;
             }
+            final running = pressed.contains("ShiftLeft") ||
+                            pressed.contains("ShiftRight");
+            final speed = running ? baseSpeed * 2 : baseSpeed;
+            final dist = speed * dt.inMilliseconds;
+            cur = Pos(
+                GC(cur.x.val + dx * dist),
+                GC(cur.y.val + dy * dist),
+            );
+            sc.add(cur);
         });
-        keyup.listen((ev) {
-            if (["ArrowDown", "ArrowUp"].contains(ev.key)) {
-                sc.add(0);
-            }
-        });
-        return Observable(0, sc.stream);
-    }
-
-    static Observable<double> _makeSpeed(double initSpeed, KbStm keydown, KbStm keyup) {
-        final speed = StreamController<double>();
-        keydown.listen((ev) {
-            if (ev.key == "Shift") {
-                speed.add(2*initSpeed);
-            }
-        });
-        keyup.listen((ev) {
-            if (ev.key == "Shift") {
-                speed.add(initSpeed);
-            }
-        });
-        return Observable(initSpeed, speed.stream);
+        return sc.stream.asBroadcastStream();
     }
 }
 
@@ -317,9 +292,15 @@ class Avatar implements Drawable {
     final HTMLImageElement _avatarSheet;
     final int _horizFrames = 4;
     final int _vertFrames = 4;
-    double _curFrame = 0;
+    late final Observable<int> _curFrame;
 
-    Avatar(this._avatarSheet);
+    Avatar(this._avatarSheet) {
+        final stm = Stream.periodic(
+            Duration(milliseconds: 200),
+            (c) => c % _horizFrames
+        );
+        _curFrame = Observable(0, stm);
+    }
 
     @Eff("http-req")
     @factory
@@ -337,13 +318,12 @@ class Avatar implements Drawable {
     }
 
     @override
-    @Mut(["this._curFrame", "ctx"])
+    @Mut(["ctx"])
     void draw(Cctx ctx, GridCC _) {
         const cenx = canvWidth / 2;
         const ceny = canvHeight / 2;
         final avsize = 50;
-        _drawSlice(ctx, _curFrame.floor(), 0, cenx - avsize / 2, ceny - avsize / 2, avsize);
-        _curFrame = (_curFrame + 0.1) % _horizFrames;
+        _drawSlice(ctx, _curFrame.latestVal, 0, cenx - avsize / 2, ceny - avsize / 2, avsize);
     }
 }
 
@@ -618,7 +598,7 @@ class LOBCol implements Drawable {
             ..id = "lob-cb"
             ..defaultChecked = true;
         keydown
-            .where((ev) => ev.key.toLowerCase() == "g")
+            .where((ev) => ev.code == "KeyG")
             .listen((_) => gcb.checked = !gcb.checked);
         return gcb;
     }
@@ -626,11 +606,11 @@ class LOBCol implements Drawable {
     /// Returns a stream and the clear button.
     /// Events in the stream (both clicks and keypresses) should cause a clear.
     static (Stream<Object>, HTMLButtonElement) _configClearing(KbStm keydown) {
-        final cDown = keydown.where((ev) => ev.key.toLowerCase() == "c").asBroadcastStream();
+        final cDown = keydown.where((ev) => ev.code == "KeyC").asBroadcastStream();
         final cbtn = HTML.button()
             ..addFlicker(cDown)
             ..id = "clear-btn"
-            ..innerText = "Clear LOBs [ c ]";
+            ..innerText = "Clear LOBs [ C ]";
         return (StreamGroup.merge([cDown, cbtn.onClick]), cbtn);
     }
 
@@ -664,10 +644,10 @@ class LOBCol implements Drawable {
     HTMLDivElement dispCtl() {
         return HTML.div()
         ..appendChild(_clearBtn..className = "game-btn")
-        ..appendChild(HTML.div()..id = "lobs-cb-with-text"
-            ..appendChild(HTML.span()..innerText = "Gathering LOBs [ g ]: ")
-            ..appendChild(_gatheringLobsCb)
-        );
+        ..appendChild(HTML.div(id: "lobs-cb-with-text", children: [
+            HTML.span()..innerText = "Gathering LOBs [ G ]: ",
+            _gatheringLobsCb
+        ]));
     }
 
     @override
@@ -849,33 +829,31 @@ class MissionUI {
     HTMLElement dispResult() => _dialog.disp();
 }
 
-void attachElems(HTMLElement root, PlayerHUD phud, LOBCol lobc, CanvM cmLife, CanvM cmLob, MissionUI mui, Zoom zoom, Messages msgs){
-    root..id = "root"
-        ..appendChild(HTML.div()..id = "two-canvasses"
-            ..appendChild(cmLife.disp())
-            ..appendChild(HTML.div()..id = "cmlobparent"
-                ..style.position = "relative"
-                ..appendChild(HTML.div()..id = "hudwrap"
-                    ..appendChild(cmLob.disp())) 
-                ..appendChild(phud.disp())
-                ..appendChild(lobc.dispInfo())
-                ..appendChild(lobc.dispCtl())
-                ..appendChild(mui.disp())
-                ..appendChild(mui.dispResult())
-                ..appendChild(zoom.disp())
-                ..appendChild(msgs.dispenv())
-                ..appendChild(msgs.dispoverlay())
-            )
-        )
-        ..appendChild(HTML.div()..id = "directions"
-            ..innerText =
-                "\nDirections: Find the transmitter using Lines of Bearing.\n"
-                "- Arrow keys to move\n"
-                "- 'Shift' to run\n"
-                "- 'g' to toggle LOB gathering\n"
-                "- 'c' to clear LOBs\n"
-            );
+/// Previous name: attachElems()
+HTMLElement assembleElems(CanvM cmLife, CanvM cmLob, PlayerHUD phud, LOBCol lobc, MissionUI mui, Zoom zoom, Messages msgs) {
+    final cmLobHudWrapped = HTML.div(id: "hudwrap", children: [cmLob.disp()]);
+    final cmLobAndAssociated = HTML.div(id: "cmlobparent", children: [
+        cmLobHudWrapped,
+        phud.disp(),
+        lobc.dispInfo(),
+        lobc.dispCtl(),
+        mui.disp(),
+        mui.dispResult(),
+        zoom.disp(),
+        msgs.dispenv(),
+        msgs.dispoverlay(),
+    ]);
+    final directions = HTML.div(id: "directions")..innerText =
+        "\nDirections: Find the transmitter using Lines of Bearing.\n"
+        "- 'W', 'A', 'S', 'D' to move\n"
+        "- 'Shift' to run\n";
+    return HTML.div(children: [
+        HTML.div(id: "two-canvasses", children: [cmLife.disp(), cmLobAndAssociated]),
+        directions,
+    ]);
 }
+
+
 class Zoom {
     late final Observable<double> scale;
     late final HTMLElement _dispElem;
@@ -897,7 +875,9 @@ class Zoom {
     static Stream<double> makeScale(double initzoom, Stream<bool> stm) {
         return stm.scan<double>(
             initzoom,
-            (prev, zoomIn) => zoomIn ? prev * 2 : prev / 2,
+            (prev, zoomIn) => zoomIn ?
+              prev * 2 :
+              max(prev / 2, 0.005),
         );
     }
 
@@ -1052,7 +1032,9 @@ void main() async {
     final msg = Messages();
     cmLife.config(p1.posStm, [avatarlife, bushes, t1]);
     cmLob.config(p1.posStm, [lobc, grid, reticle]);
-    attachElems(document.body!, ph, lobc, cmLife, cmLob, mui, zoom, msg); 
+    document.getElementById("gameroot")!.replaceChildren(
+        assembleElems(cmLife, cmLob, ph, lobc, mui, zoom, msg)
+    ); 
 }
 
 /*
@@ -1090,16 +1072,14 @@ Next steps
 - Option in HUD to switch between separate map or overlay
     - implementation: have a variable that gets set to the proper canvas
 - Add a full tutorial to introduce UI, controls, and have them submit a grid coordinate (no constraints in the tutorial; they can walk right up to the transmitter)
-- finish Zoom in/out on LOB view (functionality)
 - add reflections, refractions etc.
 - elevation
 - selected lob not showing
 - Add a compass. We need to discuss different execution possibilities.
   - G N with a vertical line?
   - magnetic north too? 
-- pushing shift + up + right does not move diagonally if i press up + right first it moves diagonally but will not run when shift is pressed
-
-
+- full spritesheet functionality
+- Friday 2026 May 1 Morning: Move repo, add mit license, link to it from index.html link
 
 
 - Art:
