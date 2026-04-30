@@ -1190,6 +1190,7 @@ Next steps
   - Discuss:
     - Could have a checkbox option (maybe in a new settings menu on the tablet) to
       choose between gridlines on 1km only versus gridlines that adjust based on zoom level (current behavior)
+- Consider procedurally generated ground colors discuss whether on both or just left canvas
 
 
 - Art:
