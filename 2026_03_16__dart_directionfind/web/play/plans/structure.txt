@@ -1,0 +1,3 @@
+Pan: 
+  Goal: Being able to pan the map, i.e. change its center using the mouse.
+  How: click and drag to cause center to change.

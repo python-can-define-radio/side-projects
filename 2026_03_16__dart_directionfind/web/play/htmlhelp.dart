@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:js_interop';
 import 'package:web/web.dart';
-import './ag1.dart' show Mut;
+import 'custom.dart' show Mut;
 
 
 extension Flickerable on HTMLElement {

@@ -8,7 +8,7 @@ import 'dart:math';
 import 'package:async/async.dart' hide Result;
 import 'package:meta/meta.dart';
 import 'package:web/web.dart';
-import './ag1.dart';
+import 'custom.dart';
 import './htmlhelp.dart';
 
 
@@ -383,71 +383,25 @@ class Reticle implements Drawable {
         ctx.strokeStyle = color;
         ctx.fillStyle = color;
         ctx.lineWidth = 1.5;
-        gridCC.drawLine(_p1pob.latestVal, _p1pob.latestVal + Pos(GC(0.5), GC(0.5)), ctx);
-        // const cenx = canvWidth / 2;
-        // const ceny = canvHeight / 2;
-
-        // outer circle
-        // ctx.arc(cenx, ceny, 6, 0, 2 * pi);
-        // ctx.stroke();
-
-        // // center dot
-        // ctx.beginPath();
-        // ctx.arc(cenx, ceny, 1.5, 0, 2 * pi);
-        // ctx.fill();
-
+        final (:xcu, :ycu) = gridCC.cush(_p1pob.latestVal);
+        /// outer circle
+        ctx.beginPath();
+        ctx.arc(xcu, ycu, 6, 0, 2 * pi);
+        ctx.stroke();
+        /// center dot
+        ctx.beginPath();
+        ctx.arc(xcu, ycu, 1.5, 0, 2 * pi);
+        ctx.fill();
         ctx.globalAlpha = 1.0; // reset
     }
 }
 
-// void fillRectRel(
-//     num x,
-//     num y,
-//     num w,
-//     num h,
-//     Cctx ctx,
-//     Pos relpos,
-// ) {
-//     ctx.fillRect(
-//         x - relpos.xcu + canvWidth / 2,
-//         y - relpos.ycu + canvHeight / 2,
-//         w,
-//         h,
-//     );
-// }
-
-// void moveToRel(num x, num y, Cctx ctx, Pos relpos) {
-//     ctx.moveTo(x - relpos.xcu + canvWidth / 2, y - relpos.ycu + canvHeight / 2);
-// }
-
-// void lineToRel(num x, num y, Cctx ctx, Pos relpos) {
-//     ctx.lineTo(x - relpos.xcu + canvWidth / 2, y - relpos.ycu + canvHeight / 2);
-// }
-
-// void fillTextRel(String text, num x, num y, Cctx ctx, Pos relpos) {
-//     ctx.fillText(text, x - relpos.xcu + canvWidth / 2, y - relpos.ycu + canvHeight / 2);
-// }
 
 void fillCircle(num x, num y, num radius, Cctx ctx) {
     ctx.beginPath();
     ctx.arc(x, y, radius, 0, 2 * pi);
     ctx.fill();
 }
-
-// void fillCircleRel(
-//     num x,
-//     num y,
-//     num radius,
-//     Cctx ctx,
-//     Pos relpos,
-// ) {
-//     fillCircle(
-//         x - relpos.xcu + canvWidth / 2,
-//         y - relpos.ycu + canvHeight / 2,
-//         radius,
-//         ctx,
-//     );
-// }
 
 
 class CanvM {
@@ -1142,77 +1096,3 @@ void main() async {
         assembleElems(cmLife, cmLob, ph, lobc, mui, zoom, msg)
     ); 
 }
-
-/*
-
-### Brainstorming 2026 April 13
-
-#### Possible simple mission
-
-- Tablet should show mission: "Current Mission: Find location of enemy transmitter. If you go beyond the FLOT, you fail the mission."
-  - (Once we add the mission code, the mission stuff will be hidden in 'Explore' mode.)
-- Put a collection of stuff in a line-ish shape.
-  - You are freely able to move past the stuff, but if you go beyond it, you immediately fail the mission. { Functional reason for adding this: you can't walk right next to transmitter to see its exact location }
-- There's a text entry field (probably on the 'tablet') for reporting up the grid coordinates of the transmitter. Minimum 6 digit grid accuracy (100 meters). If you report the correct grid coordinates, then you suceeded the mission.
-- How to see it?
-  - Probably need zooming in and out on the tablet interface because right now the cut/fix would be too far away to see if you can't walk up to it
-  - Probably need map labels along edges of tablet grid view so there's a correlation between the location and the grid
-    Like this:
-       3    4    5
-       |    |    |
-       |    |    |
-- Right canvas would have the dotted line for the FLOT
-- Left canvas would have stick figures or whatever troops and equipment maybe
-  
-#############################################################################
-
-Next steps 
-
-- Mission 1:
-     In game, commander says something like this:
-       "The adversary's scouts are watching in force.
-       To avoid capture, stay behind the FLOT -- don't go any further North than grid 40100 northing.
-       Once you have determined the transmitter's grid location to within 3 meters, send it to me using
-       your tablet's grid coordinate submission form."
-  
-- Option in HUD to switch between separate map or overlay
-    - implementation: have a variable that gets set to the proper canvas
-- Add a full tutorial to introduce UI, controls, and have them submit a grid coordinate (no constraints in the tutorial; they can walk right up to the transmitter)
-- add reflections, refractions etc.
-- elevation
-- selected lob not showing
-- Add a compass. We need to discuss different execution possibilities.
-  - G N with a vertical line?
-  - magnetic north too? 
-- Friday 2026 May 1 Morning: Move repo, add mit license, link to it from index.html link fix Reticle
-- Note from conversation with coworker:
-  - grid lines are typically 1 km apart
-  - Discuss:
-    - Could have a checkbox option (maybe in a new settings menu on the tablet) to
-      choose between gridlines on 1km only versus gridlines that adjust based on zoom level (current behavior)
-- Consider procedurally generated ground colors discuss whether on both or just left canvas
-
-
-- Art:
-  - Source: One of...
-    - find licensed-for-our-use
-    - create some pixel art
-    - find a student who is interested
-    - tell PapaB to stop shamming (ha)
-  - Needed assets:
-    - sooner:
-      - Avatar we used a 1024 x 1024 spritesheet would be good if that didnt have to change
-      - transmitter
-
-    - slightly less soon:
-      - Multiple avatar choices
-      - Avatar frames for walking in four different directions
-      - Avatar frames for running in four different directions
-      - tree
-      - building
-
-
-      https://opengameart.org/content/bush
-      https://opengameart.org/content/bush-0
-      https://opengameart.org/content/hero-0
-*/

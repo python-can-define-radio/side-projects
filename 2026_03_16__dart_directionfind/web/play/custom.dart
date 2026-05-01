@@ -1,4 +1,3 @@
-/// ag1: "Arbitrary Group 1".
 /// The main.dart file was getting big, so we moved some arbitrary stuff to this file.
 library;
 

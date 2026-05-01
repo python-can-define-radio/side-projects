@@ -6,14 +6,17 @@ Definitions:
 D1. Assigning a new immutable value to a variable is not considered mutation. For example, `var a = (b: 3, c: 5); a = (b: 7, c:9);` is not mutation; it is reassignment.
 D2. Fields that are marked `final` cannot be reassigned. (This is intrinsic to Dart, but I am providing it as a reminder.)
 
-Rules:
+Rules section 1:
 R1. Never use the `dart:html` library, as it is deprecated.
 R2. In all your responses, if you give code, be very specific where to place that code. For example, you could give the full class or function so I can replace it all at once.
 R3. Respond in less than 100 words (not including code) or tell me than you can not reasonably answer that question in so few words.
 R4. All function definitions and function calls should be on one line, even if the line is very long. (I will add spacing if I want it.) Example: f(a, b, c, d) should be all on one line. Following the same logic, don't put any vertical whitespace (empty lines) in your code. I will add if I want it.
-R5. All public instance variables must be (a) immutable, or (b) must have the type Stream or Observable.
-R6. With the exception of `disp()`, methods must return objects that are either (a) immutable, or (b) something that can be read but not written. For example, a Stream may be returned, but a StreamController may not be returned because it can be written using the `add` method.
-R7. `disp()` must be called only within `attachElems()`.
-R8. When I provide code and ask you to change it, keep all comments in the provided code unless they have become incorrect due to the changes you have made.
+R5. When I provide code and ask you to change it, keep all comments in the provided code unless they have become incorrect due to the changes you have made.
+
+
+Rules section 2:
+R6. All public instance variables must be (a) immutable, or (b) must have the type Stream or Observable.
+R7. With the exception of `disp()` (and `dispCtl`, etc), methods must return objects that are either (a) immutable, or (b) something that can be read but not written. For example, a Stream may be returned, but a StreamController may not be returned because it can be written using the `add` method.
+R8. `disp()` must be called only within `attachElems()`.
 
 Does the code follow these updated rules?

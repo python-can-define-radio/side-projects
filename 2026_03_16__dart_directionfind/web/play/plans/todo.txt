@@ -1,0 +1,81 @@
+Next steps (overview) -- details for each below
+
+Today:
+- commit (obv)
+- 
+
+Next session:
+- Move repo, add mit license, link to it from index.html link
+
+1 week:
+- Mission instructions
+- Selected lob
+- Compass
+
+1 month:
+- Tutorial 
+- Grid lines modification
+- Ground colors
+
+3 months:
+- EM Physics
+- Art
+
+#################################################################################
+Mission instructions:
+    - Once we add the mission code, the mission stuff will be hidden in 'Explore' mode.
+    - Mission 1:
+        In game, commander says something like this:
+        "The adversary's scouts are watching in force.
+        To avoid capture, stay behind the FLOT -- don't go any further North than grid 40100 northing.
+        Once you have determined the transmitter's grid location to within 3 meters, send it to me using your tablet's grid coordinate submission form."
+    - Check for success when grid coordinates are entered.
+    - Right canvas would have the dotted line for the FLOT, Discuss
+    - Left canvas would have stick figures or whatever troops and equipment maybe
+
+#############################################################################
+Selected lob:
+
+#############################################################################
+EM Physics:
+    - Reflections, refractions, elevation
+  
+#############################################################################
+Compass:
+    - We need to discuss different execution possibilities.
+    - G N with a vertical line?
+    - magnetic north too? 
+
+
+#############################################################################
+Grid lines modification:
+    - Note from conversation with coworker:
+    - grid lines are typically 1 km apart
+    - Discuss:
+        - Could have a checkbox option (maybe in a new settings menu on the tablet) to
+        choose between gridlines on 1km only versus gridlines that adjust based on zoom level (current behavior)
+
+#############################################################################
+Tutorial:
+    - Add a full tutorial to introduce UI, controls, and have them submit a grid coordinate (no constraints in the tutorial; they can walk right up to the transmitter)
+
+#############################################################################
+Ground colors:
+    - Consider procedurally generated ground colors discuss whether on both or just left canvas
+
+#############################################################################
+Art:
+    - Source: One of...
+        - find licensed-for-our-use
+        - create some pixel art
+        - find a student who is interested
+        - tell PapaB to stop shamming (ha)
+    - Needed assets:
+        - sooner:
+        - Avatar we used a 1024 x 1024 spritesheet would be good if that didnt have to change
+        - transmitter
+
+        - slightly less soon:
+        - Multiple avatar choices
+        - tree
+        - building
