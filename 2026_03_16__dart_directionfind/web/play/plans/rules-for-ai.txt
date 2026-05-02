@@ -17,6 +17,6 @@ R5. When I provide code and ask you to change it, keep all comments in the provi
 Rules section 2:
 R6. All public instance variables must be (a) immutable, or (b) must have the type Stream or Observable.
 R7. With the exception of `disp()` (and `dispCtl`, etc), methods must return objects that are either (a) immutable, or (b) something that can be read but not written. For example, a Stream may be returned, but a StreamController may not be returned because it can be written using the `add` method.
-R8. `disp()` must be called only within `attachElems()`.
+R8. `disp()` must be called only within `assembleElems()`.
 
 Does the code follow these updated rules?

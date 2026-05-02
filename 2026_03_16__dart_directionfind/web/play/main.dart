@@ -313,7 +313,7 @@ class Avatar implements Drawable {
     @Eff("http-req")
     @factory
     static Future<Avatar> create() async {
-        return Avatar(await imageload("../assets/avatar_sheet.png"));
+        return Avatar(await imageload("../assets/avatar_sheet2.png"));
     }
 
     @Mut(["ctx"])
@@ -507,14 +507,25 @@ class Grid implements Drawable {
 
 
 class TxRadio implements Drawable {
-    final pos = Pos(GC(70008), GC(40012));
-    final txpower = Power(mW: 100);
-    
-    @override
-    void draw(Cctx ctx, GridCC gridcc) {
-        ctx.fillStyle = "#00f".toJS;
-        gridcc.fillRectCent(pos, 10, 10, ctx);
+    final Pos pos = Pos(GC(70008), GC(40012));
+    final Power txpower = Power(mW: 100);
+    final HTMLImageElement _img;
+    late final num _w;
+    late final num _h;
+
+    TxRadio(this._img) {
+        const size = 30;
+        _h = size;
+        _w = size * _img.width / _img.height;
     }
+
+    @Eff("http-req")
+    @factory
+    static Future<TxRadio> create() async { return TxRadio(await imageload("../assets/tx.png")); }
+
+    @override
+    @Mut(["ctx"])
+    void draw(Cctx ctx, GridCC gridcc) { gridcc.drawImage(pos, _img, _w, _h, ctx); }
 }
 
 
@@ -1077,7 +1088,7 @@ void main() async {
     final frameStm = makeFrameStm();
     final p1 = PlayerPos(Pos(GC(70012), GC(40008)), keydown, keyup, frameStm);
     final ph = PlayerHUD(p1.posStm);
-    final t1 = TxRadio();
+    final t1 = await TxRadio.create();
     final sim = Sim(p1.posObs, t1.pos, t1.txpower);
     final bushes = await Objs.create();
     final avatarlife = await Avatar.create();
