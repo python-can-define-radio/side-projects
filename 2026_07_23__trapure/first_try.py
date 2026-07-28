@@ -1,15 +1,18 @@
 """
 Name: "Trapure" -> TRAnslating to ensure functional PURity
 
-Problem statement:
-1. I want to know that a function is pure (has no side effects).
-2. I want a function's implementation to be FP style (avoid mutation, etc).
-3. I want to know that a function's types are correct.
+Goal statement:
+I want to be able to define functions in Python and know that the following is true:
+1. It is pure (has no side effects).
+2. The implementation has FP style (avoids mutation, etc).
+3. (future possibility) The types are correct.
 
-FP languages such as Elm, Haskell, Erg, and Purescript encourage and/or ensure these three attributes (purity, FP style, correct types).
+FP languages such as Elm, Haskell, Erg, and Purescript encourage 
+and/or ensure these three attributes (purity, FP style, correct types).
 
 Solution idea:
-Make a program that automatically translates Python code to Elm (or similar) so we can use that type checker. Like pylyzer.
+Make a program that automatically translates Python code to 
+Elm (or similar) so we can use that type checker. Like pylyzer.
 
 How?
 - Translate Python to Python-AST (Abstract Syntax Tree)
@@ -22,90 +25,142 @@ import ast
 
 
 def listmap(f, x):
-		return list(map(f, x))
-  
+    return list(map(f, x))
 
-def oneLayerDeeper(astElem) -> str:
+
+def repr2(x) -> str:
+    """Like python's `repr`, but modified:
+    - strings: changes the outermost `'` to `"`'
+    - all other types: no change (returns `repr(x)`)"""
+    if type(x) == str:
+        return f'"{x}"'
+    else:
+        return repr(x)
+
+assert repr2(3) == '3'
+assert repr2("hi") == '"hi"'
+
+
+def translateExprLike(astElem) -> str:
+    """Not sure whether 'Expression-Like' is correct
+    terminology."""
     if type(astElem) == ast.Name:
         return astElem.id
     elif type(astElem) == ast.Constant:
-        return astElem.value
+        return repr2(astElem.value)
     elif type(astElem) == ast.Call:
-      	return unparseCall(astElem)
+        return translateCall(astElem)
     elif type(astElem) == ast.BinOp:
-        return unparseBinOp(astElem)
+        return translateBinOp(astElem)
     else:
         raise TypeError(f"Unsupported: {astElem}")
-        
-
-def stringifyBinOp(op) -> str:		
-    # https://docs.python.org/3/library/ast.html
-    if type(op) == ast.Add:
-        return "+"
-    elif type(op) == ast.Sub:
-        return "-"
-    elif type(op) == ast.Mult:
-        return "*"
-    elif type(op) == ast.Div:
-        return "/"
-    else:
-        raise TypeError(f"Unsupported op: {op}")
 
         
-def getFunc(body):
-    b0 = body[0]
-    if type(b0) == ast.FunctionDef:
-        return b0
-    else:
-        raise TypeError("This currently assumes that the first item in the body is a function def.")
-
-        
-def getArgs(func) -> list[str]:
-    def getarg(item): return item.arg
-    return listmap(getarg, func.args.args)
-        
+def getFuncs(statementList):
+    def ensureFunkiness(statement):
+        if type(statement) != ast.FunctionDef:
+            raise TypeError("Must all be functions")
+    
+    listmap(ensureFunkiness, statementList)
+    return statementList
+       
   
-def unparsePreEqualsSign(func):
-    args = getArgs(func)
+def translatePreEqualsSign(func):
+    def getarg(item):
+        return item.arg
+    
+    args = listmap(getarg, func.args.args)
     return f"{func.name} {' '.join(args)} "
 
   
-def unparseBinOp(binop):
-  	return (
-        f"({oneLayerDeeper(binop.left)} "
-				+ f"{stringifyBinOp(binop.op)} "
-		    + f"{oneLayerDeeper(binop.right)})"
-  	)
+def translateBinOp(binop):
+    def translateOp(op) -> str:
+        if type(op) == ast.Add:
+            return "+"
+        elif type(op) == ast.Sub:
+            return "-"
+        elif type(op) == ast.Mult:
+            return "*"
+        elif type(op) == ast.Div:
+            return "/"
+        else:
+            raise TypeError(f"Unsupported op: {op}")
+
+    return (
+        f"({translateExprLike(binop.left)} "
+        + f"{translateOp(binop.op)} "
+        + f"{translateExprLike(binop.right)})"
+    )
 
   
-def unparseCall(call):            
+def translateCall(call) -> str:            
     def paren(x):
-      	return f"({x})"
-    args = listmap(oneLayerDeeper, call.args)
+        return f"({x})"
+    args = listmap(translateExprLike, call.args)
     parenEach = listmap(paren, args)
     return f"{call.func.id} {' '.join(parenEach)}"
 
 
-def unparseBinOpOrCall(expr):
-    """I believe `one layer deeper` does this. Verify."""
-    if type(expr) == ast.BinOp:
-        return unparseBinOp(expr)
-    elif type(expr) == ast.Call:
-      	return unparseCall(expr)
+def translateOneFunc(func) -> str:
+    def retVal(func) -> ast.expr:
+        b0 = func.body[0]
+        if type(b0) != ast.Return:
+            raise TypeError(
+                "Body of function currently must contain "
+                "exactly one return statement and nothing else"
+            )
+        v = b0.value 
+        if v == None:
+            raise TypeError("Return value must not be None.")        
+        return v
 
-    
-def translate(code: str) -> str:
-    parsed = ast.parse(code)
-    func = getFunc(parsed.body)
     return (
-      unparsePreEqualsSign(func)
-      + "= "
-      + unparseBinOpOrCall(func.body[0].value)
+        translatePreEqualsSign(func)
+        + "= "
+        + translateExprLike(retVal(func))
     )
 
-  
-if __name__ == "__main__":
-    translate(
-      "def dostuff(x, y):\n"
-      "    return (addone(x) + addone(y)) / 5"
-    )
+
+def translate(code: str) -> str:
+    """Given a very limited subset of valid Python code,
+    return the code with syntax tranlated to Elm.
+    
+    Constraints:
+    - All functions must return something. This is functional programming after all! :-)"""
+    parsed = ast.parse(code)
+    funcs = getFuncs(parsed.body)
+    translatedfuncs = listmap(translateOneFunc, funcs)
+    return "\n\n".join(translatedfuncs)
+
+assert translate("""\
+def dostuff(x, y):
+    return (addone(x) + addone(y)) / 10
+""") == """\
+dostuff x y = ((addone (x) + addone (y)) / 10)"""
+
+assert translate("""\
+def dostuff(x):
+    return len(bin(x))
+""") == """\
+dostuff x = len (bin (x))"""
+
+assert translate("""
+def dostuff(x):
+    return x + 1
+
+def other(x):
+    return x + 2
+    """) == """\
+dostuff x = (x + 1)
+
+other x = (x + 2)"""
+
+# assert translate("""
+# def dostuff(x):
+#     y = x + 1
+#     return y + 1
+# """) == "this is going to fail"
+
+
+# if __name__ == "__main__":
+#     print()
