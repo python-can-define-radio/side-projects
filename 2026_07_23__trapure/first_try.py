@@ -1,12 +1,18 @@
-"""Problem statement:
-Python's type checker isn't as good as I want it to be. I like the strictness of Elm's (or Haskell's, or Erg's, or Purescript's.)
+"""
+Name: "Trapure" -> TRAnslating to ensure functional PURity
+
+Problem statement:
+1. I want to know that a function is pure (has no side effects).
+2. I want a function's implementation to be FP style (avoid mutation, etc).
+3. I want to know that a function's types are correct.
+
+FP languages such as Elm, Haskell, Erg, and Purescript encourage and/or ensure these three attributes (purity, FP style, correct types).
 
 Solution idea:
 Make a program that automatically translates Python code to Elm (or similar) so we can use that type checker. Like pylyzer.
 
 How?
 - Translate Python to Python-AST (Abstract Syntax Tree)
-  - There's already a Python module for this.
 - Translate Python-AST to Elm/other
 """
 
