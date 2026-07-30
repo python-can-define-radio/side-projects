@@ -17,15 +17,35 @@ Elm (or similar) so we can use that type checker. Like pylyzer.
 How?
 - Translate Python to Python-AST (Abstract Syntax Tree)
 - Translate Python-AST to Elm/other
-"""
 
+### How to handle imports
+I want to start with the simplest approach even if it's not a good idea long-term.
+Here's what I'm planning:
+1. Ignore Python imports.
+2. Have elm imports AND definitions specified in a multiline string (so that Python ignores it).
+
+Example:
+
+    '''trapure-output-only
+    import List
+
+    listmap = List.map
+    '''
+
+    def listmap(f, list_):
+        # trapure-ignore
+        return list(map(f, list_))
+
+"""
 
 
 import ast
 
 
-def listmap(f, x):
-    return list(map(f, x))
+def listmap(f, list_):
+    """Apply a function `f` to each item of `list_`"""
+    # trapure-ignore
+    return list(map(f, list_))
 
 
 def repr2(x) -> str:
@@ -52,6 +72,8 @@ def translateExprLike(astElem) -> str:
         return translateCall(astElem)
     elif type(astElem) == ast.BinOp:
         return translateBinOp(astElem)
+    elif type(astElem) == ast.List:
+        return translateList(astElem)
     else:
         raise TypeError(f"Unsupported: {astElem}")
 
@@ -101,6 +123,12 @@ def translateCall(call) -> str:
     return f"{call.func.id} {' '.join(parenEach)}"
 
 
+def translateList(list_) -> str:
+    ids = listmap(translateExprLike, list_.elts)
+    idsjoined = ", ".join(ids)
+    return "[" + idsjoined + "]"
+
+
 def translateOneFunc(func) -> str:
     def retVal(func) -> ast.expr:
         b0 = func.body[0]
@@ -121,39 +149,79 @@ def translateOneFunc(func) -> str:
     )
 
 
-def translate(code: str) -> str:
-    """Given a very limited subset of valid Python code,
-    return the code with syntax tranlated to Elm.
-    
-    Constraints:
-    - All functions must return something. This is functional programming after all! :-)"""
+def translate_ni(code: str) -> str:
+    """The "ni" means "no imports" -- those are handled by the plain `translate` function."""
     parsed = ast.parse(code)
     funcs = getFuncs(parsed.body)
     translatedfuncs = listmap(translateOneFunc, funcs)
     return "\n\n".join(translatedfuncs)
 
-assert translate("""\
+
+def translate(code: str) -> str:
+    """Given a very limited subset of valid Python code,
+    return the code with syntax tranlated to Elm, and add some default imports automatically.
+    
+    Constraints:
+    - All functions must return something. This is functional programming after all! :-)"""
+    
+    return "import List\n\n" + translate_ni(code)
+
+assert translate_ni("""\
 def dostuff(x, y):
     return (addone(x) + addone(y)) / 10
 """) == """\
 dostuff x y = ((addone (x) + addone (y)) / 10)"""
 
-assert translate("""\
+assert translate_ni("""\
 def dostuff(x):
     return len(bin(x))
 """) == """\
 dostuff x = len (bin (x))"""
 
-assert translate("""
+assert translate_ni("""
 def dostuff(x):
     return x + 1
 
 def other(x):
     return x + 2
-    """) == """\
+""") == """\
 dostuff x = (x + 1)
 
 other x = (x + 2)"""
+
+assert translate_ni("""
+def stuff(a, b):
+    return [[99, a], [a, b], [b, "stuff"]]  
+""") == """\
+stuff a b = [[99, a], [a, b], [b, "stuff"]]"""
+
+
+# TODO
+# assert translate_ni("""
+# '''trapure-output-only
+# listconcat a b = a ++ b
+# '''
+
+# def listconcat(a, b):
+#     # trapure-ignore
+#     return a + b
+
+# def itemAtEnd(list_, newitem):
+#     return listconcat(list_, [newitem])
+# """) == """\
+# and some more stuff
+# itemAtEnd list_ newitem = listconcat list_ [newitem]"""
+
+assert translate("def addone(x): return x + 1") == """import List\n\naddone x = (x + 1)"""
+
+
+
+
+
+if __name__ == "__main__":
+    print()
+
+
 
 # assert translate("""
 # def dostuff(x):
@@ -162,5 +230,3 @@ other x = (x + 2)"""
 # """) == "this is going to fail"
 
 
-# if __name__ == "__main__":
-#     print()
