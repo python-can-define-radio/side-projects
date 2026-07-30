@@ -16,7 +16,13 @@ Elm (or similar) so we can use that type checker. Like pylyzer.
 
 How?
 - Translate Python to Python-AST (Abstract Syntax Tree)
+  -> If invalid Python syntax, report and stop
 - Translate Python-AST to Elm/other
+  -> If unable to translate, report specific failure and stop
+- Use elm to type-check
+  -> report elm's results without any changes,
+     which will include specific functions and such
+
 
 ### How to handle imports
 I want to start with the simplest approach even if it's not a good idea long-term.
@@ -42,7 +48,7 @@ Example:
 import ast
 
 
-def listmap(f, list_):
+def listmap(f, list_: list) -> list:
     """Apply a function `f` to each item of `list_`"""
     # trapure-ignore
     return list(map(f, list_))
@@ -78,7 +84,7 @@ def translateExprLike(astElem) -> str:
         raise TypeError(f"Unsupported: {astElem}")
 
         
-def getFuncs(statementList):
+def getFuncs(statementList: list) -> list:
     def ensureFunkiness(statement):
         if type(statement) != ast.FunctionDef:
             raise TypeError("Must all be functions")
@@ -212,15 +218,14 @@ stuff a b = [[99, a], [a, b], [b, "stuff"]]"""
 # and some more stuff
 # itemAtEnd list_ newitem = listconcat list_ [newitem]"""
 
-assert translate("def addone(x): return x + 1") == """import List\n\naddone x = (x + 1)"""
-
-
-
+assert (
+    translate("def addone(x): return x + 1")
+    == """import List\n\naddone x = (x + 1)"""
+)
 
 
 if __name__ == "__main__":
     print()
-
 
 
 # assert translate("""
