@@ -1,0 +1,18 @@
+Import idea that I had written. Probably inferior but may consider
+
+file support:
+  def list map
+
+
+
+file main:
+
+  from support import listmap, concat
+  
+  """output
+  import List
+  listmap = List.map
+  """
+  
+  def something():
+      return listmap(what, ever)
