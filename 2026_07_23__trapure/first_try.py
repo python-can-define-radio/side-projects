@@ -63,9 +63,6 @@ def repr2(x) -> str:
     else:
         return repr(x)
 
-assert repr2(3) == '3'
-assert repr2("hi") == '"hi"'
-
 
 def translateExprLike(astElem) -> str:
     """Not sure whether 'Expression-Like' is correct
@@ -92,15 +89,7 @@ def getFuncs(statementList: list) -> list:
     listmap(ensureFunkiness, statementList)
     return statementList
        
-  
-def translatePreEqualsSign(func):
-    def getarg(item):
-        return item.arg
-    
-    args = listmap(getarg, func.args.args)
-    return f"{func.name} {' '.join(args)} "
-
-  
+   
 def translateBinOp(binop):
     def translateOp(op) -> str:
         if type(op) == ast.Add:
@@ -121,36 +110,88 @@ def translateBinOp(binop):
     )
 
   
-def translateCall(call) -> str:            
+def translateCall(call: ast.Call) -> str:            
     def paren(x):
         return f"({x})"
     args = listmap(translateExprLike, call.args)
     parenEach = listmap(paren, args)
-    return f"{call.func.id} {' '.join(parenEach)}"
+    return f"{call.func.id} {' '.join(parenEach)}"   # type: ignore
 
 
-def translateList(list_) -> str:
+def translateList(list_: ast.List) -> str:
     ids = listmap(translateExprLike, list_.elts)
     idsjoined = ", ".join(ids)
     return "[" + idsjoined + "]"
 
 
-def translateOneFunc(func) -> str:
-    def retVal(func) -> ast.expr:
-        b0 = func.body[0]
-        if type(b0) != ast.Return:
-            raise TypeError(
-                "Body of function currently must contain "
-                "exactly one return statement and nothing else"
-            )
-        v = b0.value 
+def translateAssign(assign: ast.Assign) -> str:
+    """
+    Given:
+        y = 5  (ast parsed)
+    Return:
+        let
+            y = 5
+        in "
+    """
+    nameObj = assign.targets[0]
+    assert type(nameObj) == ast.Name
+    var = nameObj.id
+    con = assign.value.value
+    return f"\n    let\n        {var} = {con} \n    in\n        "
+
+
+def translateFuncSig(func: ast.FunctionDef):
+    """translate this part of a function:
+        `def doStuff(a, b, c):`
+        into
+        `doStuff a b c`
+    Note that the parameter `func` is already ast-parsed (it's not a string).
+    """
+    def getarg(item):
+        return item.arg
+    
+    args = listmap(getarg, func.args.args)
+    return f"{func.name} {' '.join(args)} "
+
+
+def translateFunc(func: ast.FunctionDef) -> str:
+    """Example:
+    Given this function:
+        def add5(x):
+            y = 5
+            return x + y
+    Returns:
+        doStuff x =
+            let
+                y = 5
+            in
+                x + y
+    """
+    
+    def retVal(func: ast.FunctionDef) -> ast.expr:
+        """checks that the last item of the function's body is a return statment.
+        If it is, return its value. Otherwise, raise an error.
+        """
+        last = func.body[-1]
+        if type(last) != ast.Return:
+            raise TypeError("Function currently must contain only one return statement as the last line. ")
+        v = last.value 
         if v == None:
             raise TypeError("Return value must not be None.")        
         return v
 
+    def funcbody(func: ast.FunctionDef) -> str:
+        firstLineBody = func.body[0]
+        if type(firstLineBody) == ast.Assign:
+            return translateAssign(firstLineBody)
+        else:
+            return ""
+    
+
     return (
-        translatePreEqualsSign(func)
+        translateFuncSig(func)
         + "= "
+        + funcbody(func)
         + translateExprLike(retVal(func))
     )
 
@@ -159,9 +200,8 @@ def translate_ni(code: str) -> str:
     """The "ni" means "no imports" -- those are handled by the plain `translate` function."""
     parsed = ast.parse(code)
     funcs = getFuncs(parsed.body)
-    translatedfuncs = listmap(translateOneFunc, funcs)
+    translatedfuncs = listmap(translateFunc, funcs)
     return "\n\n".join(translatedfuncs)
-
 
 def translate(code: str) -> str:
     """Given a very limited subset of valid Python code,
@@ -171,6 +211,20 @@ def translate(code: str) -> str:
     - All functions must return something. This is functional programming after all! :-)"""
     
     return "import List\n\n" + translate_ni(code)
+
+assert translate_ni("""
+def add5(x):
+    y = 5
+    return x + y
+""") == """\
+add5 x = 
+    let
+        y = 5 
+    in
+        (x + y)"""
+
+
+# import sys; sys.exit()
 
 assert translate_ni("""\
 def dostuff(x, y):
@@ -201,37 +255,19 @@ def stuff(a, b):
 """) == """\
 stuff a b = [[99, a], [a, b], [b, "stuff"]]"""
 
-
-# TODO
-# assert translate_ni("""
-# '''trapure-output-only
-# listconcat a b = a ++ b
-# '''
-
-# def listconcat(a, b):
-#     # trapure-ignore
-#     return a + b
-
-# def itemAtEnd(list_, newitem):
-#     return listconcat(list_, [newitem])
-# """) == """\
-# and some more stuff
-# itemAtEnd list_ newitem = listconcat list_ [newitem]"""
-
 assert (
     translate("def addone(x): return x + 1")
     == """import List\n\naddone x = (x + 1)"""
 )
 
+assert repr2(3) == '3'
+
+assert repr2("hi") == '"hi"'
 
 if __name__ == "__main__":
     print()
 
 
-# assert translate("""
-# def dostuff(x):
-#     y = x + 1
-#     return y + 1
-# """) == "this is going to fail"
+
 
 
