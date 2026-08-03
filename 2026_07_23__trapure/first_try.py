@@ -66,7 +66,7 @@ def repr2(x) -> str:
 
 def translateExprLike(astElem) -> str:
     """Not sure whether 'Expression-Like' is correct
-    terminology."""
+    terminology. This handles, for example, `x + 3`"""
     if type(astElem) == ast.Name:
         return astElem.id
     elif type(astElem) == ast.Constant:
@@ -133,11 +133,13 @@ def translateAssign(assign: ast.Assign) -> str:
             y = 5
         in "
     """
+    if len(assign.targets) != 1:
+        raise NotImplementedError("Currently, there must be exactly one assign target -- we have not implemented `x, y = something`")
     nameObj = assign.targets[0]
     assert type(nameObj) == ast.Name
     var = nameObj.id
-    con = assign.value.value
-    return f"\n    let\n        {var} = {con} \n    in\n        "
+    con = translateExprLike(assign.value)
+    return f"{var} = {con}"
 
 
 def translateFuncSig(func: ast.FunctionDef):
@@ -181,13 +183,21 @@ def translateFunc(func: ast.FunctionDef) -> str:
         return v
 
     def funcbody(func: ast.FunctionDef) -> str:
-        firstLineBody = func.body[0]
-        if type(firstLineBody) == ast.Assign:
-            return translateAssign(firstLineBody)
-        else:
-            return ""
-    
+        """Translate any assign statements that precede the return statement in the function body"""
+        def transIfGoodType(x):
+            if type(x) != ast.Assign:
+                raise TypeError(f"Function bodies must contain a sequence of zero or more assign statements followed by a return statement. The following is not allowed: {type(x)}")
+            else:
+                return translateAssign(x)
 
+        allButLast = func.body[:-1]
+        if allButLast == []:
+            return ""
+        else:            
+            translated = listmap(transIfGoodType, allButLast)
+            combined = "\n        ".join(translated)
+            return f"\n    let\n        {combined} \n    in\n        "
+    
     return (
         translateFuncSig(func)
         + "= "
@@ -201,7 +211,10 @@ def translate_ni(code: str) -> str:
     parsed = ast.parse(code)
     funcs = getFuncs(parsed.body)
     translatedfuncs = listmap(translateFunc, funcs)
-    return "\n\n".join(translatedfuncs)
+    newlinejoined = "\n\n".join(translatedfuncs)
+    seplines = newlinejoined.splitlines()
+    return "\n".join(listmap(lambda x: x.rstrip(), seplines))
+
 
 def translate(code: str) -> str:
     """Given a very limited subset of valid Python code,
@@ -212,19 +225,31 @@ def translate(code: str) -> str:
     
     return "import List\n\n" + translate_ni(code)
 
+
+assert translate_ni("""
+def add5(x):
+    y = x
+    z = 5
+    return y + z
+""") == 'add5 x =\n    let\n        y = x\n        z = 5\n    in\n        (y + z)'
+
+assert translate_ni("""
+def add5(x):
+    y = x + 1
+    return y + 4
+""") == 'add5 x =\n    let\n        y = (x + 1)\n    in\n        (y + 4)'
+
+assert translate_ni("""
+def add5(x):
+    y = x
+    return y + 5
+""") == 'add5 x =\n    let\n        y = x\n    in\n        (y + 5)'
+
 assert translate_ni("""
 def add5(x):
     y = 5
     return x + y
-""") == """\
-add5 x = 
-    let
-        y = 5 
-    in
-        (x + y)"""
-
-
-# import sys; sys.exit()
+""") == 'add5 x =\n    let\n        y = 5\n    in\n        (x + y)'
 
 assert translate_ni("""\
 def dostuff(x, y):
@@ -256,8 +281,8 @@ def stuff(a, b):
 stuff a b = [[99, a], [a, b], [b, "stuff"]]"""
 
 assert (
-    translate("def addone(x): return x + 1")
-    == """import List\n\naddone x = (x + 1)"""
+    translate_ni("def addone(x): return x + 1")
+    == """addone x = (x + 1)"""
 )
 
 assert repr2(3) == '3'
