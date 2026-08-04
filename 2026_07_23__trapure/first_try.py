@@ -156,7 +156,30 @@ def translateCall(call: ast.Call) -> str:
 
 
 def translateCompare(compare: ast.Compare) -> str:
-    ...
+    def translateOp(op) -> str:
+        if type(op) == ast.Eq:
+            return "=="
+        elif type(op) == ast.NotEq:
+            return "/="
+        elif type(op) == ast.Lt:
+            return "<"
+        elif type(op) == ast.LtE:
+            return "<="
+        elif type(op) == ast.Gt:
+            return ">"
+        elif type(op) == ast.GtE:
+            return ">="
+        else:
+            raise TypeError(f"Unsupported op: {op}, which has type {type(op)}")
+    
+    if len(compare.comparators) > 1:
+        raise NotImplementedError("Elm doesn't support expressions like `a < b < c`.")
+    else:
+        return (
+            f"({translateExprLike(compare.left)} "
+            + f"{translateOp(compare.ops[0])} "
+            + f"{translateExprLike(compare.comparators[0])})"
+        )
 
 
 def translateFunc(func: ast.FunctionDef) -> str:
@@ -239,10 +262,6 @@ def translate_ni(code: str) -> str:
     return "\n".join(listmap(lambda x: x.rstrip(), seplines))
 
 
-# print(translate_ni("""
-# def example(a, b):
-#     return a > b > c
-# """))
 # print (translate_ni("""
 # def max(a, b):
 #     if a > b:
@@ -251,6 +270,10 @@ def translate_ni(code: str) -> str:
 #         return b
 # """))
 
+assert translate_ni("""
+def aGreaterthanB(a, b):
+    return a > b
+""") == "aGreaterthanB a b = (a > b)"
 
 assert translate_ni("""
 def getbirthday(person):
