@@ -83,7 +83,7 @@ def translate(code: str) -> str:
     return "import List\n\n" + translate_ni(code)
 
 
-def translateExprLike(astElem) -> str:
+def translateExprLike(astElem: ast.expr) -> str:
     """Not sure whether 'Expression-Like' is correct
     terminology. This handles, for example, `x + 3`"""
     if type(astElem) == ast.Attribute:
@@ -115,11 +115,12 @@ def translateAssign(assign: ast.Assign) -> str:
     """
     if len(assign.targets) != 1:
         raise NotImplementedError("Currently, there must be exactly one assign target -- we have not implemented `x, y = something`")
-    nameObj = assign.targets[0]
-    assert type(nameObj) == ast.Name
-    var = nameObj.id
-    con = translateExprLike(assign.value)
-    return f"{var} = {con}"
+    else:
+        nameObj = assign.targets[0]
+        assert type(nameObj) == ast.Name
+        var = nameObj.id
+        con = translateExprLike(assign.value)
+        return f"{var} = {con}"
 
 
 def translateAttribute(attr: ast.Attribute) -> str:
@@ -196,19 +197,20 @@ def translateFunc(func: ast.FunctionDef) -> str:
                 x + y
     """
     
-    def retVal(func: ast.FunctionDef) -> ast.expr:
-        """checks that the last item of the function's body is a return statment.
-        If it is, return its value. Otherwise, raise an error.
+    def lastSt(func: ast.FunctionDef) -> str:
+        """Translate the last statement of a function's body.
+        - if it is a return statement, effectively "drop" the `return` (it's implied in Elm).
+        - if it is an if statement, TODO
         """
         last = func.body[-1]
-        if type(last) != ast.Return:
-            raise TypeError("Function currently must contain only one return statement as the last line. ")
-        v = last.value 
-        if v == None:
-            raise TypeError("Return value must not be None.")        
-        return v
+        if type(last) == ast.If:
+            return translateIf(last)
+        elif type(last) == ast.Return:
+            return translateReturn(last)
+        else:
+            raise TypeError("Function currently must end with a return statement or an if statement which contains a return in each path.")
 
-    def funcbody(func: ast.FunctionDef) -> str:
+    def funcvars(func: ast.FunctionDef) -> str:
         """Translate any assign statements that precede the return statement in the function body"""
         def transIfGoodType(x):
             if type(x) != ast.Assign:
@@ -223,12 +225,12 @@ def translateFunc(func: ast.FunctionDef) -> str:
             translated = listmap(transIfGoodType, allButLast)
             combined = "\n        ".join(translated)
             return f"\n    let\n        {combined} \n    in\n        "
-    
+        
     return (
         translateFuncSig(func)
         + "= "
-        + funcbody(func)
-        + translateExprLike(retVal(func))
+        + funcvars(func)
+        + lastSt(func)
     )
 
 
@@ -246,10 +248,25 @@ def translateFuncSig(func: ast.FunctionDef):
     return f"{func.name} {' '.join(args)} "
 
 
+def translateIf(if_: ast.If) -> str:
+    return (f"if {translateExprLike(if_.test)} "          
+            f"then {translateExprLike(if_.body[0].value)} "
+            f"else {translateExprLike(if_.orelse[0].value)}"
+    )
+
+
 def translateList(list_: ast.List) -> str:
     ids = listmap(translateExprLike, list_.elts)
     idsjoined = ", ".join(ids)
     return "[" + idsjoined + "]"
+
+
+def translateReturn(return_: ast.Return) -> str:
+    v = return_.value
+    if v == None:
+        raise TypeError("Return value must not be None.")
+    else:
+        return translateExprLike(v)
 
 
 def translate_ni(code: str) -> str:
@@ -262,13 +279,21 @@ def translate_ni(code: str) -> str:
     return "\n".join(listmap(lambda x: x.rstrip(), seplines))
 
 
-# print (translate_ni("""
-# def max(a, b):
-#     if a > b:
-#         return a
-#     else:
-#         return b
-# """))
+assert translate_ni("""
+def junky(first):
+    if first > 12345:
+        return "hi"
+    else:
+        return "bye"
+""") == 'junky first = if (first > 12345) then "hi" else "bye"'
+
+assert translate_ni("""
+def getfeedback():
+    if len(name) > 99:
+        return "too long"
+    else:
+        return "accepted"
+""") == 'getfeedback  = if (len (name) > 99) then "too long" else "accepted"'
 
 assert translate_ni("""
 def aGreaterthanB(a, b):
@@ -351,6 +376,3 @@ addone x = (x + 1)"""
 assert repr2(3) == '3'
 
 assert repr2("hi") == '"hi"'
-
-if __name__ == "__main__":
-    print()
