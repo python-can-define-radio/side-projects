@@ -67,16 +67,18 @@ def repr2(x) -> str:
 def translateExprLike(astElem) -> str:
     """Not sure whether 'Expression-Like' is correct
     terminology. This handles, for example, `x + 3`"""
-    if type(astElem) == ast.Name:
-        return astElem.id
-    elif type(astElem) == ast.Constant:
-        return repr2(astElem.value)
-    elif type(astElem) == ast.Call:
-        return translateCall(astElem)
+    if type(astElem) == ast.Attribute:
+        return translateAttribute(astElem)
     elif type(astElem) == ast.BinOp:
         return translateBinOp(astElem)
+    elif type(astElem) == ast.Call:
+        return translateCall(astElem)
+    elif type(astElem) == ast.Constant:
+        return repr2(astElem.value)
     elif type(astElem) == ast.List:
         return translateList(astElem)
+    elif type(astElem) == ast.Name:
+        return astElem.id
     else:
         raise TypeError(f"Unsupported: {astElem}")
 
@@ -89,8 +91,10 @@ def getFuncs(statementList: list) -> list:
     listmap(ensureFunkiness, statementList)
     return statementList
        
-   
-def translateBinOp(binop):
+def translateAttribute(attr: ast.Attribute) -> str:
+    return f"{translateExprLike(attr.value)}.{attr.attr}"
+
+def translateBinOp(binop: ast.BinOp) -> str:
     def translateOp(op) -> str:
         if type(op) == ast.Add:
             return "+"
@@ -115,7 +119,8 @@ def translateCall(call: ast.Call) -> str:
         return f"({x})"
     args = listmap(translateExprLike, call.args)
     parenEach = listmap(paren, args)
-    return f"{call.func.id} {' '.join(parenEach)}"   # type: ignore
+    funcId = translateExprLike(call.func)
+    return f"{funcId} {' '.join(parenEach)}"   # type: ignore
 
 
 def translateList(list_: ast.List) -> str:
@@ -227,6 +232,21 @@ def translate(code: str) -> str:
 
 
 assert translate_ni("""
+def getbirthday(person):
+    return person.info.age
+""") == "getbirthday person = person.info.age"
+
+assert translate_ni("""
+def getAge(person):
+    return person.age
+""") == "getAge person = person.age"
+
+assert translate_ni("""
+def strLen(x):
+    return String.length(x)
+""") == "strLen x = String.length (x)"
+
+assert translate_ni("""
 def add5(x):
     y = x
     z = 5
@@ -251,13 +271,13 @@ def add5(x):
     return x + y
 """) == 'add5 x =\n    let\n        y = 5\n    in\n        (x + y)'
 
-assert translate_ni("""\
+assert translate_ni("""
 def dostuff(x, y):
     return (addone(x) + addone(y)) / 10
 """) == """\
 dostuff x y = ((addone (x) + addone (y)) / 10)"""
 
-assert translate_ni("""\
+assert translate_ni("""
 def dostuff(x):
     return len(bin(x))
 """) == """\
@@ -280,10 +300,9 @@ def stuff(a, b):
 """) == """\
 stuff a b = [[99, a], [a, b], [b, "stuff"]]"""
 
-assert (
-    translate_ni("def addone(x): return x + 1")
-    == """addone x = (x + 1)"""
-)
+assert translate_ni("""
+def addone(x): return x + 1""") == """\
+addone x = (x + 1)"""
 
 assert repr2(3) == '3'
 
