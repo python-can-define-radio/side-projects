@@ -48,6 +48,15 @@ Example:
 import ast
 
 
+def getFuncs(statementList: list) -> list:
+    def ensureFunkiness(statement):
+        if type(statement) != ast.FunctionDef:
+            raise TypeError("Must all be functions")
+    
+    listmap(ensureFunkiness, statementList)
+    return statementList
+
+
 def listmap(f, list_: list) -> list:
     """Apply a function `f` to each item of `list_`"""
     # trapure-ignore
@@ -64,6 +73,16 @@ def repr2(x) -> str:
         return repr(x)
 
 
+def translate(code: str) -> str:
+    """Given a very limited subset of valid Python code,
+    return the code with syntax tranlated to Elm, and add some default imports automatically.
+    
+    Constraints:
+    - All functions must return something. This is functional programming after all! :-)"""
+    
+    return "import List\n\n" + translate_ni(code)
+
+
 def translateExprLike(astElem) -> str:
     """Not sure whether 'Expression-Like' is correct
     terminology. This handles, for example, `x + 3`"""
@@ -73,6 +92,8 @@ def translateExprLike(astElem) -> str:
         return translateBinOp(astElem)
     elif type(astElem) == ast.Call:
         return translateCall(astElem)
+    elif type(astElem) == ast.Compare:
+        return translateCompare(astElem)
     elif type(astElem) == ast.Constant:
         return repr2(astElem.value)
     elif type(astElem) == ast.List:
@@ -82,17 +103,28 @@ def translateExprLike(astElem) -> str:
     else:
         raise TypeError(f"Unsupported: {astElem}")
 
-        
-def getFuncs(statementList: list) -> list:
-    def ensureFunkiness(statement):
-        if type(statement) != ast.FunctionDef:
-            raise TypeError("Must all be functions")
-    
-    listmap(ensureFunkiness, statementList)
-    return statementList
-       
+
+def translateAssign(assign: ast.Assign) -> str:
+    """
+    Given:
+        y = 5  (ast parsed)
+    Return:
+        let
+            y = 5
+        in "
+    """
+    if len(assign.targets) != 1:
+        raise NotImplementedError("Currently, there must be exactly one assign target -- we have not implemented `x, y = something`")
+    nameObj = assign.targets[0]
+    assert type(nameObj) == ast.Name
+    var = nameObj.id
+    con = translateExprLike(assign.value)
+    return f"{var} = {con}"
+
+
 def translateAttribute(attr: ast.Attribute) -> str:
     return f"{translateExprLike(attr.value)}.{attr.attr}"
+
 
 def translateBinOp(binop: ast.BinOp) -> str:
     def translateOp(op) -> str:
@@ -123,42 +155,8 @@ def translateCall(call: ast.Call) -> str:
     return f"{funcId} {' '.join(parenEach)}"   # type: ignore
 
 
-def translateList(list_: ast.List) -> str:
-    ids = listmap(translateExprLike, list_.elts)
-    idsjoined = ", ".join(ids)
-    return "[" + idsjoined + "]"
-
-
-def translateAssign(assign: ast.Assign) -> str:
-    """
-    Given:
-        y = 5  (ast parsed)
-    Return:
-        let
-            y = 5
-        in "
-    """
-    if len(assign.targets) != 1:
-        raise NotImplementedError("Currently, there must be exactly one assign target -- we have not implemented `x, y = something`")
-    nameObj = assign.targets[0]
-    assert type(nameObj) == ast.Name
-    var = nameObj.id
-    con = translateExprLike(assign.value)
-    return f"{var} = {con}"
-
-
-def translateFuncSig(func: ast.FunctionDef):
-    """translate this part of a function:
-        `def doStuff(a, b, c):`
-        into
-        `doStuff a b c`
-    Note that the parameter `func` is already ast-parsed (it's not a string).
-    """
-    def getarg(item):
-        return item.arg
-    
-    args = listmap(getarg, func.args.args)
-    return f"{func.name} {' '.join(args)} "
+def translateCompare(compare: ast.Compare) -> str:
+    ...
 
 
 def translateFunc(func: ast.FunctionDef) -> str:
@@ -211,6 +209,26 @@ def translateFunc(func: ast.FunctionDef) -> str:
     )
 
 
+def translateFuncSig(func: ast.FunctionDef):
+    """translate this part of a function:
+        `def doStuff(a, b, c):`
+        into
+        `doStuff a b c`
+    Note that the parameter `func` is already ast-parsed (it's not a string).
+    """
+    def getarg(item):
+        return item.arg
+    
+    args = listmap(getarg, func.args.args)
+    return f"{func.name} {' '.join(args)} "
+
+
+def translateList(list_: ast.List) -> str:
+    ids = listmap(translateExprLike, list_.elts)
+    idsjoined = ", ".join(ids)
+    return "[" + idsjoined + "]"
+
+
 def translate_ni(code: str) -> str:
     """The "ni" means "no imports" -- those are handled by the plain `translate` function."""
     parsed = ast.parse(code)
@@ -221,14 +239,17 @@ def translate_ni(code: str) -> str:
     return "\n".join(listmap(lambda x: x.rstrip(), seplines))
 
 
-def translate(code: str) -> str:
-    """Given a very limited subset of valid Python code,
-    return the code with syntax tranlated to Elm, and add some default imports automatically.
-    
-    Constraints:
-    - All functions must return something. This is functional programming after all! :-)"""
-    
-    return "import List\n\n" + translate_ni(code)
+# print(translate_ni("""
+# def example(a, b):
+#     return a > b > c
+# """))
+# print (translate_ni("""
+# def max(a, b):
+#     if a > b:
+#         return a
+#     else:
+#         return b
+# """))
 
 
 assert translate_ni("""
@@ -310,8 +331,3 @@ assert repr2("hi") == '"hi"'
 
 if __name__ == "__main__":
     print()
-
-
-
-
-
